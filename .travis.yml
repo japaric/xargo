@@ -1,0 +1,85 @@
+sudo: false
+
+language: generic
+
+env:
+  global:
+    - PROJECT_NAME=xargo
+
+matrix:
+  include:
+    # Stable channel
+    - os: osx
+      env: TARGET=i686-apple-darwin CHANNEL=stable
+    - os: linux
+      env: TARGET=i686-unknown-linux-gnu CHANNEL=stable
+      addons:
+        apt:
+          packages: &i686_unknown_linux_gnu
+            # Cross compiler and cross compiled C libraries
+            - gcc-multilib
+    - os: osx
+      env: TARGET=x86_64-apple-darwin CHANNEL=stable
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-musl CHANNEL=stable
+    # Beta channel
+    - os: osx
+      env: TARGET=i686-apple-darwin CHANNEL=beta
+    - os: linux
+      env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
+      addons:
+        apt:
+          packages: *i686_unknown_linux_gnu
+    - os: osx
+      env: TARGET=x86_64-apple-darwin CHANNEL=beta
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
+    # Nightly channel
+    - os: osx
+      env: TARGET=i686-apple-darwin CHANNEL=nightly
+    - os: linux
+      env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
+      addons:
+        apt:
+          packages: *i686_unknown_linux_gnu
+    - os: osx
+      env: TARGET=x86_64-apple-darwin CHANNEL=nightly
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
+    - os: linux
+      env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
+
+install:
+  - export PATH="$PATH:~/multirust/bin"
+  - bash ci/install.sh
+
+script:
+  - bash ci/script.sh
+
+before_deploy:
+  - bash ci/before_deploy.sh
+
+deploy:
+  provider: releases
+  api_key:
+    secure: hZg6JAGVDCpRI5qbxpuJcYmo+0OGZyCjuxiwXgSC537HCwri4a0gypJFubZO3NwUTvu03Ibgk0Nj/tSOyjy71A7nCKwrZnGBPzy4Q/G7lT5uIEtpqgS4WjOqWg7tMm/VaXkapi3m72gEEIp/hdaBj7l+d1hBstz4c7L1oJAwixE5e+0MVbEh+v2ISahXOWz0nt1E8tDKNSPRg5jFhZy+gboTLmKVJpBkHqVEn+K+A8CAxtA6dc26GZK6x4jLuvu7gXj9T91RpLO9b8+AQylFKNLFCbeyDVC3+GakPxxU5zVuUat0LXvpWB+kiBW2NUxI15kki+PaOoHItQOUKaeRWNeSZk2sKo43oy51Z1EWrhj0ukB0q2Nu1JLUFv/sMaIJNBauAhYPLneqIyfv8cJguf6JiOLDkFq8E1K90gswlgB8u91nXCIqOyXYcv9H2A+m0A9ZbdPEP6KDuPlqpVUaTnTfH+9RIZw4hIVFSwAQCWz3NvyF1/Mc1kKoOOvXo/wZOwshOMu3eiyIeXvNEPrnwE+9zZFHs5FQ8Q/+qe+0exrVGyMRZxuGZt+FSy/XIJ+cHkyGYVgB76O/hsHaG4ojH991p10zXKKMPr2xOl5QssKLF8CUw+QZFV4XGhUEd85dWNtYNqJwr2hnj/4YhNgyGUNEXVJlMoNqTxtZciPvzWQ=
+  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.tar.gz
+  # don't delete the artifacts from previous phases
+  skip_cleanup: true
+  # deploy when a new tag is pushed
+  on:
+    condition: $CHANNEL = stable
+    tags: true
+
+branches:
+  only:
+    - master
+    - /^v\d+\.\d+\.\d+.*$/
+
+notifications:
+  email:
+    on_success: never

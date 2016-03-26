@@ -27,7 +27,10 @@ disable_cross_doctests() {
 
 run_test_suite() {
   cargo build --target $TARGET --verbose
-  cargo test --target $TARGET
+
+  if [ "$CHANNEL" = "nightly" ]; then
+    cargo test --target $TARGET
+  fi
 }
 
 main() {

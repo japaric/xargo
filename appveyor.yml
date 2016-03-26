@@ -32,7 +32,7 @@ build: false
 
 test_script:
   - cargo build --verbose
-  - cargo test
+  - if "%CHANNEL%" == "nightly" cargo test
 
 before_deploy:
   # Generate artifacts for release

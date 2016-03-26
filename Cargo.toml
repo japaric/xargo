@@ -1,0 +1,14 @@
+[package]
+authors = ["Jorge Aparicio <japaricious@gmail.com>"]
+name = "xargo"
+version = "0.1.0"
+
+[dependencies]
+chrono = "0.2.20"
+curl = "0.2.18"
+env_logger = "0.3.2"
+flate2 = "0.2.13"
+log = "0.3.5"
+rustc_version = "0.1.7"
+tar = "0.4.4"
+tempdir = "0.3.4"

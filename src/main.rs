@@ -12,6 +12,7 @@ extern crate tempdir;
 extern crate log;
 
 use std::env;
+use std::ffi::OsString;
 use std::fs::{self, File};
 use std::hash::{Hash, Hasher, SipHasher};
 use std::io::Read;
@@ -67,7 +68,7 @@ impl Target {
             return Some(Target::from_path(path));
         }
 
-        let target_path = &env::var_os("RUST_TARGET_PATH").unwrap_or_default();
+        let target_path = &env::var_os("RUST_TARGET_PATH").unwrap_or(OsString::new());
 
         for dir in env::split_paths(target_path) {
             let path = &dir.join(path);

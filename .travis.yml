@@ -18,12 +18,11 @@ matrix:
           packages: &i686_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
             - gcc-multilib
+            - libssl-dev:i386
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=stable
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-musl CHANNEL=stable
     # Beta channel
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
@@ -36,8 +35,6 @@ matrix:
       env: TARGET=x86_64-apple-darwin CHANNEL=beta
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
     # Nightly channel
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
@@ -50,8 +47,6 @@ matrix:
       env: TARGET=x86_64-apple-darwin CHANNEL=nightly
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
 
 install:
   - export PATH="$PATH:~/multirust/bin"

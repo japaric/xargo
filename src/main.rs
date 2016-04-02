@@ -7,6 +7,7 @@ extern crate flate2;
 extern crate rustc_version;
 extern crate tar;
 extern crate tempdir;
+extern crate toml;
 
 #[macro_use]
 extern crate log;
@@ -18,6 +19,8 @@ use std::hash::{Hash, Hasher, SipHasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
+
+use toml::{Parser, Value};
 
 // TODO proper error handling/reporting
 macro_rules! try {
@@ -33,7 +36,7 @@ fn main() {
 
     let (mut cargo, target) = parse_args();
 
-    if let Some(target) = target {
+    if let Some(target) = target.or_else(|| read_config()) {
         let sysroot = sysroot::create(&target);
 
         if let Some(mut rustflags) = env::var("RUSTFLAGS").ok() {
@@ -124,4 +127,48 @@ fn parse_args() -> (Command, Option<Target>) {
     }
 
     (cmd, target)
+}
+
+/// Retrieves the build.target field of .cargo/config
+fn read_config() -> Option<Target> {
+    let mut config = None;
+    let mut current = &*try!(env::current_dir());
+
+    // NOTE Same logic as cargo's src/cargo/util/config.rs
+    loop {
+        let possible = current.join(".cargo/config");
+
+        if fs::metadata(&possible).is_ok() {
+            config = Some(possible);
+        }
+
+        if let Some(p) = current.parent() {
+            current = p;
+        } else {
+            break;
+        }
+    }
+
+    config.or_else(|| {
+              let home = &env::home_dir().unwrap();
+
+              if !current.starts_with(home) {
+                  let config = home.join(".cargo/config");
+
+                  if fs::metadata(&config).is_ok() {
+                      Some(config)
+                  } else {
+                      None
+                  }
+              } else {
+                  None
+              }
+          })
+          .and_then(|p| {
+              let s = &mut String::new();
+              try!(try!(File::open(p)).read_to_string(s));
+              Value::Table(Parser::new(s).parse().unwrap())
+                  .lookup("build.target")
+                  .and_then(|v| Target::from(v.as_str().unwrap()))
+          })
 }

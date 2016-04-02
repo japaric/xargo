@@ -13,6 +13,9 @@ macro_rules! try {
     }
 }
 
+const CRATES: &'static [&'static str] = &["alloc", "collections", "core", "rand", "rustc_unicode"];
+const LIB_RS: &'static [u8] = b"#![no_std]";
+
 const CUSTOM_JSON: &'static str = r#"
     {
       "arch": "arm",
@@ -65,21 +68,65 @@ fn cleanup(target: &str) {
 
 #[test]
 fn simple() {
-    const LIB_RS: &'static [u8] = b"#![no_std]";
-    const TARGET: &'static str = "__simple_test";
-    const CRATES: &'static [&'static str] = &["alloc",
-                                              "collections",
-                                              "core",
-                                              "rand",
-                                              "rustc_unicode"];
+    const TARGET: &'static str = "__simple";
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
     try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", "simple"]).current_dir(td));
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
              .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    cleanup(TARGET);
+}
+
+
+// Check that `xargo build` builds a sysroot for the default target in .cargo/config
+#[test]
+fn cargo_config() {
+    const CONFIG: &'static str = "[build]\ntarget = '{}'";
+    const TARGET: &'static str = "__cargo_config";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+             .write_all(LIB_RS));
+    try!(fs::create_dir(td.join(".cargo")));
+    try!(try!(File::create(td.join(".cargo/config")))
+             .write_all(CONFIG.replace("{}", TARGET).as_bytes()));
+    run(xargo().arg("build").current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    cleanup(TARGET);
+}
+
+// Check that `--targer foo` overrides the default target in .cargo/config
+#[test]
+fn override_cargo_config() {
+    const CONFIG: &'static [u8] = b"[build]\ntarget = 'dummy'";
+    const TARGET: &'static str = "__override_cargo_config";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+             .write_all(LIB_RS));
+    try!(fs::create_dir(td.join(".cargo")));
+    try!(try!(File::create(td.join(".cargo/config"))).write_all(CONFIG));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
 
     for krate in CRATES {

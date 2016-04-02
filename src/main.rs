@@ -109,16 +109,16 @@ fn parse_args() -> (Command, Option<Target>) {
 
     let mut next_is_target = false;
     for arg_os in env::args_os().skip(1) {
-        if target.is_none() {
-            let arg = &*arg_os.to_string_lossy();
-
-            if next_is_target {
-                target = Target::from(arg);
-            } else {
-                if arg == "--target" {
-                    next_is_target = true;
-                } else if arg.starts_with("--target=") {
-                    target = arg.split('=').skip(1).next().and_then(|s| Target::from(s))
+        for arg in arg_os.to_string_lossy().split(' ') {
+            if target.is_none() {
+                if next_is_target {
+                    target = Target::from(arg);
+                } else {
+                    if arg == "--target" {
+                        next_is_target = true;
+                    } else if arg.starts_with("--target=") {
+                        target = arg.split('=').skip(1).next().and_then(|s| Target::from(s))
+                    }
                 }
             }
         }

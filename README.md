@@ -1,6 +1,11 @@
+[![Travis](https://travis-ci.org/japaric/xargo.svg?branch=master)](https://travis-ci.org/japaric/xargo)
+[![Appveyor](https://ci.appveyor.com/api/projects/status/5pb5okyox3te9dst?svg=true)](https://ci.appveyor.com/project/japaric/xargo)
+[![crates.io](https://img.shields.io/crates/v/xargo.svg)](https://crates.io/crates/xargo)
+[![crates.io](https://img.shields.io/crates/d/xargo.svg)](https://crates.io/crates/xargo)
+
 # `xargo`
 
-> Effortless cross compilation of Rust programs to custom targets like bare-metal ARM
+> Effortless cross compilation of Rust programs to custom bare-metal targets like ARM Cortex-M
 
 ## The problem
 

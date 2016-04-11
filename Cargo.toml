@@ -1,6 +1,11 @@
 [package]
 authors = ["Jorge Aparicio <japaricious@gmail.com>"]
+description = "Effortless cross compilation to custom bare-metal targets like ARM Cortex-M"
+documentation = "https://github.com/japaric/xargo#xargo"
+keywords = ["cli", "cross", "compilation", "custom", "target", "sysroot"]
+license = "MIT OR Apache-2.0"
 name = "xargo"
+repository = "https://github.com/japaric/xargo"
 version = "0.1.0"
 
 [dependencies]

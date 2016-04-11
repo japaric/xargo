@@ -79,7 +79,7 @@ build the sysroot for each project. `xargo` will also take care of rebuilding th
 ## Installation
 
 ```
-cargo install --git https://github.com/japaric/xargo
+cargo install xargo
 ```
 
 ## License

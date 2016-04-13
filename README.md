@@ -65,12 +65,12 @@ build the sysroot for each project. `xargo` will also take care of rebuilding th
 
 - `xargo` only works with a nightly `rustc`/`cargo`.
 - `xargo` will only build a sysroot for custom targets. For built-in targets (the ones in `rustc
-    --print target-list`) you should install the standard crates via [multirust].
+    --print target-list`) you should install the standard crates via [rustup].
 - Only freestanding crates (the ones that don't depend on `libc`) are cross compiled for the target.
 - `xargo` doesn't cross compile `compiler-rt`.
 - `xargo` ignores custom targets when `--target path/to/specification.json` is used.
 
-[multirust]: https://github.com/brson/multirust
+[rustup]: https://www.rustup.rs/
 
 ## Dependencies
 

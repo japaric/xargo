@@ -49,7 +49,7 @@ matrix:
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
 
 install:
-  - export PATH="$PATH:~/multirust/bin"
+  - export PATH="$PATH:$HOME/.cargo/bin"
   - bash ci/install.sh
 
 script:

@@ -1,64 +1,55 @@
 set -ex
 
+case "$TRAVIS_OS_NAME" in
+  linux)
+    host=x86_64-unknown-linux-gnu
+    ;;
+  osx)
+    host=x86_64-apple-darwin
+    ;;
+esac
+
 mktempd() {
   echo $(mktemp -d 2>/dev/null || mktemp -d -t tmp)
 }
 
-install_multirust() {
-  local temp_dir=$(mktempd)
+install_rustup() {
+  local td=$(mktempd)
 
-  git clone https://github.com/brson/multirust $temp_dir
+  pushd $td
+  curl -O https://static.rust-lang.org/rustup/dist/$host/rustup-setup
+  chmod +x rustup-setup
+  ./rustup-setup -y
+  popd
 
-  pushd $temp_dir
-  ./build.sh
-  ./install.sh --prefix=~/multirust
+  rm -r $td
 
-  multirust default $CHANNEL
+  rustup default $CHANNEL
   rustc -V
   cargo -V
-
-  popd
-  rm -rf $temp_dir
 }
 
 install_standard_crates() {
-  local host
-  case "$TRAVIS_OS_NAME" in
-    linux)
-      host=x86_64-unknown-linux-gnu
-      ;;
-    osx)
-      host=x86_64-apple-darwin
-      ;;
-  esac
-
   if [ "$host" != "$TARGET" ]; then
-    if [ "$CHANNEL" = "nightly" ]; then
-      multirust add-target nightly $TARGET
+    if [ "$CHANNEL" != "stable" ]; then
+      rustup target add $TARGET
     else
-      local version
-      if [ "$CHANNEL" = "stable" ]; then
-        # e.g. 1.6.0
-        version=$(rustc -V | cut -d' ' -f2)
-      else
-        version=beta
-      fi
-
+      local version=$(rustc -V | cut -d' ' -f2)
       local tarball=rust-std-${version}-${TARGET}
 
-      local temp_dir=$(mktempd)
+      local td=$(mktempd)
       curl -s https://static.rust-lang.org/dist/${tarball}.tar.gz | \
-        tar --strip-components 1 -C $temp_dir -xz
+        tar --strip-components 1 -C $td -xz
 
-      $temp_dir/install.sh --prefix=$(rustc --print sysroot)
+      $td/install.sh --prefix=$(rustc --print sysroot)
 
-      rm -r $temp_dir
+      rm -r $td
     fi
   fi
 }
 
 main() {
-  install_multirust
+  install_rustup
   install_standard_crates
 }
 

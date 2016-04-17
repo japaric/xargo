@@ -14,7 +14,7 @@ mktempd() {
 }
 
 install_rustup() {
-  curl https://raw.githubusercontent.com/rust-lang-nursery/rustup.rs/master/rustup-init.sh -sSf | \
+  curl https://raw.githubusercontent.com/japaric/multirust-rs/pass-args/rustup-setup.sh -sSf | \
     sh -s -- --default-toolchain=$CHANNEL -y
 
   rustc -V

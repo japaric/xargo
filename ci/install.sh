@@ -15,9 +15,8 @@ mktempd() {
 
 install_rustup() {
   curl https://raw.githubusercontent.com/rust-lang-nursery/rustup.rs/master/rustup-init.sh -sSf | \
-    sh -s -- -y
+    sh -s -- --default-toolchain=$CHANNEL -y
 
-  rustup default $CHANNEL
   rustc -V
   cargo -V
 }

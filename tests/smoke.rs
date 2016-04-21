@@ -19,6 +19,7 @@ const LIB_RS: &'static [u8] = b"#![no_std]";
 const CUSTOM_JSON: &'static str = r#"
     {
       "arch": "arm",
+      "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
       "llvm-target": "thumbv7m-none-eabi",
       "os": "none",
       "target-endian": "little",

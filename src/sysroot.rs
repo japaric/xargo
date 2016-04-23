@@ -14,15 +14,6 @@ use term::color::GREEN;
 
 use Target;
 
-macro_rules! try {
-    ($e:expr) => {
-        match $e {
-            Ok(x) => x,
-            _ => panic!("{}", line!()),
-        }
-    }
-}
-
 /// Create a sysroot that looks like this:
 ///
 /// ``` text

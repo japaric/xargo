@@ -16,13 +16,19 @@ matrix:
       addons:
         apt:
           packages: &i686_unknown_linux_gnu
-            # Cross compiler and cross compiled C libraries
+            # Cross compiler and required cross compiled C libraries
             - gcc-multilib
             - libssl-dev:i386
+            - libssh2-1-dev:i386
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=stable
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_gnu
+            # required C libraries
+            - libssh2-1-dev
     # Beta channel
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
@@ -35,6 +41,9 @@ matrix:
       env: TARGET=x86_64-apple-darwin CHANNEL=beta
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
+      addons:
+        apt:
+          packages: *x86_64_unknown_linux_gnu
     # Nightly channel
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
@@ -47,6 +56,9 @@ matrix:
       env: TARGET=x86_64-apple-darwin CHANNEL=nightly
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
+      addons:
+        apt:
+          packages: *x86_64_unknown_linux_gnu
 
 install:
   - export PATH="$PATH:$HOME/.cargo/bin"

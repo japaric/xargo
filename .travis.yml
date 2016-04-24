@@ -20,6 +20,9 @@ matrix:
             - gcc-multilib
             - libssl-dev:i386
             - libssh2-1-dev:i386
+            # NOTE this is hack the libssh2-sys crate uses pkg-config, but that can't see the
+            # libssh2 lib for i686 because it only search for libraries for x86_64
+            - libssh2-1-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=stable
     - os: linux

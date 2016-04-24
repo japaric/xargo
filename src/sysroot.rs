@@ -186,7 +186,7 @@ version = '0.0.0'
         return Ok(());
     }
 
-    let target_dir = lock.parent();
+    let lib_dir = &lock.parent().join("lib");
     try!(config.shell().out().say_status("Compiling",
                                          format!("sysroot for {}", target.triple),
                                          GREEN,
@@ -222,10 +222,10 @@ version = '0.0.0'
     }
 
     // Copy build artifacts
-    if target_dir.exists() {
-        try!(fs::remove_dir_all(target_dir));
+    if lib_dir.exists() {
+        try!(fs::remove_dir_all(lib_dir));
     }
-    let dst = &target_dir.join("lib");
+    let dst = lib_dir;
     try!(fs::create_dir_all(dst));
     for entry in try!(fs::read_dir(td.join(format!("target/{}/release/deps", target.triple)))) {
         let src = &try!(entry).path();

@@ -30,35 +30,10 @@ The magic happens when you call `xargo` with the `--target` flag. In that case, 
 care of building a sysroot with cross compiled crates and calling `cargo build` with the appropriate
 `RUSTFLAGS` variable. Example below:
 
-```
-$ git clone https://github.com/japaric/cu
-$ cd cu
-$ RUST_LOG=xargo xargo build --target stm32f100 --verbose
-INFO:xargo: target: stm32f100
-INFO:xargo::sysroot: rustc is a nightly from: 2016-03-25
-INFO:xargo::sysroot: fetching source tarball
-INFO:xargo::sysroot: unpacking source tarball
-INFO:xargo::sysroot: cross compiling crates
-INFO:xargo::sysroot: calling: "cargo" "build" "--release" "--target" "stm32f100" "-p" "collections" "-p" "rand"
-INFO:xargo::sysroot:
-   Compiling core v0.0.0 (file:///home/japaric/.xargo/src/libcore)
-   Compiling alloc v0.0.0 (file:///home/japaric/.xargo/src/liballoc)
-   Compiling rustc_unicode v0.0.0 (file:///home/japaric/.xargo/src/librustc_unicode)
-   Compiling rand v0.0.0 (file:///home/japaric/.xargo/src/librand)
-   Compiling collections v0.0.0 (file:///home/japaric/.xargo/src/libcollections)
-
-INFO:xargo::sysroot: symlinking host crates
-   Compiling rlibc v1.0.0
-     Running `rustc (...) --sysroot /home/japaric/.xargo`
-   Compiling compiler-rt v0.1.0 (file:///home/japaric/tmp/cu/compiler-rt)
-     Running `rustc (...) --sysroot /home/japaric/.xargo`
-   Compiling cu v0.1.0 (file:///home/japaric/tmp/cu)
-     Running `rustc src/lib.rs (...) --sysroot /home/japaric/.xargo`
- (...)
-```
+![Screenshot](http://i.imgur.com/pUIfnwu.jpg)
 
 `xargo` will cache the sysroot, so you can use it across different Cargo projects without having to
-build the sysroot for each project. `xargo` will also take care of rebuilding the sysroot when
+build a sysroot for each project. `xargo` will also take care of rebuilding the sysroot when
 `rustc` is updated or when the target specification file is modified.
 
 ## Caveats

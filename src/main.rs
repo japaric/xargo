@@ -18,15 +18,6 @@ use std::process::Command;
 use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use cargo::core::shell::{ColorConfig, Verbosity};
 
-macro_rules! try {
-    ($e:expr) => {
-        match $e {
-            Ok(x) => x,
-            Err(_) => panic!("{}:{}", file!(), line!()),
-        }
-    }
-}
-
 mod sysroot;
 
 fn main() {

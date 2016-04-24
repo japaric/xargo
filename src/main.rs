@@ -43,15 +43,15 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
                                           means that $HOME was not set")
                          }));
 
-    let (mut cargo, target) = try!(parse_args());
+    let (mut cargo, target, verbose) = try!(parse_args());
 
     let mut with_sysroot = false;
     if let Some(target) = target {
-        try!(sysroot::create(config, &target, root));
+        try!(sysroot::create(config, &target, root, verbose));
         with_sysroot = true;
     } else if let Some(triple) = try!(config.get_string("build.target")) {
         if let Some(target) = try!(Target::from(&triple.val)) {
-            try!(sysroot::create(config, &target, root));
+            try!(sysroot::create(config, &target, root, verbose));
             with_sysroot = true;
         }
     }
@@ -133,9 +133,10 @@ impl Target {
     }
 }
 
-fn parse_args() -> CargoResult<(Command, Option<Target>)> {
+fn parse_args() -> CargoResult<(Command, Option<Target>, bool)> {
     let mut cargo = Command::new("cargo");
     let mut target = None;
+    let mut verbose = false;
 
     let mut next_is_target = false;
     for arg_os in env::args_os().skip(1) {
@@ -153,10 +154,14 @@ fn parse_args() -> CargoResult<(Command, Option<Target>)> {
                     }
                 }
             }
+
+            if arg == "-v" || arg == "--verbose" {
+                verbose = true;
+            }
         }
 
         cargo.arg(arg_os);
     }
 
-    Ok((cargo, target))
+    Ok((cargo, target, verbose))
 }

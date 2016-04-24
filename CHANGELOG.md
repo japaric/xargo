@@ -1,3 +1,9 @@
+### Unreleased
+
+#### Added
+
+- `xargo (..) --verbose` passes `--verbose` to the `cargo` call that builds the sysroot.
+
 ### v0.1.2 - 2016-04-24
 
 #### Added

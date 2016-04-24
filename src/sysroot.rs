@@ -53,7 +53,7 @@ use Target;
 /// `$TARGET.json`).
 /// - the `src` directory which holds the source code of the current `rustc` (and standard crates).
 /// - the `date` file which holds the build date of the current `rustc`.
-pub fn create(config: &Config, target: &Target, root: &Filesystem) -> CargoResult<()> {
+pub fn create(config: &Config, target: &Target, root: &Filesystem, verbose: bool) -> CargoResult<()> {
     let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
 
     if meta.channel != Channel::Nightly {
@@ -69,7 +69,7 @@ pub fn create(config: &Config, target: &Target, root: &Filesystem) -> CargoResul
     let build_date = commit_date.succ();
 
     try!(update_source(config, &build_date, root));
-    try!(rebuild_sysroot(config, root, target));
+    try!(rebuild_sysroot(config, root, target, verbose));
     try!(symlink_host_crates(config, root));
 
     Ok(())
@@ -159,7 +159,7 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
     Ok(())
 }
 
-fn rebuild_sysroot(config: &Config, root: &Filesystem, target: &Target) -> CargoResult<()> {
+fn rebuild_sysroot(config: &Config, root: &Filesystem, target: &Target, verbose: bool) -> CargoResult<()> {
     /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
     fn read_hash(mut file: &File) -> CargoResult<Option<u64>> {
         let hash = &mut String::new();
@@ -211,6 +211,9 @@ version = '0.0.0'
     let cargo = &mut Command::new("cargo");
     cargo.args(&["build", "--release", "--target"]);
     cargo.arg(&target.triple);
+    if verbose {
+        cargo.arg("--verbose");
+    }
     for krate in CRATES {
         cargo.args(&["-p", krate]);
     }

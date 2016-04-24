@@ -12,7 +12,7 @@ matrix:
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=stable
     - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=stable
+      env: TARGET=i686-unknown-linux-gnu CHANNEL=stable PKG_CONFIG_ALLOW_CROSS=yes
       addons:
         apt:
           packages: &i686_unknown_linux_gnu
@@ -20,9 +20,6 @@ matrix:
             - gcc-multilib
             - libssl-dev:i386
             - libssh2-1-dev:i386
-            # NOTE this is hack the libssh2-sys crate uses pkg-config, but that can't see the
-            # libssh2 lib for i686 because it only search for libraries for x86_64
-            - libssh2-1-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=stable
     - os: linux
@@ -36,7 +33,7 @@ matrix:
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
     - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
+      env: TARGET=i686-unknown-linux-gnu CHANNEL=beta PKG_CONFIG_ALLOW_CROSS=yes
       addons:
         apt:
           packages: *i686_unknown_linux_gnu
@@ -51,7 +48,7 @@ matrix:
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
     - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
+      env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly PKG_CONFIG_ALLOW_CROSS=yes
       addons:
         apt:
           packages: *i686_unknown_linux_gnu

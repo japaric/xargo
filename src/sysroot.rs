@@ -79,9 +79,9 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
     const TARBALL: &'static str = "rustc-nightly-src.tar.gz";
 
     /// Reads the `NaiveDate` stored in `~/.xargo/date`
-    fn read_date(root: &Path) -> CargoResult<Option<NaiveDate>> {
+    fn read_date(mut file: &File) -> CargoResult<Option<NaiveDate>> {
         let date = &mut String::new();
-        try!(try!(File::open(root.join("date"))).read_to_string(date));
+        try!(file.read_to_string(date));
 
         Ok(NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
     }
@@ -141,7 +141,7 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
 
     let lock = try!(root.open_rw("date", config, "xargo"));
 
-    if try!(read_date(lock.parent())).as_ref() == Some(date) {
+    if try!(read_date(lock.file())).as_ref() == Some(date) {
         // Source is up to date
         return Ok(());
     }

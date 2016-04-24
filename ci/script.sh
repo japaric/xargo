@@ -29,7 +29,7 @@ run_test_suite() {
   cargo build --target $TARGET --verbose
 
   if [ "$CHANNEL" = "nightly" ]; then
-    RUST_TEST_THREADS=1 cargo test --target $TARGET
+    cargo test --target $TARGET
   fi
 }
 

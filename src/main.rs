@@ -1,110 +1,140 @@
-#![deny(warnings)]
-
+extern crate cargo;
 extern crate chrono;
 extern crate curl;
-extern crate env_logger;
 extern crate flate2;
 extern crate rustc_version;
 extern crate tar;
 extern crate tempdir;
-extern crate toml;
+extern crate term;
 
-#[macro_use]
-extern crate log;
-
-use std::env;
+use std::{env, fs, mem};
 use std::ffi::OsString;
-use std::fs::{self, File};
+use std::fs::File;
 use std::hash::{Hash, Hasher, SipHasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{self, Command};
+use std::process::Command;
 
-use toml::{Parser, Value};
-
-// TODO proper error handling/reporting
-macro_rules! try {
-    ($e:expr) => {
-        $e.unwrap_or_else(|e| panic!("{} with {}", stringify!($e), e))
-    }
-}
+use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
+use cargo::core::shell::{ColorConfig, Verbosity};
 
 mod sysroot;
 
 fn main() {
-    init_logger();
+    let config_opt = &mut None;
+    if let Err(e) = run(config_opt) {
+        let e = e.into();
 
-    let (mut cargo, target) = parse_args();
-
-    if let Some(target) = target.or_else(|| read_config()) {
-        let sysroot = sysroot::create(&target);
-
-        if let Some(mut rustflags) = env::var("RUSTFLAGS").ok() {
-            rustflags.push_str(&format!(" --sysroot {}", sysroot.display()));
-            cargo.env("RUSTFLAGS", rustflags);
+        if let Some(config) = config_opt.as_ref() {
+            cargo::handle_error(e, &mut config.shell())
         } else {
-            cargo.env("RUSTFLAGS", format!("--sysroot {}", sysroot.display()));
+            cargo::handle_error(e, &mut cargo::shell(Verbosity::Verbose, ColorConfig::Auto));
         }
-    }
-
-    if let Some(code) = try!(try!(cargo.spawn()).wait()).code() {
-        process::exit(code);
     }
 }
 
-fn init_logger() {
-    try!(env_logger::init());
+fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
+    *config_opt = Some(try!(Config::default()));
+    let config = config_opt.as_ref().unwrap();
+    let root = &try!(env::home_dir()
+                         .map(|p| Filesystem::new(p.join(".xargo")))
+                         .chain_error(|| {
+                             util::human("Xargo couldn't find your home directory. This probably \
+                                          means that $HOME was not set")
+                         }));
+
+    let (mut cargo, target) = try!(parse_args());
+
+    let mut with_sysroot = false;
+    if let Some(target) = target {
+        try!(sysroot::create(config, &target, root));
+        with_sysroot = true;
+    } else if let Some(triple) = try!(config.get_string("build.target")) {
+        if let Some(target) = try!(Target::from(&triple.val)) {
+            try!(sysroot::create(config, &target, root));
+            with_sysroot = true;
+        }
+    }
+
+    let lock = if with_sysroot {
+        let lock = try!(root.open_ro("date", config, "xargo"));
+
+        {
+            let sysroot = lock.parent().display();
+
+            if let Some(rustflags) = env::var("RUSTFLAGS").ok() {
+                cargo.env("RUSTFLAGS", format!("{} --sysroot={}", rustflags, sysroot));
+            } else {
+                cargo.env("RUSTFLAGS", format!("--sysroot={}", sysroot));
+            }
+        }
+
+        Some(lock)
+    } else {
+        None
+    };
+
+    if !try!(cargo.status()).success() {
+        return Err(util::human("`cargo` process didn't exit successfully"));
+    }
+    // Forbid modifications of the `sysroot` during the execution of the `cargo` command
+    mem::drop(lock);
+
+    Ok(())
 }
 
 /// Custom target with specification file
 #[derive(Debug)]
 pub struct Target {
+    // Hash of $triple.json
     hash: u64,
+    // Path to $triple.json file
     path: PathBuf,
     triple: String,
 }
 
 impl Target {
-    fn from(s: &str) -> Option<Target> {
-        let path = &PathBuf::from(format!("{}.json", s));
-        if path.is_file() {
-            return Some(Target::from_path(path));
+    fn from(arg: &str) -> CargoResult<Option<Self>> {
+        let json = &PathBuf::from(format!("{}.json", arg));
+
+        if json.is_file() {
+            return Ok(Some(try!(Target::from_path(json))));
         }
 
         let target_path = &env::var_os("RUST_TARGET_PATH").unwrap_or(OsString::new());
 
         for dir in env::split_paths(target_path) {
-            let path = &dir.join(path);
+            let path = &dir.join(json);
 
             if path.is_file() {
-                return Some(Target::from_path(path));
+                return Ok(Some(try!(Target::from_path(path))));
             }
         }
 
-        None
+        Ok(None)
     }
 
-    fn from_path(path: &Path) -> Target {
-        fn hash(path: &Path) -> u64 {
+    fn from_path(path: &Path) -> CargoResult<Self> {
+        fn hash(path: &Path) -> CargoResult<u64> {
             let h = &mut SipHasher::new();
             let contents = &mut String::new();
             try!(try!(File::open(path)).read_to_string(contents));
             contents.hash(h);
-            h.finish()
+            Ok(h.finish())
         }
 
         let triple = path.file_stem().unwrap().to_string_lossy().into_owned();
-        info!("target: {}", triple);
-        Target {
-            hash: hash(path),
+
+        Ok(Target {
+            hash: try!(hash(path)),
             path: try!(fs::canonicalize(path)),
             triple: triple,
-        }
+        })
     }
 }
 
-fn parse_args() -> (Command, Option<Target>) {
-    let mut cmd = Command::new("cargo");
+fn parse_args() -> CargoResult<(Command, Option<Target>)> {
+    let mut cargo = Command::new("cargo");
     let mut target = None;
 
     let mut next_is_target = false;
@@ -112,63 +142,21 @@ fn parse_args() -> (Command, Option<Target>) {
         for arg in arg_os.to_string_lossy().split(' ') {
             if target.is_none() {
                 if next_is_target {
-                    target = Target::from(arg);
+                    target = try!(Target::from(arg));
                 } else {
                     if arg == "--target" {
                         next_is_target = true;
                     } else if arg.starts_with("--target=") {
-                        target = arg.split('=').skip(1).next().and_then(|s| Target::from(s))
+                        if let Some(triple) = arg.split('=').skip(1).next() {
+                            target = try!(Target::from(triple));
+                        }
                     }
                 }
             }
         }
 
-        cmd.arg(arg_os);
+        cargo.arg(arg_os);
     }
 
-    (cmd, target)
-}
-
-/// Retrieves the build.target field of .cargo/config
-fn read_config() -> Option<Target> {
-    let mut config = None;
-    let mut current = &*try!(env::current_dir());
-
-    // NOTE Same logic as cargo's src/cargo/util/config.rs
-    loop {
-        let possible = current.join(".cargo/config");
-
-        if fs::metadata(&possible).is_ok() {
-            config = Some(possible);
-        }
-
-        if let Some(p) = current.parent() {
-            current = p;
-        } else {
-            break;
-        }
-    }
-
-    config.or_else(|| {
-              let home = &env::home_dir().unwrap();
-
-              if !current.starts_with(home) {
-                  let config = home.join(".cargo/config");
-
-                  if fs::metadata(&config).is_ok() {
-                      Some(config)
-                  } else {
-                      None
-                  }
-              } else {
-                  None
-              }
-          })
-          .and_then(|p| {
-              let s = &mut String::new();
-              try!(try!(File::open(p)).read_to_string(s));
-              Value::Table(Parser::new(s).parse().unwrap())
-                  .lookup("build.target")
-                  .and_then(|v| Target::from(v.as_str().unwrap()))
-          })
+    Ok((cargo, target))
 }

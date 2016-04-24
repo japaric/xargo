@@ -242,7 +242,9 @@ version = '0.0.0'
 fn symlink_host_crates(config: &Config, root: &Filesystem) -> CargoResult<()> {
     let _outer_lock = try!(root.open_ro("date", config, "xargo"));
     let host = &config.rustc_info().host;
-    let lock = try!(root.open_rw(format!("lib/rustlib/{}/sentinel", host), config, &format!("xargo/{}", host)));
+    let lock = try!(root.open_rw(format!("lib/rustlib/{}/sentinel", host),
+                                 config,
+                                 &format!("xargo/{}", host)));
     let dst = &lock.parent().join("lib");
 
     if dst.exists() {

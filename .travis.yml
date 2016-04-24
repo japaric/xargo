@@ -5,6 +5,7 @@ language: generic
 env:
   global:
     - PROJECT_NAME=xargo
+    - RUST_BACKTRACE=1
 
 matrix:
   include:

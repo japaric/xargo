@@ -87,6 +87,30 @@ fn simple() {
     cleanup(TARGET);
 }
 
+// Calling `xargo build` twice shouldn't trigger a sysroot rebuild
+// The only case the sysroot would have to be rebuild is when the source is updated but that
+// shouldn't happen when running this test suite.
+#[test]
+fn twice() {
+    const TARGET: &'static str = "__twice";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+         .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    let output = try!(xargo().args(&["build", "--target", TARGET]).current_dir(td).output());
+
+    assert!(output.status.success());
+
+    assert!(try!(String::from_utf8(output.stdout)).lines().all(|l| !l.contains("Compiling")));
+
+    cleanup(TARGET);
+}
 
 // Check that `xargo build` builds a sysroot for the default target in .cargo/config
 #[test]
@@ -133,6 +157,92 @@ fn override_cargo_config() {
     for krate in CRATES {
         assert!(exists_rlib(krate, TARGET));
     }
+
+    cleanup(TARGET);
+}
+
+// Check that the rustflags in .cargo/config are used to build the sysroot
+#[test]
+fn rustflags_in_cargo_config() {
+    const TARGET: &'static str = "__rustflags_in_cargo_config";
+    const CARGO_CONFIG: &'static str = "[build]\nrustflags = ['--cfg', 'xargo']";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(fs::create_dir(td.join(".cargo")));
+    try!(try!(File::create(td.join(".cargo/config"))).write_all(CARGO_CONFIG.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+             .write_all(LIB_RS));
+    let output = try!(xargo()
+                          .args(&["build", "--target", TARGET, "--verbose"])
+                          .current_dir(td)
+                          .output());
+
+    assert!(output.status.success());
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    for line in try!(String::from_utf8(output.stdout)).lines() {
+        if line.contains("Running") && line.contains("rustc") && line.contains(TARGET) {
+            assert!(line.contains("--cfg xargo"));
+        }
+    }
+
+    cleanup(TARGET);
+}
+
+// Check that the sysroot is rebuilt when RUSTFLAGS is modified
+#[test]
+fn rebuild_on_modified_rustflags() {
+    const TARGET: &'static str = "__rebuild_on_modified_rustflags";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+             .write_all(LIB_RS));
+    run(xargo()
+            .args(&["build", "--target", TARGET, "--verbose"])
+            .current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    let output = try!(xargo()
+                          .args(&["build", "--target", TARGET])
+                          .current_dir(td)
+                          .env("RUSTFLAGS", "--cfg xargo")
+                          .output());
+
+    assert!(output.status.success());
+
+    let stdout = try!(String::from_utf8(output.stdout));
+
+    for krate in CRATES {
+        assert!(stdout.lines().any(|l| l.contains("Compiling") && l.contains(krate)));
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    // Another call with the same RUSTFLAGS shouldn't trigger a rebuild
+    let output = try!(xargo()
+                      .args(&["build", "--target", TARGET])
+                      .current_dir(td)
+                      .env("RUSTFLAGS", "--cfg xargo")
+                      .output());
+
+    assert!(output.status.success());
+
+    let stdout = try!(String::from_utf8(output.stdout));
+
+    assert!(stdout.lines().all(|l| !l.contains("Compiling")));
 
     cleanup(TARGET);
 }

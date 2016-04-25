@@ -1,5 +1,6 @@
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::hash::{Hash, Hasher};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -53,7 +54,12 @@ use Target;
 /// `$TARGET.json`).
 /// - the `src` directory which holds the source code of the current `rustc` (and standard crates).
 /// - the `date` file which holds the build date of the current `rustc`.
-pub fn create(config: &Config, target: &Target, root: &Filesystem, verbose: bool) -> CargoResult<()> {
+pub fn create(config: &Config,
+              target: &Target,
+              root: &Filesystem,
+              verbose: bool,
+              rustflags: &[String])
+              -> CargoResult<()> {
     let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
 
     if meta.channel != Channel::Nightly {
@@ -69,7 +75,7 @@ pub fn create(config: &Config, target: &Target, root: &Filesystem, verbose: bool
     let build_date = commit_date.succ();
 
     try!(update_source(config, &build_date, root));
-    try!(rebuild_sysroot(config, root, target, verbose));
+    try!(rebuild_sysroot(config, root, target, verbose, rustflags));
     try!(symlink_host_crates(config, root));
 
     Ok(())
@@ -153,13 +159,19 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
              .chain_error(|| util::human("Couldn't unpack Rust source tarball")));
 
     let mut file = lock.file();
+    try!(file.seek(SeekFrom::Start(0)));
     try!(file.set_len(0));
     try!(file.write_all(date.format("%Y-%m-%d").to_string().as_bytes()));
 
     Ok(())
 }
 
-fn rebuild_sysroot(config: &Config, root: &Filesystem, target: &Target, verbose: bool) -> CargoResult<()> {
+fn rebuild_sysroot(config: &Config,
+                   root: &Filesystem,
+                   target: &Target,
+                   verbose: bool,
+                   rustflags: &[String])
+                   -> CargoResult<()> {
     /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
     fn read_hash(mut file: &File) -> CargoResult<Option<u64>> {
         let hash = &mut String::new();
@@ -181,7 +193,10 @@ version = '0.0.0'
                                  &format!("xargo/{}", target.triple)));
     let root = outer_lock.parent();
 
-    if try!(read_hash(lock.file())) == Some(target.hash) {
+    let mut hasher = target.hasher.clone();
+    rustflags.hash(&mut hasher);
+    let hash = hasher.finish();
+    if try!(read_hash(lock.file())) == Some(hash) {
         // Target specification file unchanged
         return Ok(());
     }
@@ -206,6 +221,11 @@ version = '0.0.0'
                                root.join(format!("src/lib{}", krate)).display()))
     }
     try!(try!(File::create(td.join("Cargo.toml"))).write_all(toml.as_bytes()));
+    if !rustflags.is_empty() {
+        try!(fs::create_dir(td.join(".cargo")));
+        try!(try!(File::create(td.join(".cargo/config")))
+                 .write_all(format!("[build]\nrustflags = {:?}", rustflags).as_bytes()));
+    }
 
     // Build Cargo project
     let cargo = &mut Command::new("cargo");
@@ -236,8 +256,9 @@ version = '0.0.0'
     }
 
     let mut file = lock.file();
+    try!(file.seek(SeekFrom::Start(0)));
     try!(file.set_len(0));
-    try!(file.write_all(target.hash.to_string().as_bytes()));
+    try!(file.write_all(hash.to_string().as_bytes()));
 
     Ok(())
 }

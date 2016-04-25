@@ -3,6 +3,13 @@
 #### Added
 
 - `xargo (..) --verbose` passes `--verbose` to the `cargo` call that builds the sysroot.
+- the sysroot now gets rebuilt when RUSTFLAGS or build.rustflags is modified.
+
+#### Fixed
+
+- Xargo now respects the build.rustflags value set in .cargo/config.
+- A bug where the hash/date file didn't get properly truncated before updating it leading to Xargo
+to *always* trigger a sysroot rebuild.
 
 ### v0.1.2 - 2016-04-24
 

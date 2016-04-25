@@ -4,6 +4,10 @@
 
 - `xargo (..) --verbose` passes `--verbose` to the `cargo` call that builds the sysroot.
 
+#### Fixed
+
+- Xargo now respects the build.rustflags value set in .cargo/config.
+
 ### v0.1.2 - 2016-04-24
 
 #### Added

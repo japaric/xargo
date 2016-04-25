@@ -136,3 +136,38 @@ fn override_cargo_config() {
 
     cleanup(TARGET);
 }
+
+// Check that the rustflags in .cargo/config are used to build the sysroot
+#[test]
+fn rustflags_in_cargo_config() {
+    const TARGET: &'static str = "__rustflags_in_cargo_config";
+    const CARGO_CONFIG: &'static str = "[build]\nrustflags = ['--cfg', 'xargo']";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(fs::create_dir(td.join(".cargo")));
+    try!(try!(File::create(td.join(".cargo/config"))).write_all(CARGO_CONFIG.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+             .write_all(LIB_RS));
+    let output = try!(xargo()
+                          .args(&["build", "--target", TARGET, "--verbose"])
+                          .current_dir(td)
+                          .output());
+
+    assert!(output.status.success());
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    for line in try!(String::from_utf8(output.stdout)).lines() {
+        if line.contains("Running") && line.contains("rustc") && line.contains(TARGET) {
+            assert!(line.contains("--cfg xargo"));
+        }
+    }
+
+    cleanup(TARGET);
+}

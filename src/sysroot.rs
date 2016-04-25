@@ -53,7 +53,11 @@ use Target;
 /// `$TARGET.json`).
 /// - the `src` directory which holds the source code of the current `rustc` (and standard crates).
 /// - the `date` file which holds the build date of the current `rustc`.
-pub fn create(config: &Config, target: &Target, root: &Filesystem, verbose: bool) -> CargoResult<()> {
+pub fn create(config: &Config,
+              target: &Target,
+              root: &Filesystem,
+              verbose: bool)
+              -> CargoResult<()> {
     let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
 
     if meta.channel != Channel::Nightly {
@@ -159,7 +163,11 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
     Ok(())
 }
 
-fn rebuild_sysroot(config: &Config, root: &Filesystem, target: &Target, verbose: bool) -> CargoResult<()> {
+fn rebuild_sysroot(config: &Config,
+                   root: &Filesystem,
+                   target: &Target,
+                   verbose: bool)
+                   -> CargoResult<()> {
     /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
     fn read_hash(mut file: &File) -> CargoResult<Option<u64>> {
         let hash = &mut String::new();
@@ -206,6 +214,13 @@ version = '0.0.0'
                                root.join(format!("src/lib{}", krate)).display()))
     }
     try!(try!(File::create(td.join("Cargo.toml"))).write_all(toml.as_bytes()));
+    if let Some(rustflags) = try!(config.get_list("build.rustflags")) {
+        try!(fs::create_dir(td.join(".cargo")));
+        try!(try!(File::create(td.join(".cargo/config")))
+                 .write_all(format!("[build]\nrustflags = {:?}",
+                                    rustflags.val.into_iter().map(|t| t.0).collect::<Vec<_>>())
+                                .as_bytes()));
+    }
 
     // Build Cargo project
     let cargo = &mut Command::new("cargo");

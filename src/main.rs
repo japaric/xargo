@@ -64,6 +64,15 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
 
             if let Some(rustflags) = env::var("RUSTFLAGS").ok() {
                 cargo.env("RUSTFLAGS", format!("{} --sysroot={}", rustflags, sysroot));
+            } else if let Some(rustflags) = try!(config.get_list("build.rustflags")) {
+                cargo.env("RUSTFLAGS",
+                          format!("{} --sysroot={}",
+                                  rustflags.val
+                                           .into_iter()
+                                           .map(|t| t.0)
+                                           .collect::<Vec<_>>()
+                                           .join(" "),
+                                  sysroot));
             } else {
                 cargo.env("RUSTFLAGS", format!("--sysroot={}", sysroot));
             }

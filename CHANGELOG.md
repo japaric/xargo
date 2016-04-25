@@ -1,4 +1,4 @@
-### Unreleased
+### v0.1.3 - 2016-04-24
 
 #### Added
 
@@ -12,6 +12,8 @@
 to *always* trigger a sysroot rebuild.
 
 ### v0.1.2 - 2016-04-24
+
+**YANKED** due to a serious regression in the sysroot rebuild trigger mechanism.
 
 #### Added
 

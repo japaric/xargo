@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 use std::hash::{Hash, Hasher};
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -159,6 +159,7 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
              .chain_error(|| util::human("Couldn't unpack Rust source tarball")));
 
     let mut file = lock.file();
+    try!(file.seek(SeekFrom::Start(0)));
     try!(file.set_len(0));
     try!(file.write_all(date.format("%Y-%m-%d").to_string().as_bytes()));
 
@@ -255,6 +256,7 @@ version = '0.0.0'
     }
 
     let mut file = lock.file();
+    try!(file.seek(SeekFrom::Start(0)));
     try!(file.set_len(0));
     try!(file.write_all(hash.to_string().as_bytes()));
 

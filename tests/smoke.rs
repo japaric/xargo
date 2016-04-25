@@ -231,5 +231,18 @@ fn rebuild_on_modified_rustflags() {
         assert!(exists_rlib(krate, TARGET));
     }
 
+    // Another call with the same RUSTFLAGS shouldn't trigger a rebuild
+    let output = try!(xargo()
+                      .args(&["build", "--target", TARGET])
+                      .current_dir(td)
+                      .env("RUSTFLAGS", "--cfg xargo")
+                      .output());
+
+    assert!(output.status.success());
+
+    let stdout = try!(String::from_utf8(output.stdout));
+
+    assert!(stdout.lines().all(|l| !l.contains("Compiling")));
+
     cleanup(TARGET);
 }

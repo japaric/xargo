@@ -171,3 +171,41 @@ fn rustflags_in_cargo_config() {
 
     cleanup(TARGET);
 }
+
+// Check that the sysroot is rebuilt when RUSTFLAGS is modified
+#[test]
+fn rebuild_on_modified_rustflags() {
+    const TARGET: &'static str = "__rebuild_on_modified_rustflags";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+             .write_all(LIB_RS));
+    run(xargo()
+            .args(&["build", "--target", TARGET, "--verbose"])
+            .current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    let output = try!(xargo()
+                          .args(&["build", "--target", TARGET])
+                          .current_dir(td)
+                          .env("RUSTFLAGS", "--cfg xargo")
+                          .output());
+
+    assert!(output.status.success());
+
+    let stdout = try!(String::from_utf8(output.stdout));
+
+    for krate in CRATES {
+        assert!(stdout.lines().any(|l| l.contains("Compiling") && l.contains(krate)));
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    cleanup(TARGET);
+}

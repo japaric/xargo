@@ -45,13 +45,14 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
 
     let (mut cargo, target, verbose) = try!(parse_args());
 
+    let rustflags = &try!(rustflags(config));
     let mut with_sysroot = false;
     if let Some(target) = target {
-        try!(sysroot::create(config, &target, root, verbose));
+        try!(sysroot::create(config, &target, root, verbose, rustflags));
         with_sysroot = true;
     } else if let Some(triple) = try!(config.get_string("build.target")) {
         if let Some(target) = try!(Target::from(&triple.val)) {
-            try!(sysroot::create(config, &target, root, verbose));
+            try!(sysroot::create(config, &target, root, verbose, rustflags));
             with_sysroot = true;
         }
     }
@@ -62,19 +63,11 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
         {
             let sysroot = lock.parent().display();
 
-            if let Some(rustflags) = env::var("RUSTFLAGS").ok() {
-                cargo.env("RUSTFLAGS", format!("{} --sysroot={}", rustflags, sysroot));
-            } else if let Some(rustflags) = try!(config.get_list("build.rustflags")) {
-                cargo.env("RUSTFLAGS",
-                          format!("{} --sysroot={}",
-                                  rustflags.val
-                                           .into_iter()
-                                           .map(|t| t.0)
-                                           .collect::<Vec<_>>()
-                                           .join(" "),
-                                  sysroot));
-            } else {
+            if rustflags.is_empty() {
                 cargo.env("RUSTFLAGS", format!("--sysroot={}", sysroot));
+            } else {
+                cargo.env("RUSTFLAGS",
+                          format!("{} --sysroot={}", rustflags.join(" "), sysroot));
             }
         }
 
@@ -95,8 +88,8 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
 /// Custom target with specification file
 #[derive(Debug)]
 pub struct Target {
-    // Hash of $triple.json
-    hash: u64,
+    // Hasher that has already digested the contents of $triple.json
+    hasher: SipHasher,
     // Path to $triple.json file
     path: PathBuf,
     triple: String,
@@ -124,18 +117,18 @@ impl Target {
     }
 
     fn from_path(path: &Path) -> CargoResult<Self> {
-        fn hash(path: &Path) -> CargoResult<u64> {
-            let h = &mut SipHasher::new();
+        fn hash(path: &Path) -> CargoResult<SipHasher> {
+            let mut h = SipHasher::new();
             let contents = &mut String::new();
             try!(try!(File::open(path)).read_to_string(contents));
-            contents.hash(h);
-            Ok(h.finish())
+            contents.hash(&mut h);
+            Ok(h)
         }
 
         let triple = path.file_stem().unwrap().to_string_lossy().into_owned();
 
         Ok(Target {
-            hash: try!(hash(path)),
+            hasher: try!(hash(path)),
             path: try!(fs::canonicalize(path)),
             triple: triple,
         })
@@ -173,4 +166,22 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool)> {
     }
 
     Ok((cargo, target, verbose))
+}
+
+/// Returns the RUSTFLAGS the user has set either via the env variable or via build.rustflags
+// NOTE Logic copied from cargo's Context::rustflags_args
+fn rustflags(config: &Config) -> CargoResult<Vec<String>> {
+    // First try RUSTFLAGS from the environment
+    if let Some(a) = env::var("RUSTFLAGS").ok() {
+        let args = a.split(" ").map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+        return Ok(args.collect());
+    }
+
+    // Then the build.rustflags value
+    if let Some(args) = try!(config.get_list("build.rustflags")) {
+        let args = args.val.into_iter().map(|a| a.0);
+        return Ok(args.collect());
+    }
+
+    Ok(Vec::new())
 }

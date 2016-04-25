@@ -1,4 +1,5 @@
 use std::fs::{self, File};
+use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -56,7 +57,8 @@ use Target;
 pub fn create(config: &Config,
               target: &Target,
               root: &Filesystem,
-              verbose: bool)
+              verbose: bool,
+              rustflags: &[String])
               -> CargoResult<()> {
     let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
 
@@ -73,7 +75,7 @@ pub fn create(config: &Config,
     let build_date = commit_date.succ();
 
     try!(update_source(config, &build_date, root));
-    try!(rebuild_sysroot(config, root, target, verbose));
+    try!(rebuild_sysroot(config, root, target, verbose, rustflags));
     try!(symlink_host_crates(config, root));
 
     Ok(())
@@ -166,7 +168,8 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
 fn rebuild_sysroot(config: &Config,
                    root: &Filesystem,
                    target: &Target,
-                   verbose: bool)
+                   verbose: bool,
+                   rustflags: &[String])
                    -> CargoResult<()> {
     /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
     fn read_hash(mut file: &File) -> CargoResult<Option<u64>> {
@@ -189,7 +192,10 @@ version = '0.0.0'
                                  &format!("xargo/{}", target.triple)));
     let root = outer_lock.parent();
 
-    if try!(read_hash(lock.file())) == Some(target.hash) {
+    let mut hasher = target.hasher.clone();
+    rustflags.hash(&mut hasher);
+    let hash = hasher.finish();
+    if try!(read_hash(lock.file())) == Some(hash) {
         // Target specification file unchanged
         return Ok(());
     }
@@ -214,12 +220,10 @@ version = '0.0.0'
                                root.join(format!("src/lib{}", krate)).display()))
     }
     try!(try!(File::create(td.join("Cargo.toml"))).write_all(toml.as_bytes()));
-    if let Some(rustflags) = try!(config.get_list("build.rustflags")) {
+    if !rustflags.is_empty() {
         try!(fs::create_dir(td.join(".cargo")));
         try!(try!(File::create(td.join(".cargo/config")))
-                 .write_all(format!("[build]\nrustflags = {:?}",
-                                    rustflags.val.into_iter().map(|t| t.0).collect::<Vec<_>>())
-                                .as_bytes()));
+                 .write_all(format!("[build]\nrustflags = {:?}", rustflags).as_bytes()));
     }
 
     // Build Cargo project
@@ -252,7 +256,7 @@ version = '0.0.0'
 
     let mut file = lock.file();
     try!(file.set_len(0));
-    try!(file.write_all(target.hash.to_string().as_bytes()));
+    try!(file.write_all(hash.to_string().as_bytes()));
 
     Ok(())
 }

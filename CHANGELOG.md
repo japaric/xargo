@@ -3,6 +3,7 @@
 #### Added
 
 - `xargo (..) --verbose` passes `--verbose` to the `cargo` call that builds the sysroot.
+- the sysroot now gets rebuilt when RUSTFLAGS or build.rustflags is modified.
 
 #### Fixed
 

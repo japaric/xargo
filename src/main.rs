@@ -10,7 +10,7 @@ extern crate term;
 use std::{env, fs, mem};
 use std::ffi::OsString;
 use std::fs::File;
-use std::hash::{Hash, Hasher, SipHasher};
+use std::hash::{Hash, SipHasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -86,7 +86,6 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
 }
 
 /// Custom target with specification file
-#[derive(Debug)]
 pub struct Target {
     // Hasher that has already digested the contents of $triple.json
     hasher: SipHasher,

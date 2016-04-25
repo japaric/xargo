@@ -87,6 +87,30 @@ fn simple() {
     cleanup(TARGET);
 }
 
+// Calling `xargo build` twice shouldn't trigger a sysroot rebuild
+// The only case the sysroot would have to be rebuild is when the source is updated but that
+// shouldn't happen when running this test suite.
+#[test]
+fn twice() {
+    const TARGET: &'static str = "__twice";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+         .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    let output = try!(xargo().args(&["build", "--target", TARGET]).current_dir(td).output());
+
+    assert!(output.status.success());
+
+    assert!(try!(String::from_utf8(output.stdout)).lines().all(|l| !l.contains("Compiling")));
+
+    cleanup(TARGET);
+}
 
 // Check that `xargo build` builds a sysroot for the default target in .cargo/config
 #[test]

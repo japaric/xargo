@@ -67,10 +67,9 @@ pub fn create(config: &Config,
     }
 
     let commit_date = try!(meta.commit_date
-                               .as_ref()
-                               .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
-                               .ok_or(util::human("couldn't find/parse the commit date from \
-                                                   `rustc -Vv`")));
+        .as_ref()
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+        .ok_or(util::human("couldn't find/parse the commit date from `rustc -Vv`")));
     // XXX AFAIK this is not guaranteed to be correct, but it appears to be a good approximation.
     let build_date = commit_date.succ();
 
@@ -99,10 +98,10 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
 
         // NOTE Got these settings from cargo (src/cargo/ops/registry.rs)
         let mut handle = http::handle()
-                             .timeout(0)
-                             .connect_timeout(30 * MS)
-                             .low_speed_limit(10 * B_PER_S)
-                             .low_speed_timeout(30 * S);;
+            .timeout(0)
+            .connect_timeout(30 * MS)
+            .low_speed_limit(10 * B_PER_S)
+            .low_speed_timeout(30 * S);;
 
         let url = format!("https://static.rust-lang.org/dist/{}/{}",
                           date.format("%Y-%m-%d"),
@@ -154,9 +153,9 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
 
     try!(lock.remove_siblings());
     let tarball = try!(download(config, date)
-                           .chain_error(|| util::human("Couldn't fetch Rust source tarball")));
+        .chain_error(|| util::human("Couldn't fetch Rust source tarball")));
     try!(unpack(config, tarball, lock.parent())
-             .chain_error(|| util::human("Couldn't unpack Rust source tarball")));
+        .chain_error(|| util::human("Couldn't unpack Rust source tarball")));
 
     let mut file = lock.file();
     try!(file.seek(SeekFrom::Start(0)));
@@ -224,7 +223,7 @@ version = '0.0.0'
     if !rustflags.is_empty() {
         try!(fs::create_dir(td.join(".cargo")));
         try!(try!(File::create(td.join(".cargo/config")))
-                 .write_all(format!("[build]\nrustflags = {:?}", rustflags).as_bytes()));
+            .write_all(format!("[build]\nrustflags = {:?}", rustflags).as_bytes()));
     }
 
     // Build Cargo project
@@ -289,12 +288,10 @@ fn symlink_host_crates(config: &Config, root: &Filesystem) -> CargoResult<()> {
 
 fn sysroot() -> CargoResult<PathBuf> {
     let mut sysroot = try!(String::from_utf8(try!(Command::new("rustc")
-                                                      .args(&["--print", "sysroot"])
-                                                      .output())
-                                                 .stdout)
-                               .map_err(|_| {
-                                   util::human("output of `rustc --print sysroot` is not UTF-8")
-                               }));
+                .args(&["--print", "sysroot"])
+                .output())
+            .stdout)
+        .map_err(|_| util::human("output of `rustc --print sysroot` is not UTF-8")));
 
     while sysroot.ends_with('\n') {
         sysroot.pop();

@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Xargo now uses hyper (instead of curl) to fetch Rust source tarballs.
+
 ## [v0.1.3] - 2016-04-24
 
 ### Added

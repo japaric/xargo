@@ -6,8 +6,9 @@ use std::process::Command;
 
 use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use chrono::NaiveDate;
-use curl::http;
 use flate2::read::GzDecoder;
+use hyper::client::Response;
+use hyper::{self, Client};
 use rustc_version::{self, Channel};
 use tar::Archive;
 use tempdir::TempDir;
@@ -91,40 +92,28 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
         Ok(NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
     }
 
-    fn download(config: &Config, date: &NaiveDate) -> CargoResult<http::Response> {
-        const B_PER_S: usize = 1;
-        const MS: usize = 1_000;
-        const S: usize = 1;
-
-        // NOTE Got these settings from cargo (src/cargo/ops/registry.rs)
-        let mut handle = http::handle()
-            .timeout(0)
-            .connect_timeout(30 * MS)
-            .low_speed_limit(10 * B_PER_S)
-            .low_speed_timeout(30 * S);;
-
+    fn download(config: &Config, date: &NaiveDate) -> CargoResult<Response> {
         let url = format!("https://static.rust-lang.org/dist/{}/{}",
                           date.format("%Y-%m-%d"),
                           TARBALL);
 
         try!(config.shell().out().say_status("Downloading", &url, GREEN, true));
-        let resp = try!(handle.get(url).follow_redirects(true).exec());
+        let resp = try!(Client::new().get(&url).send().map_err(|e| util::human(e.to_string())));
 
-        let code = resp.get_code();
-        if code != 200 {
-            return Err(util::human(format!("HTTP error got {}, expected 200", code)));
+        if resp.status != hyper::Ok {
+            return Err(util::human(format!("HTTP error got {}, expected 200", resp.status)))
         }
 
         Ok(resp)
     }
 
-    fn unpack(config: &Config, tarball: http::Response, root: &Path) -> CargoResult<()> {
+    fn unpack(config: &Config, tarball: Response, root: &Path) -> CargoResult<()> {
         try!(config.shell().out().say_status("Unpacking", TARBALL, GREEN, true));
 
         let src_dir = &root.join("src");
         try!(fs::create_dir(src_dir));
 
-        let decoder = try!(GzDecoder::new(tarball.get_body()));
+        let decoder = try!(GzDecoder::new(tarball));
         let mut archive = Archive::new(decoder);
         for entry in try!(archive.entries()) {
             let mut entry = try!(entry);

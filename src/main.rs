@@ -1,7 +1,7 @@
 extern crate cargo;
 extern crate chrono;
-extern crate curl;
 extern crate flate2;
+extern crate hyper;
 extern crate rustc_version;
 extern crate tar;
 extern crate tempdir;

@@ -52,8 +52,8 @@ fn exists_rlib(krate: &str, target: &str) -> bool {
 
         if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("rlib") &&
            path.file_stem()
-               .and_then(|f| f.to_str())
-               .map(|s| s.starts_with(&format!("lib{}", krate))) == Some(true) {
+            .and_then(|f| f.to_str())
+            .map(|s| s.starts_with(&format!("lib{}", krate))) == Some(true) {
             return true;
         }
     }
@@ -63,8 +63,8 @@ fn exists_rlib(krate: &str, target: &str) -> bool {
 
 fn cleanup(target: &str) {
     try!(fs::remove_dir_all(env::home_dir()
-                                .unwrap()
-                                .join(format!(".xargo/lib/rustlib/{}", target))));
+        .unwrap()
+        .join(format!(".xargo/lib/rustlib/{}", target))));
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn simple() {
 
     run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-             .write_all(LIB_RS));
+        .write_all(LIB_RS));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
 
     for krate in CRATES {
@@ -100,7 +100,7 @@ fn twice() {
 
     run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-         .write_all(LIB_RS));
+        .write_all(LIB_RS));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
 
     let output = try!(xargo().args(&["build", "--target", TARGET]).current_dir(td).output());
@@ -124,10 +124,10 @@ fn cargo_config() {
 
     run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-             .write_all(LIB_RS));
+        .write_all(LIB_RS));
     try!(fs::create_dir(td.join(".cargo")));
     try!(try!(File::create(td.join(".cargo/config")))
-             .write_all(CONFIG.replace("{}", TARGET).as_bytes()));
+        .write_all(CONFIG.replace("{}", TARGET).as_bytes()));
     run(xargo().arg("build").current_dir(td));
 
     for krate in CRATES {
@@ -149,7 +149,7 @@ fn override_cargo_config() {
 
     run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-             .write_all(LIB_RS));
+        .write_all(LIB_RS));
     try!(fs::create_dir(td.join(".cargo")));
     try!(try!(File::create(td.join(".cargo/config"))).write_all(CONFIG));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
@@ -175,11 +175,11 @@ fn rustflags_in_cargo_config() {
 
     run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-             .write_all(LIB_RS));
+        .write_all(LIB_RS));
     let output = try!(xargo()
-                          .args(&["build", "--target", TARGET, "--verbose"])
-                          .current_dir(td)
-                          .output());
+        .args(&["build", "--target", TARGET, "--verbose"])
+        .current_dir(td)
+        .output());
 
     assert!(output.status.success());
 
@@ -207,42 +207,46 @@ fn rebuild_on_modified_rustflags() {
 
     run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
     try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-             .write_all(LIB_RS));
+        .write_all(LIB_RS));
     run(xargo()
-            .args(&["build", "--target", TARGET, "--verbose"])
-            .current_dir(td));
+        .args(&["build", "--target", TARGET, "--verbose"])
+        .current_dir(td));
 
     for krate in CRATES {
         assert!(exists_rlib(krate, TARGET));
     }
 
     let output = try!(xargo()
-                          .args(&["build", "--target", TARGET])
-                          .current_dir(td)
-                          .env("RUSTFLAGS", "--cfg xargo")
-                          .output());
+        .args(&["build", "--target", TARGET])
+        .current_dir(td)
+        .env("RUSTFLAGS", "--cfg xargo")
+        .output());
 
     assert!(output.status.success());
 
     let stdout = try!(String::from_utf8(output.stdout));
+    let stderr = try!(String::from_utf8(output.stderr));
 
     for krate in CRATES {
-        assert!(stdout.lines().any(|l| l.contains("Compiling") && l.contains(krate)));
+        assert!(stdout.lines()
+            .chain(stderr.lines())
+            .any(|l| l.contains("Compiling") && l.contains(krate)));
         assert!(exists_rlib(krate, TARGET));
     }
 
     // Another call with the same RUSTFLAGS shouldn't trigger a rebuild
     let output = try!(xargo()
-                      .args(&["build", "--target", TARGET])
-                      .current_dir(td)
-                      .env("RUSTFLAGS", "--cfg xargo")
-                      .output());
+        .args(&["build", "--target", TARGET])
+        .current_dir(td)
+        .env("RUSTFLAGS", "--cfg xargo")
+        .output());
 
     assert!(output.status.success());
 
     let stdout = try!(String::from_utf8(output.stdout));
+    let stderr = try!(String::from_utf8(output.stderr));
 
-    assert!(stdout.lines().all(|l| !l.contains("Compiling")));
+    assert!(stdout.lines().chain(stderr.lines()).all(|l| !l.contains("Compiling")));
 
     cleanup(TARGET);
 }

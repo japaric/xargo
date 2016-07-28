@@ -37,11 +37,11 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
     *config_opt = Some(try!(Config::default()));
     let config = config_opt.as_ref().unwrap();
     let root = &try!(env::home_dir()
-                         .map(|p| Filesystem::new(p.join(".xargo")))
-                         .chain_error(|| {
-                             util::human("Xargo couldn't find your home directory. This probably \
-                                          means that $HOME was not set")
-                         }));
+        .map(|p| Filesystem::new(p.join(".xargo")))
+        .chain_error(|| {
+            util::human("Xargo couldn't find your home directory. This probably means that $HOME \
+                         was not set")
+        }));
 
     let (mut cargo, target, verbose) = try!(parse_args());
 

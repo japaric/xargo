@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Support targets that don't support atomics (`"max-atomic-width": 0`). For these targets, Xargo
+  only compiles the `core` and `rustc_unicode` crates as the other crates depend on atomics (e.g.
+  `alloc::Arc`).
+
 ## [v0.1.3] - 2016-04-24
 
 ### Added

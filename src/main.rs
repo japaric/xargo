@@ -3,22 +3,27 @@ extern crate chrono;
 extern crate curl;
 extern crate flate2;
 extern crate rustc_version;
+extern crate serde_json;
 extern crate tar;
 extern crate tempdir;
 extern crate term;
 
-use std::{env, fs, mem};
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::File;
 use std::hash::{Hash, SipHasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{env, fs, mem};
 
 use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use cargo::core::shell::{ColorConfig, Verbosity};
+use serde_json::{de, Value};
 
 mod sysroot;
+
+type Spec = HashMap<String, Value>;
 
 fn main() {
     let config_opt = &mut None;
@@ -91,6 +96,7 @@ pub struct Target {
     hasher: SipHasher,
     // Path to $triple.json file
     path: PathBuf,
+    spec: Spec,
     triple: String,
 }
 
@@ -129,9 +135,16 @@ impl Target {
         Ok(Target {
             hasher: try!(hash(path)),
             path: try!(fs::canonicalize(path)),
+            spec: try!(parse_json(path)),
             triple: triple,
         })
     }
+}
+
+fn parse_json(p: &Path) -> CargoResult<Spec> {
+    let json = &mut String::new();
+    try!(try!(File::open(p)).read_to_string(json));
+    de::from_str(json).map_err(|_| util::human("Target specification file is not valid JSON"))
 }
 
 fn parse_args() -> CargoResult<(Command, Option<Target>, bool)> {

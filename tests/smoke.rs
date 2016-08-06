@@ -27,6 +27,18 @@ const CUSTOM_JSON: &'static str = r#"
     }
 "#;
 
+const NO_ATOMICS_JSON: &'static str = r#"
+    {
+      "arch": "arm",
+      "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+      "llvm-target": "thumbv6m-none-eabi",
+      "max-atomic-width": 0,
+      "os": "none",
+      "target-endian": "little",
+      "target-pointer-width": "32"
+    }
+"#;
+
 fn xargo() -> Command {
     let mut path = try!(env::current_exe());
     path.pop();
@@ -247,6 +259,29 @@ fn rebuild_on_modified_rustflags() {
     let stderr = try!(String::from_utf8(output.stderr));
 
     assert!(stdout.lines().chain(stderr.lines()).all(|l| !l.contains("Compiling")));
+
+    cleanup(TARGET);
+}
+
+// For targets that don't support atomics, Xargo only compiles the `core` crate
+#[test]
+fn no_atomics() {
+    const TARGET: &'static str = "__no_atomics";
+    const CRATES: &'static [&'static str] = &["core", "rustc_unicode"];
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(NO_ATOMICS_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
 
     cleanup(TARGET);
 }

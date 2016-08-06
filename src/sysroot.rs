@@ -179,6 +179,7 @@ fn rebuild_sysroot(config: &Config,
     }
 
     const CRATES: &'static [&'static str] = &["collections", "rand"];
+    const NO_ATOMICS_CRATES: &'static [&'static str] = &["rustc_unicode"];
     const TOML: &'static str = "[package]
 name = 'sysroot'
 version = '0.0.0'
@@ -233,8 +234,14 @@ version = '0.0.0'
     if verbose {
         cargo.arg("--verbose");
     }
-    for krate in CRATES {
-        cargo.args(&["-p", krate]);
+    if target.spec.get("max-atomic-width").map(|w| w.as_u64() == Some(0)) == Some(true) {
+        for krate in NO_ATOMICS_CRATES {
+            cargo.args(&["-p", krate]);
+        }
+    } else {
+        for krate in CRATES {
+            cargo.args(&["-p", krate]);
+        }
     }
     cargo.current_dir(td);
     let status = try!(cargo.status());

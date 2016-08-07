@@ -50,6 +50,11 @@ build a sysroot for each project. `xargo` will also take care of rebuilding the 
 ## Dependencies
 
 - `cargo` and `rustc` must be in $PATH
+- Xargo depends on [the cargo crate](https://crates.io/crates/cargo), which depends on [libssh2-sys](https://crates.io/crates/libssh2-sys), which requires `cmake` and the OpenSSL headers to build.
+  - On Fedora, run:
+    - `sudo dnf install cmake openssl-devel`
+  - On Ubuntu, run
+    - `sudo apt-get install cmake libssl-dev`
 
 ## Installation
 

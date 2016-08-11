@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Xargo now works properly when called from a `rustup override`n directory.
+
 ## [v0.1.4] - 2016-08-06
 
 ### Added

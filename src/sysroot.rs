@@ -243,7 +243,8 @@ version = '0.0.0'
             cargo.args(&["-p", krate]);
         }
     }
-    cargo.current_dir(td);
+    cargo.env("CARGO_TARGET_DIR", td.join("target"));
+    cargo.arg("--manifest-path").arg(td.join("Cargo.toml"));
     let status = try!(cargo.status());
 
     if !status.success() {

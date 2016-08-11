@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.5] - 2016-08-11
+
 ### Fixed
 
 - Xargo now works properly when called from a `rustup override`n directory.
@@ -46,7 +48,8 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.5...HEAD
+[v0.1.5]: https://github.com/japaric/xargo/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/japaric/xargo/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/japaric/xargo/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/japaric/xargo/compare/v0.1.1...v0.1.2

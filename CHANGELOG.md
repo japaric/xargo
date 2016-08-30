@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Xargo can now use the source code installed by rustup. When available, this is the preferred way
+  to fetch the source code and saves network bandwidth by not having to fetch the source tarball.
+
 ## [v0.1.5] - 2016-08-11
 
 ### Fixed

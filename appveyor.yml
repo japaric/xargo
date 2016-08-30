@@ -19,12 +19,9 @@ environment:
       CHANNEL: nightly
 
 install:
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/channel-rust-stable"
-  - ps: $env:RUST_VERSION = Get-Content channel-rust-stable | select -first 1 | %{$_.split('-')[1]}
-  - if NOT "%CHANNEL%" == "stable" set RUST_VERSION=%CHANNEL%
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-${env:RUST_VERSION}-${env:TARGET}.exe"
-  - rust-%RUST_VERSION%-%TARGET%.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
-  - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe --default-host %TARGET% --default-toolchain %CHANNEL% -y
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
   - rustc -V
   - cargo -V
 

@@ -15,6 +15,11 @@ use term::color::GREEN;
 
 use Target;
 
+enum Source {
+    Rustup(PathBuf),
+    Xargo,
+}
+
 /// Create a sysroot that looks like this:
 ///
 /// ``` text
@@ -73,14 +78,14 @@ pub fn create(config: &Config,
     // XXX AFAIK this is not guaranteed to be correct, but it appears to be a good approximation.
     let build_date = commit_date.succ();
 
-    try!(update_source(config, &build_date, root));
-    try!(rebuild_sysroot(config, root, target, verbose, rustflags));
+    let src = try!(update_source(config, &build_date, root));
+    try!(rebuild_sysroot(config, root, target, verbose, rustflags, src));
     try!(symlink_host_crates(config, root));
 
     Ok(())
 }
 
-fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoResult<()> {
+fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoResult<Source> {
     const TARBALL: &'static str = "rustc-nightly-src.tar.gz";
 
     /// Reads the `NaiveDate` stored in `~/.xargo/date`
@@ -146,9 +151,21 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
 
     let lock = try!(root.open_rw("date", config, "xargo"));
 
+    let rustup_src_dir = try!(sysroot()).join("lib/rustlib/src/rust");
+
+    if rustup_src_dir.exists() {
+        let xargo_src_dir = &lock.path().parent().unwrap().join("src");
+
+        if xargo_src_dir.exists() {
+            try!(fs::remove_dir_all(xargo_src_dir));
+        }
+
+        return Ok(Source::Rustup(rustup_src_dir));
+    }
+
     if try!(read_date(lock.file())).as_ref() == Some(date) {
         // Source is up to date
-        return Ok(());
+        return Ok(Source::Xargo);
     }
 
     try!(lock.remove_siblings());
@@ -162,14 +179,15 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
     try!(file.set_len(0));
     try!(file.write_all(date.format("%Y-%m-%d").to_string().as_bytes()));
 
-    Ok(())
+    Ok(Source::Xargo)
 }
 
 fn rebuild_sysroot(config: &Config,
                    root: &Filesystem,
                    target: &Target,
                    verbose: bool,
-                   rustflags: &[String])
+                   rustflags: &[String],
+                   src: Source)
                    -> CargoResult<()> {
     /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
     fn read_hash(mut file: &File) -> CargoResult<Option<u64>> {
@@ -215,10 +233,14 @@ version = '0.0.0'
     try!(fs::copy(&target.path, td.join(target.path.file_name().unwrap())));
     try!(File::create(td.join("src/lib.rs")));
     let toml = &mut String::from(TOML);
+    let src_dir = &match src {
+        Source::Rustup(dir) => dir.join("src"),
+        Source::Xargo => root.join("src"),
+    };
     for krate in CRATES {
         toml.push_str(&format!("{} = {{ path = '{}' }}\n",
                                krate,
-                               root.join(format!("src/lib{}", krate)).display()))
+                               src_dir.join(format!("lib{}", krate)).display()))
     }
     try!(try!(File::create(td.join("Cargo.toml"))).write_all(toml.as_bytes()));
     if !rustflags.is_empty() {

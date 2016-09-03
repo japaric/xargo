@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.7]
+
 ### Fixed
 
 - The sysroot now gets rebuilt when rust-src changes.
@@ -59,7 +61,8 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.7...HEAD
+[v0.1.6]: https://github.com/japaric/xargo/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/japaric/xargo/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/japaric/xargo/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/japaric/xargo/compare/v0.1.3...v0.1.4

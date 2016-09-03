@@ -6,7 +6,7 @@ keywords = ["cli", "cross", "compilation", "custom", "target"]
 license = "MIT OR Apache-2.0"
 name = "xargo"
 repository = "https://github.com/japaric/xargo"
-version = "0.1.6"
+version = "0.1.7"
 
 [dependencies]
 cargo = "0.10.0"

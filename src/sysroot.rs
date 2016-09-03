@@ -4,7 +4,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
+use cargo::util::{self, CargoResult, ChainError, Config, FileLock, Filesystem};
 use chrono::NaiveDate;
 use curl::http;
 use flate2::read::GzDecoder;
@@ -74,26 +74,45 @@ pub fn create(config: &Config,
     let commit_date = try!(meta.commit_date
         .as_ref()
         .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
-        .ok_or(util::human("couldn't find/parse the commit date from `rustc -Vv`")));
+        .ok_or(util::human("couldn't find/parse the commit date in/from `rustc -Vv`")));
     // XXX AFAIK this is not guaranteed to be correct, but it appears to be a good approximation.
     let build_date = commit_date.succ();
+    let commit_hash = try!(meta.commit_hash
+        .ok_or(util::human("couldn't find the commit hash in `rustc -Vv`")));
 
-    let src = try!(update_source(config, &build_date, root));
+    let src = try!(update_source(config, &commit_hash, &build_date, root));
     try!(rebuild_sysroot(config, root, target, verbose, rustflags, src));
     try!(symlink_host_crates(config, root));
 
     Ok(())
 }
 
-fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoResult<Source> {
+fn update_source(config: &Config,
+                 commit_hash: &str,
+                 date: &NaiveDate,
+                 root: &Filesystem)
+                 -> CargoResult<Source> {
     const TARBALL: &'static str = "rustc-nightly-src.tar.gz";
 
     /// Reads the `NaiveDate` stored in `~/.xargo/date`
-    fn read_date(mut file: &File) -> CargoResult<Option<NaiveDate>> {
-        let date = &mut String::new();
-        try!(file.read_to_string(date));
+    fn read_date(file: &File) -> CargoResult<Option<NaiveDate>> {
+        read_string(file).map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
+    }
 
-        Ok(NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+    fn read_string(mut file: &File) -> CargoResult<String> {
+        let mut s = String::new();
+        try!(file.read_to_string(&mut s));
+        Ok(s)
+    }
+
+    fn write_to_lockfile(lock: &FileLock, contents: &str) -> CargoResult<()> {
+        // NOTE locked files are open in append mode, we need to "rewind" to the start before
+        // writing
+        let mut file = lock.file();
+        try!(file.seek(SeekFrom::Start(0)));
+        try!(file.set_len(0));
+        try!(file.write_all(contents.as_bytes()));
+        Ok(())
     }
 
     fn download(config: &Config, date: &NaiveDate) -> CargoResult<http::Response> {
@@ -160,6 +179,14 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
             try!(fs::remove_dir_all(xargo_src_dir));
         }
 
+        if try!(read_string(lock.file())) != commit_hash {
+            // Outdated build artifacts, remove them.
+            try!(lock.remove_siblings());
+
+            // Use the commit hash as a "timestamp" to detect rustc updates
+            try!(write_to_lockfile(&lock, commit_hash));
+        }
+
         return Ok(Source::Rustup(rustup_src_dir));
     }
 
@@ -174,10 +201,8 @@ fn update_source(config: &Config, date: &NaiveDate, root: &Filesystem) -> CargoR
     try!(unpack(config, tarball, lock.parent())
         .chain_error(|| util::human("Couldn't unpack Rust source tarball")));
 
-    let mut file = lock.file();
-    try!(file.seek(SeekFrom::Start(0)));
-    try!(file.set_len(0));
-    try!(file.write_all(date.format("%Y-%m-%d").to_string().as_bytes()));
+    // Leave a timestamp around to indicate how old this source is
+    try!(write_to_lockfile(&lock, &date.format("%Y-%m-%d").to_string()));
 
     Ok(Source::Xargo)
 }

@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The sysroot now gets rebuilt when rust-src changes.
+
 ## [v0.1.6]
 
 ### Added

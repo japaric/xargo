@@ -264,7 +264,8 @@ version = '0.0.0'
 {}
 
 [dependencies]
-", profiles.as_ref().map(|t| t.to_string()).unwrap_or(String::new()));
+",
+                            profiles.as_ref().map(|t| t.to_string()).unwrap_or(String::new()));
     let src_dir = &match src {
         Source::Rustup(dir) => dir.join("src"),
         Source::Xargo => root.join("src"),

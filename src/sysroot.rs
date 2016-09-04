@@ -131,7 +131,7 @@ fn update_source(config: &Config,
                           date.format("%Y-%m-%d"),
                           TARBALL);
 
-        try!(config.shell().out().say_status("Downloading", &url, GREEN, true));
+        try!(config.shell().err().say_status("Downloading", &url, GREEN, true));
         let resp = try!(handle.get(url).follow_redirects(true).exec());
 
         let code = resp.get_code();
@@ -143,7 +143,7 @@ fn update_source(config: &Config,
     }
 
     fn unpack(config: &Config, tarball: http::Response, root: &Path) -> CargoResult<()> {
-        try!(config.shell().out().say_status("Unpacking", TARBALL, GREEN, true));
+        try!(config.shell().err().say_status("Unpacking", TARBALL, GREEN, true));
 
         let src_dir = &root.join("src");
         try!(fs::create_dir(src_dir));
@@ -245,7 +245,7 @@ version = '0.0.0'
     }
 
     let lib_dir = &lock.parent().join("lib");
-    try!(config.shell().out().say_status("Compiling",
+    try!(config.shell().err().say_status("Compiling",
                                          format!("sysroot for {}", target.triple),
                                          GREEN,
                                          true));

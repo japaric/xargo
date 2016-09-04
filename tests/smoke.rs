@@ -119,7 +119,7 @@ fn twice() {
 
     assert!(output.status.success());
 
-    assert!(try!(String::from_utf8(output.stdout)).lines().all(|l| !l.contains("Compiling")));
+    assert!(try!(String::from_utf8(output.stderr)).lines().all(|l| !l.contains("Compiling")));
 
     cleanup(TARGET);
 }
@@ -199,11 +199,15 @@ fn rustflags_in_cargo_config() {
         assert!(exists_rlib(krate, TARGET));
     }
 
-    for line in try!(String::from_utf8(output.stdout)).lines() {
+    let mut at_least_once = false;
+    for line in try!(String::from_utf8(output.stderr)).lines() {
         if line.contains("Running") && line.contains("rustc") && line.contains(TARGET) {
+            at_least_once = true;
             assert!(line.contains("--cfg xargo"));
         }
     }
+
+    assert!(at_least_once);
 
     cleanup(TARGET);
 }
@@ -236,12 +240,10 @@ fn rebuild_on_modified_rustflags() {
 
     assert!(output.status.success());
 
-    let stdout = try!(String::from_utf8(output.stdout));
     let stderr = try!(String::from_utf8(output.stderr));
 
     for krate in CRATES {
-        assert!(stdout.lines()
-            .chain(stderr.lines())
+        assert!(stderr.lines()
             .any(|l| l.contains("Compiling") && l.contains(krate)));
         assert!(exists_rlib(krate, TARGET));
     }
@@ -255,10 +257,9 @@ fn rebuild_on_modified_rustflags() {
 
     assert!(output.status.success());
 
-    let stdout = try!(String::from_utf8(output.stdout));
     let stderr = try!(String::from_utf8(output.stderr));
 
-    assert!(stdout.lines().chain(stderr.lines()).all(|l| !l.contains("Compiling")));
+    assert!(stderr.lines().all(|l| !l.contains("Compiling")));
 
     cleanup(TARGET);
 }

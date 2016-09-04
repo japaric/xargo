@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- All the status messages are now printed to stderr instead of to stdout. Cargo did the same change
+  (from stdout to stderr) a while ago. Let's follow suit.
+
 ## [v0.1.7]
 
 ### Fixed

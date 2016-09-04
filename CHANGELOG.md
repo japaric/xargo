@@ -10,6 +10,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - All the status messages are now printed to stderr instead of to stdout. Cargo did the same change
   (from stdout to stderr) a while ago. Let's follow suit.
 
+### Fixed
+
+- When compiling crate `foo` with Xargo, the profile section of `foo`'s Cargo.toml is also "taken
+  into account" when compiling the sysroot. For example, if `foo` has set `panic = "abort"` for all
+  its profiles, then the sysroot will also be compiled with `-C panic=abort`. Previously, this
+  wasn't the case.
+
 ## [v0.1.7]
 
 ### Fixed

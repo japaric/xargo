@@ -7,8 +7,9 @@ extern crate serde_json;
 extern crate tar;
 extern crate tempdir;
 extern crate term;
+extern crate toml;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::fs::File;
 use std::hash::{Hash, SipHasher};
@@ -17,8 +18,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs, mem};
 
-use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use cargo::core::shell::{ColorConfig, Verbosity};
+use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use serde_json::{de, Value};
 
 mod sysroot;
@@ -45,19 +46,20 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
         .map(|p| Filesystem::new(p.join(".xargo")))
         .chain_error(|| {
             util::human("Xargo couldn't find your home directory. This probably means that $HOME \
-                         was not set")
+                         is not set")
         }));
 
     let (mut cargo, target, verbose) = try!(parse_args());
 
     let rustflags = &try!(rustflags(config));
+    let profiles = &try!(parse_cargo_toml(config));
     let mut with_sysroot = false;
     if let Some(target) = target {
-        try!(sysroot::create(config, &target, root, verbose, rustflags));
+        try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
         with_sysroot = true;
     } else if let Some(triple) = try!(config.get_string("build.target")) {
         if let Some(target) = try!(Target::from(&triple.val)) {
-            try!(sysroot::create(config, &target, root, verbose, rustflags));
+            try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
             with_sysroot = true;
         }
     }
@@ -196,4 +198,43 @@ fn rustflags(config: &Config) -> CargoResult<Vec<String>> {
     }
 
     Ok(Vec::new())
+}
+
+// Parses a project's Cargo.toml. Right now this only returns the [profile]'s section of the
+// Cargo.toml
+fn parse_cargo_toml(config: &Config) -> CargoResult<Option<toml::Value>> {
+    let cwd = config.cwd();
+
+    if let Some(ref manifest) = cargo_toml(cwd) {
+        let contents = &mut String::new();
+        try!(try!(File::open(manifest)).read_to_string(contents));
+        let root = try!(util::toml::parse(contents, manifest));
+        Ok(root.get("profile").map(|t| {
+            let mut map = BTreeMap::new();
+            map.insert("profile".to_owned(), t.clone());
+            toml::Value::Table(map)
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+
+/// Iteratively search for `Cargo.toml` in `pwd` and its parents, returning the path to the file.
+fn cargo_toml(pwd: &Path) -> Option<PathBuf> {
+    let mut current = pwd;
+
+    loop {
+        let manifest = current.join("Cargo.toml");
+        if fs::metadata(&manifest).is_ok() {
+            return Some(manifest);
+        }
+
+        match current.parent() {
+            Some(p) => current = p,
+            None => break,
+        }
+    }
+
+    None
 }

@@ -286,3 +286,48 @@ fn no_atomics() {
 
     cleanup(TARGET);
 }
+
+#[test]
+fn panic_abort() {
+    const TARGET: &'static str = "__panic_abort";
+    const PROFILES: &'static [u8] = b"
+[profile.dev]
+panic = \"abort\"
+
+[profile.release]
+panic = \"abort\"
+";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
+    try!(try!(OpenOptions::new().append(true).write(true).open(td.join("Cargo.toml")))
+        .write_all(PROFILES));
+
+    let output =
+        try!(xargo().args(&["build", "--target", TARGET, "--verbose"]).current_dir(td).output());
+
+    assert!(output.status.success());
+
+    let stderr = try!(String::from_utf8(output.stderr));
+
+    let mut at_least_once = false;
+    for line in stderr.lines() {
+        if line.contains("Running") && line.contains("rustc") && line.contains(TARGET) {
+            at_least_once = true;
+
+            if !line.contains("-C panic=abort") {
+                panic!("{}", line);
+            }
+            // assert!(line.contains("-C panic=abort"));
+        }
+    }
+
+    assert!(at_least_once);
+
+    cleanup(TARGET);
+}

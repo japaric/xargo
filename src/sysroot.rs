@@ -12,6 +12,7 @@ use rustc_version::{self, Channel};
 use tar::Archive;
 use tempdir::TempDir;
 use term::color::GREEN;
+use toml::Value;
 
 use Target;
 
@@ -63,7 +64,8 @@ pub fn create(config: &Config,
               target: &Target,
               root: &Filesystem,
               verbose: bool,
-              rustflags: &[String])
+              rustflags: &[String],
+              profiles: &Option<Value>)
               -> CargoResult<()> {
     let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
 
@@ -81,7 +83,7 @@ pub fn create(config: &Config,
         .ok_or(util::human("couldn't find the commit hash in `rustc -Vv`")));
 
     let src = try!(update_source(config, &commit_hash, &build_date, root));
-    try!(rebuild_sysroot(config, root, target, verbose, rustflags, src));
+    try!(rebuild_sysroot(config, root, target, verbose, rustflags, profiles, src));
     try!(symlink_host_crates(config, root));
 
     Ok(())
@@ -212,6 +214,7 @@ fn rebuild_sysroot(config: &Config,
                    target: &Target,
                    verbose: bool,
                    rustflags: &[String],
+                   profiles: &Option<Value>,
                    src: Source)
                    -> CargoResult<()> {
     /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
@@ -223,12 +226,6 @@ fn rebuild_sysroot(config: &Config,
 
     const CRATES: &'static [&'static str] = &["collections", "rand"];
     const NO_ATOMICS_CRATES: &'static [&'static str] = &["rustc_unicode"];
-    const TOML: &'static str = "[package]
-name = 'sysroot'
-version = '0.0.0'
-
-[dependencies]
-";
 
     let outer_lock = try!(root.open_ro("date", config, "xargo"));
     let lock = try!(root.open_rw(format!("lib/rustlib/{}/hash", target.triple),
@@ -238,6 +235,9 @@ version = '0.0.0'
 
     let mut hasher = target.hasher.clone();
     rustflags.hash(&mut hasher);
+    if let Some(profiles) = profiles.as_ref() {
+        profiles.to_string().hash(&mut hasher);
+    }
     let hash = hasher.finish();
     if try!(read_hash(lock.file())) == Some(hash) {
         // Target specification file unchanged
@@ -257,7 +257,14 @@ version = '0.0.0'
     try!(fs::create_dir(td.join("src")));
     try!(fs::copy(&target.path, td.join(target.path.file_name().unwrap())));
     try!(File::create(td.join("src/lib.rs")));
-    let toml = &mut String::from(TOML);
+    let toml = &mut format!("[package]
+name = 'sysroot'
+version = '0.0.0'
+
+{}
+
+[dependencies]
+", profiles.as_ref().map(|t| t.to_string()).unwrap_or(String::new()));
     let src_dir = &match src {
         Source::Rustup(dir) => dir.join("src"),
         Source::Xargo => root.join("src"),

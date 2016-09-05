@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.8]
+
 ### Changed
 
 - All the status messages are now printed to stderr instead of to stdout. Cargo did the same change
@@ -73,8 +75,9 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.7...HEAD
-[v0.1.6]: https://github.com/japaric/xargo/compare/v0.1.6...v0.1.7
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.8...HEAD
+[v0.1.8]: https://github.com/japaric/xargo/compare/v0.1.7...v0.1.8
+[v0.1.7]: https://github.com/japaric/xargo/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/japaric/xargo/compare/v0.1.5...v0.1.6
 [v0.1.5]: https://github.com/japaric/xargo/compare/v0.1.4...v0.1.5
 [v0.1.4]: https://github.com/japaric/xargo/compare/v0.1.3...v0.1.4

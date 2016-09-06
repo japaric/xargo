@@ -55,6 +55,7 @@ build a sysroot for each project. `xargo` will also take care of rebuilding the 
     - `sudo dnf install cmake openssl-devel`
   - On Ubuntu, run
     - `sudo apt-get install cmake libssl-dev`
+  - On Debian Jessie, building is currently broken by [this bug](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=826656). Adding the proposed-updates repository and updating to the fixed version of CMake will resolve the issue.
 
 ## Installation
 

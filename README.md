@@ -50,14 +50,35 @@ build a sysroot for each project. `xargo` will also take care of rebuilding the 
 ## Dependencies
 
 - `cargo` and `rustc` must be in $PATH
-- Xargo depends on [the cargo crate](https://crates.io/crates/cargo), which depends on [libssh2-sys](https://crates.io/crates/libssh2-sys), which requires `cmake` and the OpenSSL headers to build.
+- Xargo depends on [the cargo crate], which depends on [libssh2-sys], which requires `cmake` and the
+  OpenSSL headers to build (\*).
   - On Fedora, run:
     - `sudo dnf install cmake openssl-devel`
   - On Ubuntu, run
     - `sudo apt-get install cmake libssl-dev`
-  - On Debian Jessie, building is currently broken by [this bug](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=826656). Adding the proposed-updates repository and updating to the fixed version of CMake will resolve the issue.
+  - On Debian Jessie, building is currently broken by [this bug]. Adding the proposed-updates
+    repository and updating to the fixed version of CMake will resolve the issue.
+- If using a binary release instead of building Xargo on your own, you'll need the development
+  version of both openssh and libcurl. `cmake` is not needed in this case.
+  - On Ubuntu, run
+    - `sudo apt-get install libcurl4-openssl-dev libssh2-1-dev`
+  
+[the cargo crate]: https://crates.io/crates/cargo
+[libssh2-sys]: https://crates.io/crates/libssh2-sys
+[this bug]: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=826656
 
 ## Installation
+
+### Using a binary release
+
+We have binary releases for the [three major platforms] supported by Rust. To install these
+binaries, simply extract the tarball/zipfile and place the binary contained therein somewhere in you
+PATH. If using rustup, it's recommended to place the binary in `~/.cargo/bin`, which is where rustup
+is also installed.
+
+[three major platforms]: https://github.com/japaric/xargo/releases 
+
+### Build it yourself
 
 ```
 cargo install xargo

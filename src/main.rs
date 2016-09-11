@@ -2,14 +2,14 @@ extern crate cargo;
 extern crate chrono;
 extern crate curl;
 extern crate flate2;
+extern crate rustc_cfg;
 extern crate rustc_version;
-extern crate serde_json;
 extern crate tar;
 extern crate tempdir;
 extern crate term;
 extern crate toml;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs::File;
 use std::hash::{Hash, SipHasher};
@@ -20,11 +20,9 @@ use std::{env, fs, mem};
 
 use cargo::core::shell::{ColorConfig, Verbosity};
 use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
-use serde_json::{de, Value};
+use rustc_cfg::Cfg;
 
 mod sysroot;
-
-type Spec = HashMap<String, Value>;
 
 fn main() {
     let config_opt = &mut None;
@@ -94,11 +92,11 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
 
 /// Custom target with specification file
 pub struct Target {
+    cfg: Cfg,
     // Hasher that has already digested the contents of $triple.json
     hasher: SipHasher,
     // Path to $triple.json file
     path: PathBuf,
-    spec: Spec,
     triple: String,
 }
 
@@ -137,16 +135,11 @@ impl Target {
         Ok(Target {
             hasher: try!(hash(path)),
             path: try!(fs::canonicalize(path)),
-            spec: try!(parse_json(path)),
+            cfg: try!(Cfg::new(&triple)
+                .map_err(|_| util::human("Can't parse the output of `rustc --print cfg`"))),
             triple: triple,
         })
     }
-}
-
-fn parse_json(p: &Path) -> CargoResult<Spec> {
-    let json = &mut String::new();
-    try!(try!(File::open(p)).read_to_string(json));
-    de::from_str(json).map_err(|_| util::human("Target specification file is not valid JSON"))
 }
 
 fn parse_args() -> CargoResult<(Command, Option<Target>, bool)> {

@@ -289,7 +289,7 @@ version = '0.0.0'
     if verbose {
         cargo.arg("--verbose");
     }
-    if target.spec.get("max-atomic-width").map(|w| w.as_u64() == Some(0)) == Some(true) {
+    if target.cfg.target_has_atomic.is_empty() {
         for krate in NO_ATOMICS_CRATES {
             cargo.args(&["-p", krate]);
         }

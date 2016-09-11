@@ -84,9 +84,12 @@ deploy:
 
 branches:
   only:
-    - master
+    - auto
+    - try
     - /^v\d+\.\d+\.\d+.*$/
 
 notifications:
   email:
     on_success: never
+  notifications:
+      webhooks: https://homu.herokuapp.com/travis

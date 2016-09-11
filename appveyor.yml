@@ -53,4 +53,5 @@ deploy:
 
 branches:
   only:
-    - master
+    - auto
+    - try

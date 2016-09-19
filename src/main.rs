@@ -47,7 +47,7 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
                          is not set")
         }));
 
-    let (mut cargo, target, verbose) = try!(parse_args());
+    let (mut cargo, target, verbose, is_cargo_doc) = try!(parse_args());
 
     let rustflags = &try!(rustflags(config));
     let profiles = &try!(parse_cargo_toml(config));
@@ -73,6 +73,10 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
             } else {
                 cargo.env("RUSTFLAGS",
                           format!("{} --sysroot={}", rustflags.join(" "), sysroot));
+            }
+
+            if is_cargo_doc {
+                cargo.env("RUSTDOCFLAGS", format!("--sysroot={}", sysroot));
             }
         }
 
@@ -142,8 +146,9 @@ impl Target {
     }
 }
 
-fn parse_args() -> CargoResult<(Command, Option<Target>, bool)> {
+fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool)> {
     let mut cargo = Command::new("cargo");
+    let mut is_cargo_doc = false;
     let mut target = None;
     let mut verbose = false;
 
@@ -167,12 +172,16 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool)> {
             if arg == "-v" || arg == "--verbose" {
                 verbose = true;
             }
+
+            if arg == "doc" {
+                is_cargo_doc = true;
+            }
         }
 
         cargo.arg(arg_os);
     }
 
-    Ok((cargo, target, verbose))
+    Ok((cargo, target, verbose, is_cargo_doc))
 }
 
 /// Returns the RUSTFLAGS the user has set either via the env variable or via build.rustflags

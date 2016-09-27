@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.9]
+
 ### Fixed
 
 - "error: Invalid cross-device link (os error 18)" which occurred when `$CARGO_HOME` was mounted in
@@ -82,7 +84,8 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.9...HEAD
+[v0.1.9]: https://github.com/japaric/xargo/compare/v0.1.8...v0.1.9
 [v0.1.8]: https://github.com/japaric/xargo/compare/v0.1.7...v0.1.8
 [v0.1.7]: https://github.com/japaric/xargo/compare/v0.1.6...v0.1.7
 [v0.1.6]: https://github.com/japaric/xargo/compare/v0.1.5...v0.1.6

@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- "error: Invalid cross-device link (os error 18)" which occurred when `$CARGO_HOME` was mounted in
+  a different device than "`$XARGO_HOME`" (~/.xargo). The solution was to stop using hard links to
+  place the host libraries in the Xargo sysroot and instead just copy them. This is a regression
+  in disk usage but this problem was coming up in common Docker usage patterns (-v A:B).
+
 ## [v0.1.8]
 
 ### Changed

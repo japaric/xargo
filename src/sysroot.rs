@@ -84,7 +84,7 @@ pub fn create(config: &Config,
 
     let src = try!(update_source(config, &commit_hash, &build_date, root));
     try!(rebuild_sysroot(config, root, target, verbose, rustflags, profiles, src));
-    try!(symlink_host_crates(config, root));
+    try!(copy_host_crates(config, root));
 
     Ok(())
 }
@@ -325,7 +325,7 @@ version = '0.0.0'
     Ok(())
 }
 
-fn symlink_host_crates(config: &Config, root: &Filesystem) -> CargoResult<()> {
+fn copy_host_crates(config: &Config, root: &Filesystem) -> CargoResult<()> {
     let _outer_lock = try!(root.open_ro("date", config, "xargo"));
     let host = &config.rustc_info().host;
     let lock = try!(root.open_rw(format!("lib/rustlib/{}/sentinel", host),
@@ -343,7 +343,7 @@ fn symlink_host_crates(config: &Config, root: &Filesystem) -> CargoResult<()> {
     for entry in try!(fs::read_dir(src)) {
         let src = &try!(entry).path();
 
-        try!(fs::hard_link(src, dst.join(src.file_name().unwrap())));
+        try!(fs::copy(src, dst.join(src.file_name().unwrap())));
     }
 
     Ok(())

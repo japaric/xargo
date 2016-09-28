@@ -99,6 +99,26 @@ fn simple() {
     cleanup(TARGET);
 }
 
+#[test]
+fn doc() {
+    const TARGET: &'static str = "__doc";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+         .write_all(LIB_RS));
+    run(xargo().args(&["doc", "--target", TARGET]).current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
+
+    cleanup(TARGET);
+}
+
 // Calling `xargo build` twice shouldn't trigger a sysroot rebuild
 // The only case the sysroot would have to be rebuild is when the source is updated but that
 // shouldn't happen when running this test suite.

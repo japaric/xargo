@@ -5,13 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.10] - 2016-09-28
+
 ### Fixed
 
 - `xargo doc`, which wasn't working because we didn't pass --sysroot to rustdoc. Note that rustdoc
   gained support for '--sysroot' as of nightly-2016-06-28, so that version or newer is required to
   use `xargo doc`.
 
-## [v0.1.9]
+## [v0.1.9] - 2016-09-27
 
 ### Fixed
 
@@ -20,7 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   place the host libraries in the Xargo sysroot and instead just copy them. This is a regression
   in disk usage but this problem was coming up in common Docker usage patterns (-v A:B).
 
-## [v0.1.8]
+## [v0.1.8] - 2016-09-04
 
 ### Changed
 
@@ -34,13 +36,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   its profiles, then the sysroot will also be compiled with `-C panic=abort`. Previously, this
   wasn't the case.
 
-## [v0.1.7]
+## [v0.1.7] - 2016-09-03
 
 ### Fixed
 
 - The sysroot now gets rebuilt when rust-src changes.
 
-## [v0.1.6]
+## [v0.1.6] - 2016-08-29
 
 ### Added
 
@@ -90,7 +92,8 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.10...HEAD
+[v0.1.9]: https://github.com/japaric/xargo/compare/v0.1.9...v0.1.10
 [v0.1.9]: https://github.com/japaric/xargo/compare/v0.1.8...v0.1.9
 [v0.1.8]: https://github.com/japaric/xargo/compare/v0.1.7...v0.1.8
 [v0.1.7]: https://github.com/japaric/xargo/compare/v0.1.6...v0.1.7

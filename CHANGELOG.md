@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `xargo doc`, which wasn't working because we didn't pass --sysroot to rustdoc. Note that rustdoc
+  gained support for '--sysroot' as of nightly-2016-06-28, so that version or newer is required to
+  use `xargo doc`.
+
 ## [v0.1.9]
 
 ### Fixed

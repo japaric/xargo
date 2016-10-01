@@ -1,6 +1,6 @@
 [root]
 name = "xargo"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "cargo 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",

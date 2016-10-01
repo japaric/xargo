@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `xargo clean` and other commands not associated to building stuff no longer trigger a sysroot
+  rebuild.
+
 ## [v0.1.10] - 2016-09-28
 
 ### Fixed

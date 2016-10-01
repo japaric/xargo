@@ -47,18 +47,26 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
                          is not set")
         }));
 
-    let (mut cargo, target, verbose, is_cargo_doc) = try!(parse_args());
+    let (mut cargo, target, verbose, is_cargo_doc, verb) = try!(parse_args());
 
     let rustflags = &try!(rustflags(config));
     let profiles = &try!(parse_cargo_toml(config));
     let mut with_sysroot = false;
-    if let Some(target) = target {
-        try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
-        with_sysroot = true;
-    } else if let Some(triple) = try!(config.get_string("build.target")) {
-        if let Some(target) = try!(Target::from(&triple.val)) {
-            try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
-            with_sysroot = true;
+
+    match verb.as_ref().map(|s| &**s) {
+        // All these commands shouldn't trigger a sysroot rebuild
+        Some("clean") | Some("new") | Some("init") | Some("update") | Some("search") => {},
+        _ => {
+            if let Some(target) = target {
+                try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
+                with_sysroot = true;
+            } else if let Some(triple) = try!(config.get_string("build.target")) {
+                if let Some(target) = try!(Target::from(&triple.val)) {
+                    try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
+                    with_sysroot = true;
+                }
+            }
+
         }
     }
 
@@ -146,15 +154,18 @@ impl Target {
     }
 }
 
-fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool)> {
+fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool, Option<String>)> {
     let mut cargo = Command::new("cargo");
     let mut is_cargo_doc = false;
     let mut target = None;
     let mut verbose = false;
 
     let mut next_is_target = false;
+    let mut verb = None;
     for arg_os in env::args_os().skip(1) {
-        for arg in arg_os.to_string_lossy().split(' ') {
+        let arg = arg_os.to_string_lossy();
+
+        for arg in arg.split(' ') {
             if target.is_none() {
                 if next_is_target {
                     target = try!(Target::from(arg));
@@ -178,10 +189,14 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool)> {
             }
         }
 
-        cargo.arg(arg_os);
+        if verb.is_none() {
+            verb = Some(arg.into_owned());
+        }
+
+        cargo.arg(&arg_os);
     }
 
-    Ok((cargo, target, verbose, is_cargo_doc))
+    Ok((cargo, target, verbose, is_cargo_doc, verb))
 }
 
 /// Returns the RUSTFLAGS the user has set either via the env variable or via build.rustflags

@@ -84,6 +84,14 @@ is also installed.
 cargo install xargo
 ```
 
+If building on OSX 10.10 or greater, compilation of libssh2-sys will 
+[fail due to missing OpenSSL headers](https://github.com/alexcrichton/ssh2-rs).
+Make sure OpenSSL is installed via HomeBrew, then run the following command:
+
+```
+OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ cargo install xargo
+```
+
 ## License
 
 Licensed under either of

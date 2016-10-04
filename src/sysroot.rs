@@ -8,8 +8,8 @@ use cargo::util::{self, CargoResult, ChainError, Config, FileLock, Filesystem};
 use chrono::NaiveDate;
 use curl::http;
 use flate2::read::GzDecoder;
-use rustc_version::{self, Channel};
 use tar::Archive;
+use rustc_version::VersionMeta;
 use tempdir::TempDir;
 use term::color::GREEN;
 use toml::Value;
@@ -65,14 +65,9 @@ pub fn create(config: &Config,
               root: &Filesystem,
               verbose: bool,
               rustflags: &[String],
-              profiles: &Option<Value>)
+              profiles: &Option<Value>,
+              meta: VersionMeta)
               -> CargoResult<()> {
-    let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
-
-    if meta.channel != Channel::Nightly {
-        return Err(util::human("Only the nightly channel is currently supported"));
-    }
-
     let commit_date = try!(meta.commit_date
         .as_ref()
         .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
@@ -127,7 +122,7 @@ fn update_source(config: &Config,
             .timeout(0)
             .connect_timeout(30 * MS)
             .low_speed_limit(10 * B_PER_S)
-            .low_speed_timeout(30 * S);;
+            .low_speed_timeout(30 * S);
 
         let url = format!("https://static.rust-lang.org/dist/{}/{}",
                           date.format("%Y-%m-%d"),

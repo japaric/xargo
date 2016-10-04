@@ -21,6 +21,7 @@ use std::{env, fs, mem};
 use cargo::core::shell::{ColorConfig, Verbosity};
 use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use rustc_cfg::Cfg;
+use rustc_version::Channel;
 
 mod sysroot;
 
@@ -47,26 +48,35 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
                          is not set")
         }));
 
+    let meta = rustc_version::version_meta_for(&config.rustc_info().verbose_version);
+    if meta.channel != Channel::Nightly {
+        return Err(util::human("Only the nightly channel is currently supported"));
+    }
+
     let (mut cargo, target, verbose, is_cargo_doc, verb) = try!(parse_args());
 
-    let rustflags = &try!(rustflags(config));
+    let target = if let Some(target) = target {
+        Some(target)
+    } else {
+        if let Some(triple) = try!(config.get_string("build.target")) {
+            try!(Target::from(&triple.val))
+        } else {
+            None
+        }
+    };
+
+    let rustflags = &try!(rustflags(config, target.as_ref().map(|t| &t.triple), &meta.host));
     let profiles = &try!(parse_cargo_toml(config));
     let mut with_sysroot = false;
 
     match verb.as_ref().map(|s| &**s) {
         // All these commands shouldn't trigger a sysroot rebuild
-        Some("clean") | Some("new") | Some("init") | Some("update") | Some("search") => {},
+        Some("clean") | Some("new") | Some("init") | Some("update") | Some("search") => {}
         _ => {
             if let Some(target) = target {
-                try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
+                try!(sysroot::create(config, &target, root, verbose, rustflags, profiles, meta));
                 with_sysroot = true;
-            } else if let Some(triple) = try!(config.get_string("build.target")) {
-                if let Some(target) = try!(Target::from(&triple.val)) {
-                    try!(sysroot::create(config, &target, root, verbose, rustflags, profiles));
-                    with_sysroot = true;
-                }
             }
-
         }
     }
 
@@ -201,10 +211,17 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool, Option<Stri
 
 /// Returns the RUSTFLAGS the user has set either via the env variable or via build.rustflags
 // NOTE Logic copied from cargo's Context::rustflags_args
-fn rustflags(config: &Config) -> CargoResult<Vec<String>> {
+fn rustflags(config: &Config, target: Option<&String>, host: &String) -> CargoResult<Vec<String>> {
     // First try RUSTFLAGS from the environment
     if let Some(a) = env::var("RUSTFLAGS").ok() {
         let args = a.split(" ").map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+        return Ok(args.collect());
+    }
+
+    // Then the target.*.rustflags value
+    if let Some(args) =
+        try!(config.get_list(&format!("target.{}.rustflags", target.unwrap_or(host)))) {
+        let args = args.val.into_iter().map(|a| a.0);
         return Ok(args.collect());
     }
 

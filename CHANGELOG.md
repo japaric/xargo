@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Xargo now supports per-target rustflags: `target.thumbv7em-none-eabihf.rustflags` in
+  .cargo/config.
+
 ## [v0.1.11] - 2016-09-30
 
 ### Fixed

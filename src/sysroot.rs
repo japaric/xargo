@@ -250,7 +250,9 @@ fn rebuild_sysroot(config: &Config,
 
     // Create Cargo project
     try!(fs::create_dir(td.join("src")));
-    try!(fs::copy(&target.path, td.join(target.path.file_name().unwrap())));
+    if let Some(path) = target.path.as_ref() {
+        try!(fs::copy(path, td.join(path.file_name().unwrap())));
+    }
     try!(File::create(td.join("src/lib.rs")));
     let toml = &mut format!("[package]
 name = 'sysroot'

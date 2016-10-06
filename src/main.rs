@@ -112,18 +112,37 @@ fn run(config_opt: &mut Option<Config>) -> CargoResult<()> {
     Ok(())
 }
 
-/// Custom target with specification file
+/// Custom target with specification file, or a built-in target that doesn't have a binary release
+/// of the standard crates.
 pub struct Target {
     cfg: Cfg,
     // Hasher that has already digested the contents of $triple.json
     hasher: SipHasher,
     // Path to $triple.json file
-    path: PathBuf,
+    path: Option<PathBuf>,
     triple: String,
 }
 
 impl Target {
     fn from(arg: &str) -> CargoResult<Option<Self>> {
+        // These are built-in targets that don't ship with binary releases of standard crates; we
+        // have to build a sysroot for them.
+        match arg {
+            "thumbv6m-none-eabi" |
+            "thumbv7m-none-eabi" |
+            "thumbv7em-none-eabi" |
+            "thumbv7em-none-eabihf" => {
+                return Ok(Some(Target {
+                    cfg: try!(Cfg::new(arg)
+                        .map_err(|_| util::human("Can't parse the output of `rustc --print cfg`"))),
+                    hasher: SipHasher::new(),
+                    path: None,
+                    triple: arg.to_string(),
+                }));
+            }
+            _ => {}
+        }
+
         let json = &PathBuf::from(format!("{}.json", arg));
 
         if json.is_file() {
@@ -156,7 +175,7 @@ impl Target {
 
         Ok(Target {
             hasher: try!(hash(path)),
-            path: try!(fs::canonicalize(path)),
+            path: Some(try!(fs::canonicalize(path))),
             cfg: try!(Cfg::new(&triple)
                 .map_err(|_| util::human("Can't parse the output of `rustc --print cfg`"))),
             triple: triple,

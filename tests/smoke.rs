@@ -74,9 +74,13 @@ fn exists_rlib(krate: &str, target: &str) -> bool {
 }
 
 fn cleanup(target: &str) {
-    try!(fs::remove_dir_all(env::home_dir()
+    let path = env::home_dir()
         .unwrap()
-        .join(format!(".xargo/lib/rustlib/{}", target))));
+        .join(format!(".xargo/lib/rustlib/{}", target));
+
+    if path.exists() {
+        try!(fs::remove_dir_all(path));
+    }
 }
 
 #[test]
@@ -348,6 +352,29 @@ panic = \"abort\"
     }
 
     assert!(at_least_once);
+
+    cleanup(TARGET);
+}
+
+// Make sure we build a sysroot for the built-in `thumbv*` targets which don't ship with binary
+// releases of the standard crates
+#[test]
+fn thumb() {
+    const TARGET: &'static str = "thumbv7m-none-eabi";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+
+    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
+    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+         .write_all(LIB_RS));
+
+    cleanup(TARGET);
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    for krate in CRATES {
+        assert!(exists_rlib(krate, TARGET));
+    }
 
     cleanup(TARGET);
 }

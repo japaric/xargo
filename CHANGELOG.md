@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Xargo now builds a sysroot for the new built-in `thumbv*-none-eabi*` targets which don't ship with
+  a binary release of the standard crates.
+
 ## [v0.1.12] - 2016-10-04
 
 ### Added

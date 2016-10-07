@@ -49,7 +49,7 @@ matrix:
           packages: *x86_64_unknown_linux_gnu
 
 install:
-  - if [ $TRAVIS_OS = osx ]; then
+  - if [ $TRAVIS_OS_NAME = osx ]; then
       brew install openssl;
       export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include;
       export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib;

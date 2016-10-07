@@ -1,19 +1,20 @@
 cache: cargo
 language: rust
 os: linux
+rust: stable
 sudo: false
 env:
   global:
     - PROJECT_NAME=xargo
 
 matrix:
+  exclude:
+    - rust: stable
   include:
     # Stable channel
     - env: TARGET=i686-apple-darwin
       os: osx
-      rust: stable
     - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
-      rust: stable
       addons:
         apt:
           packages: &i686_unknown_linux_gnu
@@ -23,9 +24,7 @@ matrix:
             - libssh2-1-dev:i386
     - env: TARGET=x86_64-apple-darwin
       os: osx
-      rust: stable
     - env: TARGET=x86_64-unknown-linux-gnu
-      rust: stable
       addons:
         apt:
           packages: &x86_64_unknown_linux_gnu
@@ -33,6 +32,7 @@ matrix:
             - libssh2-1-dev
     # Beta channel
     - env: TARGET=i686-apple-darwin
+      os: osx
       rust: beta
     - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
       rust: beta

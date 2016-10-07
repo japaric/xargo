@@ -49,6 +49,11 @@ matrix:
           packages: *x86_64_unknown_linux_gnu
 
 install:
+  - if [ $TRAVIS_OS = osx ]; then
+      brew install openssl;
+      export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include;
+      export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib;
+    fi
   - curl https://static.rust-lang.org/rustup.sh |
      sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
 

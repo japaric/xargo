@@ -3,11 +3,15 @@
 set -ex
 
 main() {
-  cargo build --target $TARGET --verbose
+    if [ $TRAVIS_OS_NAME = osx ]; then
+        export OPENSSL_ROOT_DIR=`brew --prefix openssl`;
+    fi
 
-  if [ $TRAVIS_RUST_VERSION = nightly ]; then
-      cargo test --target $TARGET
-  fi
+    cargo build --target $TARGET --verbose
+
+    if [ $TRAVIS_RUST_VERSION = nightly ]; then
+        cargo test --target $TARGET
+    fi
 }
 
 main

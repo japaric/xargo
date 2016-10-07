@@ -1,7 +1,7 @@
+cache: cargo
+language: rust
+os: linux
 sudo: false
-
-language: generic
-
 env:
   global:
     - PROJECT_NAME=xargo
@@ -9,10 +9,11 @@ env:
 matrix:
   include:
     # Stable channel
-    - os: osx
-      env: TARGET=i686-apple-darwin CHANNEL=stable
-    - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=stable PKG_CONFIG_ALLOW_CROSS=yes
+    - env: TARGET=i686-apple-darwin
+      os: osx
+      rust: stable
+    - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
+      rust: stable
       addons:
         apt:
           packages: &i686_unknown_linux_gnu
@@ -20,52 +21,58 @@ matrix:
             - gcc-multilib
             - libssl-dev:i386
             - libssh2-1-dev:i386
-    - os: osx
-      env: TARGET=x86_64-apple-darwin CHANNEL=stable
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: stable
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: stable
       addons:
         apt:
           packages: &x86_64_unknown_linux_gnu
             # required C libraries
             - libssh2-1-dev
     # Beta channel
-    - os: osx
-      env: TARGET=i686-apple-darwin CHANNEL=beta
-    - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=beta PKG_CONFIG_ALLOW_CROSS=yes
+    - env: TARGET=i686-apple-darwin
+      rust: beta
+    - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
+      rust: beta
       addons:
         apt:
           packages: *i686_unknown_linux_gnu
-    - os: osx
-      env: TARGET=x86_64-apple-darwin CHANNEL=beta
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: beta
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: beta
       addons:
         apt:
           packages: *x86_64_unknown_linux_gnu
     # Nightly channel
-    - os: osx
-      env: TARGET=i686-apple-darwin CHANNEL=nightly
-    - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly PKG_CONFIG_ALLOW_CROSS=yes
+    - env: TARGET=i686-apple-darwin
+      os: osx
+      rust: nightly
+    - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
+      rust: nightly
       addons:
         apt:
           packages: *i686_unknown_linux_gnu
-    - os: osx
-      env: TARGET=x86_64-apple-darwin CHANNEL=nightly
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
       addons:
         apt:
           packages: *x86_64_unknown_linux_gnu
 
 install:
-  - export PATH="$PATH:$HOME/.cargo/bin"
-  - bash ci/install.sh
+  - curl https://static.rust-lang.org/rustup.sh |
+     sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
 
 script:
   - bash ci/script.sh
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo
 
 before_deploy:
   - bash ci/before_deploy.sh
@@ -79,7 +86,7 @@ deploy:
   skip_cleanup: true
   # deploy when a new tag is pushed
   on:
-    condition: $CHANNEL = stable
+    condition: $TRAVIS_RUST_VERSION = stable
     tags: true
 
 branches:

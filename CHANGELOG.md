@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.13] - 2016-10-06
+
 ### Added
 
 - Xargo now builds a sysroot for the new built-in `thumbv*-none-eabi*` targets which don't ship with
@@ -111,7 +113,8 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.12...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.13...HEAD
+[v0.1.12]: https://github.com/japaric/xargo/compare/v0.1.12...v0.1.13
 [v0.1.12]: https://github.com/japaric/xargo/compare/v0.1.11...v0.1.12
 [v0.1.11]: https://github.com/japaric/xargo/compare/v0.1.10...v0.1.11
 [v0.1.10]: https://github.com/japaric/xargo/compare/v0.1.9...v0.1.10

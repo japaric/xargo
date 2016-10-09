@@ -220,7 +220,7 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool, Option<Stri
                 is_cargo_doc = true;
             }
 
-            if arg == "--version" {
+            if arg == "-V" || arg == "--version" {
                 println!("xargo {}", CURRENT_VERSION); 
             }
         }

@@ -221,7 +221,7 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool, Option<Stri
             }
 
             if arg == "--version" {
-                println!("xargo version {}", CURRENT_VERSION); 
+                println!("xargo {}", CURRENT_VERSION); 
             }
         }
 

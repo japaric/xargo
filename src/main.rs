@@ -23,6 +23,9 @@ use cargo::util::{self, CargoResult, ChainError, Config, Filesystem};
 use rustc_cfg::Cfg;
 use rustc_version::Channel;
 
+// Get the current version of this crate
+const CURRENT_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 mod sysroot;
 
 fn main() {
@@ -215,6 +218,10 @@ fn parse_args() -> CargoResult<(Command, Option<Target>, bool, bool, Option<Stri
 
             if arg == "doc" {
                 is_cargo_doc = true;
+            }
+
+            if arg == "--version" {
+                println!("xargo version {}", CURRENT_VERSION); 
             }
         }
 

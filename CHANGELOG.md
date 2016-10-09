@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.1.14] - 2016-10-09
+
+### Added
+
+- `xargo -V` and `xargo --version` now report Xargo's version as well as Cargo's.
+
 ## [v0.1.13] - 2016-10-06
 
 ### Added
@@ -113,8 +119,9 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.13...HEAD
-[v0.1.12]: https://github.com/japaric/xargo/compare/v0.1.12...v0.1.13
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.14...HEAD
+[v0.1.14]: https://github.com/japaric/xargo/compare/v0.1.13...v0.1.14
+[v0.1.13]: https://github.com/japaric/xargo/compare/v0.1.12...v0.1.13
 [v0.1.12]: https://github.com/japaric/xargo/compare/v0.1.11...v0.1.12
 [v0.1.11]: https://github.com/japaric/xargo/compare/v0.1.10...v0.1.11
 [v0.1.10]: https://github.com/japaric/xargo/compare/v0.1.9...v0.1.10

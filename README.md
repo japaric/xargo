@@ -88,8 +88,25 @@ If building on OSX 10.10 or greater, compilation of libssh2-sys will
 [fail due to missing OpenSSL headers](https://github.com/alexcrichton/ssh2-rs).
 Make sure OpenSSL is installed via HomeBrew, then run the following command:
 
+```bash
+OPENSSL_ROOT_DIR=$(brew --prefix openssl)/ \
+cargo install xargo
 ```
-OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ cargo install xargo
+
+In case the build fails with the following error …
+
+```
+ld: library not found for -lssl
+```
+
+… you will have to use this more involved command instead:
+
+```bash
+LDFLAGS="$LDFLAGS -L$(brew --prefix openssl)/lib" \
+CPPFLAGS="$CPPFLAGS -I$(brew --prefix openssl)/include" \
+PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$(brew --prefix openssl)/lib/pkgconfig" \
+OPENSSL_ROOT_DIR=$(brew --prefix openssl)/ \
+cargo install xargo
 ```
 
 ## License

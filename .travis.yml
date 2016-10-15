@@ -37,6 +37,8 @@ install:
   # `std for cross-compilation
   - curl https://static.rust-lang.org/rustup.sh |
     sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
+  # needed to be able to compile the libssh2-sys crate
+  - test $TRAVIS_OS_NAME = osx && export OPENSSL_ROOT_DIR=`brew --prefix openssl`
 
 script:
   - cargo generate-lockfile

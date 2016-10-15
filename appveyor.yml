@@ -1,52 +1,62 @@
 environment:
   global:
-    PROJECT_NAME: xargo
+    CRATE_NAME: xargo
+    RUST_VERSION: stable
   matrix:
-    # Stable channel
+    - TARGET: i686-pc-windows-gnu
     - TARGET: i686-pc-windows-msvc
-      CHANNEL: stable
+    - TARGET: x86_64-pc-windows-gnu
     - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: stable
-    # Nightly channel
+
+    - TARGET: i686-pc-windows-gnu
+      RUST_VERSION: stable
     - TARGET: i686-pc-windows-msvc
-      CHANNEL: nightly
+      RUST_VERSION: stable
+    - TARGET: x86_64-pc-windows-gnu
+      RUST_VERSION: stable
     - TARGET: x86_64-pc-windows-msvc
-      CHANNEL: nightly
+      RUST_VERSION: stable
 
 install:
-  - curl -sSf -o rustup-init.exe https://win.rustup.rs
-  - rustup-init.exe --default-host %TARGET% --default-toolchain %CHANNEL% -y
-  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
-  - rustc -V
-  - cargo -V
+  - ps: ci\install.ps1
 
 build: false
 
 test_script:
-  - cargo build --verbose
-  - if "%CHANNEL%" == "nightly" cargo test
+  - if [%APPVEYOR_REPO_TAG%]==[false] (
+      if [%RUST_VERSION%]==[nightly] (
+        cargo test --target %TARGET%
+      ) else (
+        cargo build --target %TARGET%
+      )
+    ) else (
+      cargo rustc --target %TARGET% --release -- -C lto
+    )
 
 before_deploy:
-  # Generate artifacts for release
-  - cargo build --release
-  - mkdir staging
-  - copy target\release\xargo.exe staging
-  - cd staging
-  - 7z a ../%PROJECT_NAME%-%APPVEYOR_REPO_TAG_NAME%-%TARGET%.zip *
-  - appveyor PushArtifact ../%PROJECT_NAME%-%APPVEYOR_REPO_TAG_NAME%-%TARGET%.zip
+  - ps: ci\package.ps1
 
 deploy:
   description: 'Windows release'
   artifact: /.*\.zip/
   auth_token:
-    secure: 4nKAE15I9/mtd8y+T6F31uvKGXjt7M2kqXTbLTzmZzRQjvm9LjbDxxEyiS/GSZWZ
+    secure: bQ29dEXeNG5VP2hQcWiZ1xsfmkGosteCDNeYu/cXTX4lOeghOp0qANpQXmGfal29
   provider: GitHub
-  # deploy when a new tag is pushed and only on the stable channel
   on:
-    CHANNEL: stable
+    RUST_VERSION: stable
     appveyor_repo_tag: true
+
+cache:
+  - C:\Users\appveyor\.cargo\registry
+  - target
 
 branches:
   only:
+    # Release tags
+    - /^v\d+\.\d+\.\d+.*$/
     - auto
     - try
+
+notifications:
+  - provider: Email
+    on_build_success: false

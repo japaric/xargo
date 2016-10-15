@@ -1,85 +1,76 @@
 cache: cargo
+dist: trusty
 language: rust
-os: linux
 rust: stable
-sudo: false
+services: docker
+sudo: required
+
 env:
   global:
-    - PROJECT_NAME=xargo
+    - CRATE_NAME=xargo
+    - TARGET=x86_64-unknown-linux-gnu
 
 matrix:
-  exclude:
-    - rust: stable
   include:
-    # Stable channel
+    # OSX
     - env: TARGET=i686-apple-darwin
       os: osx
-    - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
-      addons:
-        apt:
-          packages: &i686_unknown_linux_gnu
-            # Cross compiler and required cross compiled C libraries
-            - gcc-multilib
-            - libssl-dev:i386
-            - libssh2-1-dev:i386
     - env: TARGET=x86_64-apple-darwin
       os: osx
-    - env: TARGET=x86_64-unknown-linux-gnu
-      addons:
-        apt:
-          packages: &x86_64_unknown_linux_gnu
-            # required C libraries
-            - libssh2-1-dev
-    # Nightly channel
+
     - env: TARGET=i686-apple-darwin
       os: osx
       rust: nightly
-    - env: TARGET=i686-unknown-linux-gnu PKG_CONFIG_ALLOW_CROSS=yes
-      rust: nightly
-      addons:
-        apt:
-          packages: *i686_unknown_linux_gnu
     - env: TARGET=x86_64-apple-darwin
       os: osx
       rust: nightly
+
+    # Linux
+    - env: TARGET=i686-unknown-linux-gnu
+
+    - env: TARGET=i686-unknown-linux-gnu
+      rust: nightly
     - env: TARGET=x86_64-unknown-linux-gnu
       rust: nightly
-      addons:
-        apt:
-          packages: *x86_64_unknown_linux_gnu
 
 install:
+  # `std for cross-compilation
   - curl https://static.rust-lang.org/rustup.sh |
-     sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
+    sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
 
 script:
-  - bash ci/script.sh
+  - cargo generate-lockfile
+  - if [[ $TRAVIS_OS_NAME = linux ]]; then
+      sh ci/run-docker.sh $TARGET;
+    else
+      sh ci/run.sh;
+    fi
   # Travis can't cache files that are not readable by "others"
   - chmod -R a+r $HOME/.cargo
 
 before_deploy:
-  - bash ci/before_deploy.sh
+  - sh ci/package.sh $TARGET
 
 deploy:
   provider: releases
   api_key:
-    secure: hZg6JAGVDCpRI5qbxpuJcYmo+0OGZyCjuxiwXgSC537HCwri4a0gypJFubZO3NwUTvu03Ibgk0Nj/tSOyjy71A7nCKwrZnGBPzy4Q/G7lT5uIEtpqgS4WjOqWg7tMm/VaXkapi3m72gEEIp/hdaBj7l+d1hBstz4c7L1oJAwixE5e+0MVbEh+v2ISahXOWz0nt1E8tDKNSPRg5jFhZy+gboTLmKVJpBkHqVEn+K+A8CAxtA6dc26GZK6x4jLuvu7gXj9T91RpLO9b8+AQylFKNLFCbeyDVC3+GakPxxU5zVuUat0LXvpWB+kiBW2NUxI15kki+PaOoHItQOUKaeRWNeSZk2sKo43oy51Z1EWrhj0ukB0q2Nu1JLUFv/sMaIJNBauAhYPLneqIyfv8cJguf6JiOLDkFq8E1K90gswlgB8u91nXCIqOyXYcv9H2A+m0A9ZbdPEP6KDuPlqpVUaTnTfH+9RIZw4hIVFSwAQCWz3NvyF1/Mc1kKoOOvXo/wZOwshOMu3eiyIeXvNEPrnwE+9zZFHs5FQ8Q/+qe+0exrVGyMRZxuGZt+FSy/XIJ+cHkyGYVgB76O/hsHaG4ojH991p10zXKKMPr2xOl5QssKLF8CUw+QZFV4XGhUEd85dWNtYNqJwr2hnj/4YhNgyGUNEXVJlMoNqTxtZciPvzWQ=
-  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.tar.gz
-  # don't delete the artifacts from previous phases
+    secure: RzmRdZJAyz9Bp1NLQs26ey2YRMi21qn0Hid1kqW+GR+M9rHM4QEJlhfHlmh/MzRoR2aU/DcWIsB+IgZvpwxzAscy1CapnlVexXTXnp6ezLHYzJ6H+3IOE8rQ6wanXtPAaMdhnbnyPDgR12wgWksxcMxaChwiInYQmtSbihVd8PgJU8hqREPtDzaLtjo3rLp+4uuxVRVE7Fkv9Wve5X7yig2t7s+18l5yhOfSUS+aPgUyJlPo1hHyIMvIE9OF1KdkYNu5iN4wFrjHTIvROqbW5vAgiHRjJLb4H782b01SfVuCVH/ea1vmyfmX+vQ7g2VKQlzZnhJl0AcsdR60D+QzfHCZ/9KG2P9ciUtr8PUyqWVXtwctVhR6PYgkwl9p92ubqylj9E1vkLMFKC1o5M9Jihyc/16FAIbhnmossOMCKIMkhOJRHBlJO0wfyLTmKbyzSNiEWvHbX7MqQC0FYe7IfMgbQSq0MYq63GaOEd/Ne1r3FX6+jqrMO3Pohq08YOlbE1J5x3Zs5xZ9WdyDCKuR/kb/+qnJkqZjcaTRLTO8b/4lSYCbWydme6ynpoxd/Mz9gplhJxPInUpx87sUrcEg0xKSjPDu95B4KRkb8EhD+ybT+7QLAyfSzQtnf4+u49I7zwI/8sCiAvepMVIXIr4rQZ5f1PJJZcGbVwT3zi49xsA=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  # don't delete the target directory
   skip_cleanup: true
-  # deploy when a new tag is pushed
   on:
     condition: $TRAVIS_RUST_VERSION = stable
     tags: true
 
 branches:
   only:
+    # Release tags
+    - /^v\d+\.\d+\.\d+.*$/
     - auto
     - try
-    - /^v\d+\.\d+\.\d+.*$/
 
 notifications:
   email:
     on_success: never
-  notifications:
-      webhooks: https://homu.herokuapp.com/travis
+  webhooks: https://homu.herokuapp.com/travis

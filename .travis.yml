@@ -31,10 +31,14 @@ matrix:
     # - env: TARGET=x86_64-unknown-linux-gnu
     - env: TARGET=x86_64-unknown-linux-musl
 
-    - env: TARGET=i686-unknown-linux-gnu RUST_VERSION=nightly
-    - env: TARGET=i686-unknown-linux-musl RUST_VERSION=nightly
-    - env: TARGET=x86_64-unknown-linux-gnu RUST_VERSION=nightly
-    - env: TARGET=x86_64-unknown-linux-musl RUST_VERSION=nightly
+    - env: TARGET=i686-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=i686-unknown-linux-musl
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-musl
+      rust: nightly
 
 install:
   # rustup

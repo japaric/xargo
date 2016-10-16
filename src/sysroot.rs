@@ -45,7 +45,7 @@ version = "0.0.0"
         let mut toml = CARGO_TOML.to_owned();
 
         for dep in &deps {
-            toml.push_str(&format!("{} = {{ path = \"{}\" }}\n",
+            toml.push_str(&format!("{} = {{ path = '{}' }}\n",
                                    dep,
                                    rust_src.join(format!("src/lib{}", dep))
                                        .display()));

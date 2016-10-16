@@ -1,6 +1,7 @@
 environment:
   global:
     CRATE_NAME: xargo
+    DEPLOY_VERSION: stable
     RUST_VERSION: stable
   matrix:
     - TARGET: i686-pc-windows-gnu
@@ -30,7 +31,9 @@ test_script:
         cargo build --target %TARGET%
       )
     ) else (
-      cargo rustc --target %TARGET% --release -- -C lto
+      if [%RUST_VERSION%]==[%DEPLOY_VERSION%] (
+        cargo rustc --target %TARGET% --release -- -C lto
+      )
     )
 
 before_deploy:
@@ -43,6 +46,7 @@ deploy:
     secure: bQ29dEXeNG5VP2hQcWiZ1xsfmkGosteCDNeYu/cXTX4lOeghOp0qANpQXmGfal29
   provider: GitHub
   on:
+    # NOTE this "version" must match %DEPLOY_VERSION% (see top)
     RUST_VERSION: stable
     appveyor_repo_tag: true
 

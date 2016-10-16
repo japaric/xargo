@@ -16,7 +16,7 @@ deploy_mode() {
 run() {
     if [ -z $TRAVIS_TAG ]; then
         test_mode
-    else
+    elif [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
         deploy_mode
     fi
 }

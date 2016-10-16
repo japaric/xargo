@@ -9,6 +9,7 @@ sudo: required
 env:
   global:
     - CRATE_NAME=xargo
+    - DEPLOY_VERSION=stable
     - TARGET=x86_64-unknown-linux-gnu
 
 matrix:
@@ -43,26 +44,30 @@ matrix:
       rust: nightly
 
 install:
-  # rustup
-  - curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y
-  - source ~/.cargo/env
-  # rust-std
-  - case $TARGET in
-      x86_64-apple-darwin | x86_64-unknown-linux-gnu) ;;
-      *) rustup target add $TARGET ;;
-    esac
-  # `rust-src
-  - rustup component add rust-src
+  # curl: cargo + rustc
+  # case: rust-std
+  # rustup: rust-src
+  - if [ -z $TRAVIS_TAG ] || [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
+      curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y;
+      source ~/.cargo/env;
+      case $TARGET in
+        x86_64-apple-darwin | x86_64-unknown-linux-gnu) ;;
+        *) rustup target add $TARGET ;;
+      esac;
+      rustup component add rust-src;
+    fi
 
 script:
-  - cargo generate-lockfile
-  - if [[ $TRAVIS_OS_NAME = linux ]]; then
-      sh ci/run-docker.sh $TARGET;
-    else
-      sh ci/run.sh;
+  # chmod: Travis can't cache files that are not readable by "others"
+  - if [ -z $TRAVIS_TAG ] || [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
+      cargo generate-lockfile;
+      if [[ $TRAVIS_OS_NAME = linux ]]; then
+        sh ci/run-docker.sh $TARGET;
+      else
+        sh ci/run.sh;
+      fi;
+      chmod -R a+r $HOME/.cargo;
     fi
-  # Travis can't cache files that are not readable by "others"
-  - chmod -R a+r $HOME/.cargo
 
 before_deploy:
   - sh ci/package.sh $TARGET
@@ -76,7 +81,7 @@ deploy:
   # don't delete the target directory
   skip_cleanup: true
   on:
-    condition: $TRAVIS_RUST_VERSION = stable
+    condition: $TRAVIS_RUST_VERSION = $DEPLOY_VERSION
     tags: true
 
 cache:

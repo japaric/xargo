@@ -3,10 +3,16 @@ environment:
     CRATE_NAME: xargo
     RUST_VERSION: stable
   matrix:
+    - TARGET: i686-pc-windows-gnu
     - TARGET: i686-pc-windows-msvc
+    - TARGET: x86_64-pc-windows-gnu
     - TARGET: x86_64-pc-windows-msvc
 
+    - TARGET: i686-pc-windows-gnu
+      RUST_VERSION: nightly
     - TARGET: i686-pc-windows-msvc
+      RUST_VERSION: nightly
+    - TARGET: x86_64-pc-windows-gnu
       RUST_VERSION: nightly
     - TARGET: x86_64-pc-windows-msvc
       RUST_VERSION: nightly

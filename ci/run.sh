@@ -2,6 +2,7 @@ set -ex
 
 test_mode() {
     cargo build --target $TARGET
+    cargo run --target $TARGET -- -V
 
     if [ $TRAVIS_RUST_VERSION = nightly ]; then
         cargo test --target $TARGET

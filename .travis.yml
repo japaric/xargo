@@ -1,12 +1,15 @@
+cache: cargo
 dist: trusty
 language: generic
+language: rust
+rust: stable
 services: docker
 sudo: required
 
 env:
   global:
     - CRATE_NAME=xargo
-    - RUST_VERSION=stable
+    - TARGET=x86_64-unknown-linux-gnu
 
 matrix:
   include:
@@ -24,7 +27,8 @@ matrix:
     # Linux
     - env: TARGET=i686-unknown-linux-gnu
     - env: TARGET=i686-unknown-linux-musl
-    - env: TARGET=x86_64-unknown-linux-gnu
+    # This target is handled by the default build job
+    # - env: TARGET=x86_64-unknown-linux-gnu
     - env: TARGET=x86_64-unknown-linux-musl
 
     - env: TARGET=i686-unknown-linux-gnu RUST_VERSION=nightly
@@ -34,7 +38,7 @@ matrix:
 
 install:
   # rustup
-  - curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$RUST_VERSION -y
+  - curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y
   - source ~/.cargo/env
   # rust-std
   - case $TARGET in
@@ -66,7 +70,7 @@ deploy:
   # don't delete the target directory
   skip_cleanup: true
   on:
-    condition: $RUST_VERSION = stable
+    condition: $TRAVIS_RUST_VERSION = stable
     tags: true
 
 cache:

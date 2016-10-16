@@ -1,21 +1,20 @@
 [package]
 authors = ["Jorge Aparicio <japaricious@gmail.com>"]
+build = "build.rs"
 description = "Effortless cross compilation to custom bare-metal targets like ARM Cortex-M"
 documentation = "https://github.com/japaric/xargo#xargo"
 keywords = ["cli", "cross", "compilation", "custom", "target"]
 license = "MIT OR Apache-2.0"
 name = "xargo"
 repository = "https://github.com/japaric/xargo"
-version = "0.1.14"
+version = "0.2.0"
 
 [dependencies]
-cargo = "0.10.0"
-chrono = "0.2.20"
-curl = "0.2.18"
-flate2 = "0.2.13"
-rustc-cfg = "0.1.0"
+error-chain = "0.5.0"
+fs2 = "0.2.5"
+libc = "0.2.16"
+rustc-cfg = "0.2.0"
 rustc_version = "0.1.7"
-tar = "0.4.4"
-tempdir = "0.3.4"
-term = "0.4.4"
-toml = "0.1.28"
+tempdir = "0.3.5"
+toml = "0.2.1"
+walkdir = "0.1.8"

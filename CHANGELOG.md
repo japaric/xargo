@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Statically linked binary releases for Linux (x86 musl targets)
+- `xargo -V` output now includes the commit hash and date
+
+### Changed
+
+- Xargo now depends on the `rust-src` component being installed. Install it with `rustup component
+  add rust-src`.
+- Xargo no longer depends on libcurl, libssh or libssl and, therefore, it's now much easier to
+  build.
+- Xargo now respects the existing rustdocflags (RUSTDOCFLAGS env var, build.rustdocflags, etc) when
+  passing --sysroot to rustdoc.
+- File locking logic has been revised/simplied and now lock periods are shorter
+
 ## [v0.1.14] - 2016-10-09
 
 ### Added

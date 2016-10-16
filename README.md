@@ -30,7 +30,7 @@ The magic happens when you call `xargo` with the `--target` flag. In that case, 
 care of building a sysroot with cross compiled crates and calling `cargo build` with the appropriate
 `RUSTFLAGS` variable. Example below:
 
-![Screenshot](http://i.imgur.com/pUIfnwu.jpg)
+![Screenshot](https://i.imgur.com/qAvB81X.png)
 
 `xargo` will cache the sysroot, so you can use it across different Cargo projects without having to
 build a sysroot for each project. `xargo` will also take care of rebuilding the sysroot when

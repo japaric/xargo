@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.2.0]
+
 ### Added
 
 - Statically linked binary releases for Linux (x86 musl targets)
@@ -134,7 +136,8 @@ to *always* trigger a sysroot rebuild.
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.1.14...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/japaric/xargo/compare/v0.1.14...v0.2.0
 [v0.1.14]: https://github.com/japaric/xargo/compare/v0.1.13...v0.1.14
 [v0.1.13]: https://github.com/japaric/xargo/compare/v0.1.12...v0.1.13
 [v0.1.12]: https://github.com/japaric/xargo/compare/v0.1.11...v0.1.12

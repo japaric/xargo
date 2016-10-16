@@ -19,10 +19,12 @@ matrix:
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
-    - env: TARGET=i686-apple-darwin RUST_VERSION=nightly
+    - env: TARGET=i686-apple-darwin
       os: osx
-    - env: TARGET=x86_64-apple-darwin RUST_VERSION=nightly
+      rust: nightly
+    - env: TARGET=x86_64-apple-darwin
       os: osx
+      rust: nightly
 
     # Linux
     - env: TARGET=i686-unknown-linux-gnu

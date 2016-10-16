@@ -3,7 +3,7 @@ set -ex
 test_mode() {
     cargo build --target $TARGET
 
-    if [ $TRAVIS_RUST_VERSION = nightly ]; then
+    if [ $RUST_VERSION = nightly ]; then
         cargo test --target $TARGET
     fi
 }

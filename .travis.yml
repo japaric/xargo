@@ -1,14 +1,12 @@
-cache: cargo
 dist: trusty
-language: rust
-rust: stable
+language: generic
 services: docker
 sudo: required
 
 env:
   global:
     - CRATE_NAME=xargo
-    - TARGET=x86_64-unknown-linux-gnu
+    - RUST_VERSION=stable
 
 matrix:
   include:
@@ -18,27 +16,33 @@ matrix:
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
-    - env: TARGET=i686-apple-darwin
+    - env: TARGET=i686-apple-darwin RUST_VERSION=nightly
       os: osx
-      rust: nightly
-    - env: TARGET=x86_64-apple-darwin
+    - env: TARGET=x86_64-apple-darwin RUST_VERSION=nightly
       os: osx
-      rust: nightly
 
     # Linux
     - env: TARGET=i686-unknown-linux-gnu
-
-    - env: TARGET=i686-unknown-linux-gnu
-      rust: nightly
+    - env: TARGET=i686-unknown-linux-musl
     - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-musl
+
+    - env: TARGET=i686-unknown-linux-gnu RUST_VERSION=nightly
+    - env: TARGET=i686-unknown-linux-musl RUST_VERSION=nightly
+    - env: TARGET=x86_64-unknown-linux-gnu RUST_VERSION=nightly
+    - env: TARGET=x86_64-unknown-linux-musl RUST_VERSION=nightly
 
 install:
-  # `std for cross-compilation
-  - curl https://static.rust-lang.org/rustup.sh |
-    sh -s -- --add-target=$TARGET --disable-sudo -y --prefix=`rustc --print sysroot`
-  # needed to be able to compile the libssh2-sys crate
-  - test $TRAVIS_OS_NAME = linux || export OPENSSL_ROOT_DIR=`brew --prefix openssl`
+  # rustup
+  - curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$RUST_VERSION -y
+  - source ~/.cargo/env
+  # rust-std
+  - case $TARGET in
+      x86_64-apple-darwin | x86_64-unknown-linux-gnu) ;;
+      *) rustup target add $TARGET ;;
+    esac
+  # `rust-src
+  - rustup component add rust-src
 
 script:
   - cargo generate-lockfile
@@ -64,6 +68,11 @@ deploy:
   on:
     condition: $TRAVIS_RUST_VERSION = stable
     tags: true
+
+cache:
+  directories:
+    - $HOME/.cargo
+    - target
 
 branches:
   only:

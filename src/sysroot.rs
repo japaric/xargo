@@ -1,361 +1,188 @@
-use std::fs::{self, File};
-use std::hash::{Hash, Hasher};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::hash::{Hash, Hasher, SipHasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cargo::util::{self, CargoResult, ChainError, Config, FileLock, Filesystem};
-use chrono::NaiveDate;
-use curl::http;
-use flate2::read::GzDecoder;
-use tar::Archive;
-use rustc_version::VersionMeta;
 use tempdir::TempDir;
-use term::color::GREEN;
-use toml::Value;
 
-use Target;
+use errors::*;
+use {fs, io, parse, rustc, toml, xargo};
+use rustc::{Channel, VersionMeta};
+use {CommandExt, Target};
 
-enum Source {
-    Rustup(PathBuf),
-    Xargo,
+pub struct Crate {
+    td: TempDir,
+    triple: String,
 }
 
-/// Create a sysroot that looks like this:
-///
-/// ``` text
-/// ~/.xargo
-/// ├── date
-/// ├── lib
-/// │   └── rustlib
-/// │       ├── $HOST
-/// │       │   └── lib
-/// │       │       ├── libcore-$hash.rlib -> $SYSROOT/lib/rustlib/$HOST/lib/libcore-$hash.rlib
-/// │       │       └── (..)
-/// │       ├── $TARGET1
-/// │       │   ├── hash
-/// │       │   └── lib
-/// │       │       ├── libcore-$hash.rlib
-/// │       │       └── (..)
-/// │       ├── $TARGET2
-/// │       │   └── (..)
-/// │       ├── (..)
-/// │       └── $TARGETN
-/// │           └── (..)
-/// └── src
-///     │── libcore
-///     │── libstd
-///     └── (..)
-/// ```
-///
-/// Where:
-///
-/// - `$SYSROOT` is the current `rustc` sysroot i.e. `$(rustc --print sysroot)`
-/// - `$HOST` is the current `rustc`'s host i.e. the host field in `$(rustc -Vv)`
-/// - `$TARGET*` are the custom targets `xargo` is managing
-///
-/// The `~/.xargo` is mostly a "standard" sysroot but with extra information:
-///
-/// - the `hash` files which track changes in the `$TARGET`s' specification files (i.e.
-/// `$TARGET.json`).
-/// - the `src` directory which holds the source code of the current `rustc` (and standard crates).
-/// - the `date` file which holds the build date of the current `rustc`.
-pub fn create(config: &Config,
-              target: &Target,
-              root: &Filesystem,
-              verbose: bool,
-              rustflags: &[String],
-              profiles: &Option<Value>,
-              meta: VersionMeta)
-              -> CargoResult<()> {
-    let commit_date = try!(meta.commit_date
-        .as_ref()
-        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
-        .ok_or(util::human("couldn't find/parse the commit date in/from `rustc -Vv`")));
-    // XXX AFAIK this is not guaranteed to be correct, but it appears to be a good approximation.
-    let build_date = commit_date.succ();
-    let commit_hash = try!(meta.commit_hash
-        .ok_or(util::human("couldn't find the commit hash in `rustc -Vv`")));
-
-    let src = try!(update_source(config, &commit_hash, &build_date, root));
-    try!(rebuild_sysroot(config, root, target, verbose, rustflags, profiles, src));
-    try!(copy_host_crates(config, root));
-
-    Ok(())
-}
-
-fn update_source(config: &Config,
-                 commit_hash: &str,
-                 date: &NaiveDate,
-                 root: &Filesystem)
-                 -> CargoResult<Source> {
-    const TARBALL: &'static str = "rustc-nightly-src.tar.gz";
-
-    /// Reads the `NaiveDate` stored in `~/.xargo/date`
-    fn read_date(file: &File) -> CargoResult<Option<NaiveDate>> {
-        read_string(file).map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
-    }
-
-    fn read_string(mut file: &File) -> CargoResult<String> {
-        let mut s = String::new();
-        try!(file.read_to_string(&mut s));
-        Ok(s)
-    }
-
-    fn write_to_lockfile(lock: &FileLock, contents: &str) -> CargoResult<()> {
-        // NOTE locked files are open in append mode, we need to "rewind" to the start before
-        // writing
-        let mut file = lock.file();
-        try!(file.seek(SeekFrom::Start(0)));
-        try!(file.set_len(0));
-        try!(file.write_all(contents.as_bytes()));
-        Ok(())
-    }
-
-    fn download(config: &Config, date: &NaiveDate) -> CargoResult<http::Response> {
-        const B_PER_S: usize = 1;
-        const MS: usize = 1_000;
-        const S: usize = 1;
-
-        // NOTE Got these settings from cargo (src/cargo/ops/registry.rs)
-        let mut handle = http::handle()
-            .timeout(0)
-            .connect_timeout(30 * MS)
-            .low_speed_limit(10 * B_PER_S)
-            .low_speed_timeout(30 * S);
-
-        let url = format!("https://static.rust-lang.org/dist/{}/{}",
-                          date.format("%Y-%m-%d"),
-                          TARBALL);
-
-        try!(config.shell().err().say_status("Downloading", &url, GREEN, true));
-        let resp = try!(handle.get(url).follow_redirects(true).exec());
-
-        let code = resp.get_code();
-        if code != 200 {
-            return Err(util::human(format!("HTTP error got {}, expected 200", code)));
-        }
-
-        Ok(resp)
-    }
-
-    fn unpack(config: &Config, tarball: http::Response, root: &Path) -> CargoResult<()> {
-        try!(config.shell().err().say_status("Unpacking", TARBALL, GREEN, true));
-
-        let src_dir = &root.join("src");
-        try!(fs::create_dir(src_dir));
-
-        let decoder = try!(GzDecoder::new(tarball.get_body()));
-        let mut archive = Archive::new(decoder);
-        for entry in try!(archive.entries()) {
-            let mut entry = try!(entry);
-            let path = {
-                let path = try!(entry.path());
-                let mut components = path.components();
-                components.next();
-                let next = components.next().and_then(|s| s.as_os_str().to_str());
-                if next != Some("src") {
-                    continue;
-                }
-                components.as_path().to_path_buf()
-            };
-            try!(entry.unpack(src_dir.join(path)));
-        }
-
-        Ok(())
-    }
-
-    let lock = try!(root.open_rw("date", config, "xargo"));
-
-    let rustup_src_dir = try!(sysroot()).join("lib/rustlib/src/rust");
-
-    if rustup_src_dir.exists() {
-        let xargo_src_dir = &lock.path().parent().unwrap().join("src");
-
-        if xargo_src_dir.exists() {
-            try!(fs::remove_dir_all(xargo_src_dir));
-        }
-
-        if try!(read_string(lock.file())) != commit_hash {
-            // Outdated build artifacts, remove them.
-            try!(lock.remove_siblings());
-
-            // Use the commit hash as a "timestamp" to detect rustc updates
-            try!(write_to_lockfile(&lock, commit_hash));
-        }
-
-        return Ok(Source::Rustup(rustup_src_dir));
-    }
-
-    if try!(read_date(lock.file())).as_ref() == Some(date) {
-        // Source is up to date
-        return Ok(Source::Xargo);
-    }
-
-    try!(lock.remove_siblings());
-    let tarball = try!(download(config, date)
-        .chain_error(|| util::human("Couldn't fetch Rust source tarball")));
-    try!(unpack(config, tarball, lock.parent())
-        .chain_error(|| util::human("Couldn't unpack Rust source tarball")));
-
-    // Leave a timestamp around to indicate how old this source is
-    try!(write_to_lockfile(&lock, &date.format("%Y-%m-%d").to_string()));
-
-    Ok(Source::Xargo)
-}
-
-fn rebuild_sysroot(config: &Config,
-                   root: &Filesystem,
-                   target: &Target,
-                   verbose: bool,
-                   rustflags: &[String],
-                   profiles: &Option<Value>,
-                   src: Source)
-                   -> CargoResult<()> {
-    /// Reads the hash stored in `~/.xargo/lib/rustlib/$TARGET/hash`
-    fn read_hash(mut file: &File) -> CargoResult<Option<u64>> {
-        let hash = &mut String::new();
-        try!(file.read_to_string(hash));
-        Ok(hash.parse().ok())
-    }
-
-    const CRATES: &'static [&'static str] = &["collections", "rand"];
-    const NO_ATOMICS_CRATES: &'static [&'static str] = &["rustc_unicode"];
-
-    let outer_lock = try!(root.open_ro("date", config, "xargo"));
-    let lock = try!(root.open_rw(format!("lib/rustlib/{}/hash", target.triple),
-                                 config,
-                                 &format!("xargo/{}", target.triple)));
-    let root = outer_lock.parent();
-
-    let mut hasher = target.hasher.clone();
-    rustflags.hash(&mut hasher);
-    if let Some(profiles) = profiles.as_ref() {
-        profiles.to_string().hash(&mut hasher);
-    }
-    let hash = hasher.finish();
-    if try!(read_hash(lock.file())) == Some(hash) {
-        // Target specification file unchanged
-        return Ok(());
-    }
-
-    let lib_dir = &lock.parent().join("lib");
-    try!(config.shell().err().say_status("Compiling",
-                                         format!("sysroot for {}", target.triple),
-                                         GREEN,
-                                         true));
-
-    let td = try!(TempDir::new("xargo"));
-    let td = td.path();
-
-    // Create Cargo project
-    try!(fs::create_dir(td.join("src")));
-    if let Some(path) = target.path.as_ref() {
-        try!(fs::copy(path, td.join(path.file_name().unwrap())));
-    }
-    try!(File::create(td.join("src/lib.rs")));
-    let toml = &mut format!("[package]
-name = 'sysroot'
-version = '0.0.0'
-
-{}
+impl Crate {
+    pub fn build(rust_src: &Path,
+                 target: &Target,
+                 profile: &Option<toml::Value>,
+                 verbose: bool)
+                 -> Result<Self> {
+        const CARGO_TOML: &'static str = r#"
+[package]
+authors = ["The Rust Project Developers"]
+name = "sysroot"
+version = "0.0.0"
 
 [dependencies]
-",
-                            profiles.as_ref().map(|t| t.to_string()).unwrap_or(String::new()));
-    let src_dir = &match src {
-        Source::Rustup(dir) => dir.join("src"),
-        Source::Xargo => root.join("src"),
-    };
-    for krate in CRATES {
-        toml.push_str(&format!("{} = {{ path = '{}' }}\n",
-                               krate,
-                               src_dir.join(format!("lib{}", krate)).display()))
-    }
-    try!(try!(File::create(td.join("Cargo.toml"))).write_all(toml.as_bytes()));
-    if !rustflags.is_empty() {
-        try!(fs::create_dir(td.join(".cargo")));
-        try!(try!(File::create(td.join(".cargo/config")))
-            .write_all(format!("[build]\nrustflags = {:?}", rustflags).as_bytes()));
+"#;
+
+        let triple = target.triple();
+        let sysroot = Crate {
+            td: try!(TempDir::new("xargo")
+                .chain_err(|| "couldn't create a temporary directory")),
+            triple: triple.to_owned(),
+        };
+        let crate_dir = &sysroot.crate_dir().to_owned();
+
+        let deps = if try!(target.has_atomics()) {
+            vec!["alloc", "collections", "core", "rand", "rustc_unicode"]
+        } else {
+            vec!["core", "rand", "rustc_unicode"]
+        };
+        let mut toml = CARGO_TOML.to_owned();
+
+        for dep in &deps {
+            toml.push_str(&format!("{} = {{ path = '{}' }}\n",
+                                   dep,
+                                   rust_src.join(format!("src/lib{}", dep))
+                                       .display()));
+        }
+
+        if let Some(profile) = profile.as_ref() {
+            toml.push_str(&profile.to_string());
+        }
+
+        try!(io::write(&crate_dir.join("Cargo.toml"), &toml));
+        try!(fs::mkdir(&crate_dir.join("src")));
+        try!(io::write(&crate_dir.join("src/lib.rs"), ""));
+
+        let cargo = || {
+            let mut cmd = Command::new("cargo");
+            cmd.env_remove("CARGO_TARGET_DIR");
+            cmd.args(&["build", "--release", "--manifest-path"])
+                .arg(crate_dir.join("Cargo.toml"));
+
+            cmd.arg("--target");
+            match *target {
+                Target::BuiltIn { ref triple } |
+                Target::Custom { ref triple, .. } => {
+                    cmd.arg(triple);
+                }
+                Target::Path { ref json, .. } => {
+                    cmd.arg(json);
+                }
+            }
+
+            if verbose {
+                cmd.arg("-v");
+            }
+
+            cmd
+        };
+
+        for dep in &deps {
+            try!(cargo().arg("-p").arg(dep).run_or_error());
+        }
+
+        Ok(sysroot)
     }
 
-    // Build Cargo project
-    let cargo = &mut Command::new("cargo");
-    cargo.args(&["build", "--release", "--target"]);
-    cargo.arg(&target.triple);
-    if verbose {
-        cargo.arg("--verbose");
+    fn crate_dir(&self) -> &Path {
+        self.td.path()
     }
-    if target.cfg.target_has_atomic.is_empty() {
-        for krate in NO_ATOMICS_CRATES {
-            cargo.args(&["-p", krate]);
-        }
+
+    pub fn deps_dir(&self) -> PathBuf {
+        self.td.path().join("target").join(&self.triple).join("release/deps")
+    }
+}
+
+pub fn update(target: &Target, verbose: bool) -> Result<()> {
+    let meta = try!(rustc::meta());
+
+    if meta.channel != Channel::Nightly {
+        try!(Err("Xargo requires the nightly channel. Run `rustup default \
+                  nightly` or similar"))
+    }
+
+    try!(update_target_sysroot(target, &meta, verbose));
+    try!(update_host_sysroot(&meta));
+
+    Ok(())
+}
+
+fn update_target_sysroot(target: &Target,
+                         meta: &VersionMeta,
+                         verbose: bool)
+                         -> Result<()> {
+    // The hash is a digest of the following elements:
+    // - RUSTFLAGS / build.rustflags / target.*.rustflags
+    // - The [profile] in Cargo.toml
+    // - The contents of the target specification file
+    // - `rustc` version
+    let hasher = &mut SipHasher::new();
+
+    for flag in try!(rustc::flags(target, "rustflags")) {
+        flag.hash(hasher);
+    }
+
+    let profile = try!(parse::profile_in_cargo_toml());
+    if let Some(profile) = profile.as_ref() {
+        profile.to_string().hash(hasher);
+    }
+
+    try!(target.hash(hasher));
+
+    if let Some(commit_hash) = meta.commit_hash.as_ref() {
+        commit_hash.hash(hasher);
     } else {
-        for krate in CRATES {
-            cargo.args(&["-p", krate]);
-        }
-    }
-    cargo.env("CARGO_TARGET_DIR", td.join("target"));
-    cargo.arg("--manifest-path").arg(td.join("Cargo.toml"));
-    let status = try!(cargo.status());
-
-    if !status.success() {
-        return Err(util::human("`cargo` process didn't exit successfully"));
+        meta.semver.hash(hasher);
     }
 
-    // Copy build artifacts
-    if lib_dir.exists() {
-        try!(fs::remove_dir_all(lib_dir));
-    }
-    let dst = lib_dir;
-    try!(fs::create_dir_all(dst));
-    for entry in try!(fs::read_dir(td.join(format!("target/{}/release/deps", target.triple)))) {
-        let src = &try!(entry).path();
-        try!(fs::copy(src, dst.join(src.file_name().unwrap())));
-    }
+    let new_hash = hasher.finish();
 
-    let mut file = lock.file();
-    try!(file.seek(SeekFrom::Start(0)));
-    try!(file.set_len(0));
-    try!(file.write_all(hash.to_string().as_bytes()));
+    let triple = target.triple();
+    let lock = try!(xargo::lock_rw(triple));
+    let old_hash = try!(io::read_hash(&lock));
 
-    Ok(())
-}
+    if old_hash != Some(new_hash) {
+        let rust_src = try!(rustc::rust_src());
 
-fn copy_host_crates(config: &Config, root: &Filesystem) -> CargoResult<()> {
-    let _outer_lock = try!(root.open_ro("date", config, "xargo"));
-    let host = &config.rustc_info().host;
-    let lock = try!(root.open_rw(format!("lib/rustlib/{}/sentinel", host),
-                                 config,
-                                 &format!("xargo/{}", host)));
-    let dst = &lock.parent().join("lib");
+        let sysroot = try!(Crate::build(&rust_src, target, &profile, verbose));
 
-    if dst.exists() {
-        return Ok(());
-    }
+        try!(fs::remove_siblings(&lock));
 
-    try!(fs::create_dir_all(dst));
-    let src = try!(sysroot()).join(format!("lib/rustlib/{}/lib", host));
+        let dst = lock.parent().join("lib");
+        try!(fs::cp_r(&sysroot.deps_dir(), &dst));
 
-    for entry in try!(fs::read_dir(src)) {
-        let src = &try!(entry).path();
-
-        try!(fs::copy(src, dst.join(src.file_name().unwrap())));
+        try!(io::write_hash(&lock, new_hash));
     }
 
     Ok(())
 }
 
-fn sysroot() -> CargoResult<PathBuf> {
-    let mut sysroot = try!(String::from_utf8(try!(Command::new("rustc")
-                .args(&["--print", "sysroot"])
-                .output())
-            .stdout)
-        .map_err(|_| util::human("output of `rustc --print sysroot` is not UTF-8")));
+fn update_host_sysroot(meta: &VersionMeta) -> Result<()> {
+    let host = &meta.host;
+    let lock = try!(xargo::lock_rw(host));
 
-    while sysroot.ends_with('\n') {
-        sysroot.pop();
+    let hasher = &mut SipHasher::new();
+    host.hash(hasher);
+
+    let new_hash = hasher.finish();
+    let old_hash = try!(io::read_hash(&lock));
+
+    if old_hash != Some(new_hash) {
+        try!(fs::remove_siblings(&lock));
+
+        let src =
+            try!(rustc::sysroot()).join("lib/rustlib").join(host).join("lib");
+        let dst = lock.parent().join("lib");
+        try!(fs::cp_r(&src, &dst));
+
+        try!(io::write_hash(&lock, new_hash));
     }
 
-    Ok(PathBuf::from(sysroot))
+    Ok(())
 }

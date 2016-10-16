@@ -47,26 +47,6 @@ build a sysroot for each project. `xargo` will also take care of rebuilding the 
 
 [rustup]: https://www.rustup.rs/
 
-## Dependencies
-
-- `cargo` and `rustc` must be in $PATH
-- Xargo depends on [the cargo crate], which depends on [libssh2-sys], which requires `cmake` and the
-  OpenSSL headers to build (\*).
-  - On Fedora, run:
-    - `sudo dnf install cmake openssl-devel`
-  - On Ubuntu, run
-    - `sudo apt-get install cmake libssl-dev`
-  - On Debian Jessie, building is currently broken by [this bug]. Adding the proposed-updates
-    repository and updating to the fixed version of CMake will resolve the issue.
-- If using a binary release instead of building Xargo on your own, you'll need the development
-  version of both openssh and libcurl. `cmake` is not needed in this case.
-  - On Ubuntu, run
-    - `sudo apt-get install libcurl4-openssl-dev libssh2-1-dev`
-  
-[the cargo crate]: https://crates.io/crates/cargo
-[libssh2-sys]: https://crates.io/crates/libssh2-sys
-[this bug]: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=826656
-
 ## Installation
 
 ### Using a binary release
@@ -81,31 +61,6 @@ is also installed.
 ### Build it yourself
 
 ```
-cargo install xargo
-```
-
-If building on OSX 10.10 or greater, compilation of libssh2-sys will 
-[fail due to missing OpenSSL headers](https://github.com/alexcrichton/ssh2-rs).
-Make sure OpenSSL is installed via HomeBrew, then run the following command:
-
-```bash
-OPENSSL_ROOT_DIR=$(brew --prefix openssl)/ \
-cargo install xargo
-```
-
-In case the build fails with the following error …
-
-```
-ld: library not found for -lssl
-```
-
-… you will have to use this more involved command instead:
-
-```bash
-LDFLAGS="$LDFLAGS -L$(brew --prefix openssl)/lib" \
-CPPFLAGS="$CPPFLAGS -I$(brew --prefix openssl)/include" \
-PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$(brew --prefix openssl)/lib/pkgconfig" \
-OPENSSL_ROOT_DIR=$(brew --prefix openssl)/ \
 cargo install xargo
 ```
 

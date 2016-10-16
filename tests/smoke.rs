@@ -13,7 +13,8 @@ macro_rules! try {
     }
 }
 
-const CRATES: &'static [&'static str] = &["alloc", "collections", "core", "rand", "rustc_unicode"];
+const CRATES: &'static [&'static str] =
+    &["alloc", "collections", "core", "rand", "rustc_unicode"];
 const LIB_RS: &'static [u8] = b"#![no_std]";
 
 const CUSTOM_JSON: &'static str = r#"
@@ -89,10 +90,16 @@ fn simple() {
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
 
@@ -109,11 +116,17 @@ fn doc() {
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-         .write_all(LIB_RS));
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
     run(xargo().args(&["doc", "--target", TARGET]).current_dir(td));
 
     for krate in CRATES {
@@ -132,18 +145,29 @@ fn twice() {
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
 
-    let output = try!(xargo().args(&["build", "--target", TARGET]).current_dir(td).output());
+    let output = try!(xargo()
+        .args(&["build", "--target", TARGET])
+        .current_dir(td)
+        .output());
 
     assert!(output.status.success());
 
-    assert!(try!(String::from_utf8(output.stderr)).lines().all(|l| !l.contains("Compiling")));
+    assert!(try!(String::from_utf8(output.stderr))
+        .lines()
+        .all(|l| !l.contains("Compiling")));
 
     cleanup(TARGET);
 }
@@ -156,10 +180,16 @@ fn cargo_config() {
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     try!(fs::create_dir(td.join(".cargo")));
     try!(try!(File::create(td.join(".cargo/config")))
@@ -181,10 +211,16 @@ fn override_cargo_config() {
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     try!(fs::create_dir(td.join(".cargo")));
     try!(try!(File::create(td.join(".cargo/config"))).write_all(CONFIG));
@@ -201,16 +237,24 @@ fn override_cargo_config() {
 #[test]
 fn rustflags_in_cargo_config() {
     const TARGET: &'static str = "__rustflags_in_cargo_config";
-    const CARGO_CONFIG: &'static str = "[build]\nrustflags = ['--cfg', 'xargo']";
+    const CARGO_CONFIG: &'static str = "[build]\nrustflags = ['--cfg', \
+                                        'xargo']";
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
     try!(fs::create_dir(td.join(".cargo")));
-    try!(try!(File::create(td.join(".cargo/config"))).write_all(CARGO_CONFIG.as_bytes()));
+    try!(try!(File::create(td.join(".cargo/config")))
+        .write_all(CARGO_CONFIG.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     let output = try!(xargo()
         .args(&["build", "--target", TARGET, "--verbose"])
@@ -225,7 +269,8 @@ fn rustflags_in_cargo_config() {
 
     let mut at_least_once = false;
     for line in try!(String::from_utf8(output.stderr)).lines() {
-        if line.contains("Running") && line.contains("rustc") && line.contains(TARGET) {
+        if line.contains("Running") && line.contains("rustc") &&
+           line.contains(TARGET) {
             at_least_once = true;
             assert!(line.contains("--cfg xargo"));
         }
@@ -243,10 +288,16 @@ fn rebuild_on_modified_rustflags() {
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     run(xargo()
         .args(&["build", "--target", TARGET, "--verbose"])
@@ -299,8 +350,13 @@ fn no_atomics() {
     try!(try!(File::create(td.join(format!("{}.json", TARGET))))
         .write_all(NO_ATOMICS_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
 
@@ -324,16 +380,27 @@ panic = \"abort\"
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
-    try!(try!(File::create(td.join(format!("{}.json", TARGET)))).write_all(CUSTOM_JSON.as_bytes()));
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
         .write_all(LIB_RS));
-    try!(try!(OpenOptions::new().append(true).write(true).open(td.join("Cargo.toml")))
+    try!(try!(OpenOptions::new()
+            .append(true)
+            .write(true)
+            .open(td.join("Cargo.toml")))
         .write_all(PROFILES));
 
-    let output =
-        try!(xargo().args(&["build", "--target", TARGET, "--verbose"]).current_dir(td).output());
+    let output = try!(xargo()
+        .args(&["build", "--target", TARGET, "--verbose"])
+        .current_dir(td)
+        .output());
 
     assert!(output.status.success());
 
@@ -341,7 +408,8 @@ panic = \"abort\"
 
     let mut at_least_once = false;
     for line in stderr.lines() {
-        if line.contains("Running") && line.contains("rustc") && line.contains(TARGET) {
+        if line.contains("Running") && line.contains("rustc") &&
+           line.contains(TARGET) {
             at_least_once = true;
 
             if !line.contains("-C panic=abort") {
@@ -365,9 +433,14 @@ fn thumb() {
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();
 
-    run(xargo().args(&["init", "--vcs", "none", "--name", TARGET]).current_dir(td));
-    try!(try!(OpenOptions::new().truncate(true).write(true).open(td.join("src/lib.rs")))
-         .write_all(LIB_RS));
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
 
     cleanup(TARGET);
     run(xargo().args(&["build", "--target", TARGET]).current_dir(td));

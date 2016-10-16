@@ -13,6 +13,8 @@ Start-FileDownload 'https://win.rustup.rs' 'rustup-init.exe'
 
 $Env:PATH = 'C:\Users\appveyor\.cargo\bin;' + $Env:PATH
 
+rustup component add rust-src
+
 rustc -Vv
 
 cargo -V

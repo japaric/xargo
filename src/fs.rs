@@ -22,10 +22,8 @@ pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
 
             if entry.file_type().is_file() {
                 try!(fs::copy(src, dst));
-            } else {
-                if !dst.exists() {
-                    try!(fs::create_dir(dst));
-                }
+            } else if !dst.exists() {
+                try!(fs::create_dir(dst));
             }
         }
 

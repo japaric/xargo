@@ -46,12 +46,10 @@ fn run() -> Result<ExitStatus> {
 
     let target = if let Some(target) = target.as_ref() {
         Some(try!(Target::from(target)))
+    } else if let Some(target) = try!(parse::target_in_cargo_config()) {
+        Some(try!(Target::from(&target)))
     } else {
-        if let Some(target) = try!(parse::target_in_cargo_config()) {
-            Some(try!(Target::from(&target)))
-        } else {
-            None
-        }
+        None
     };
 
     let needs_sysroot = match subcommand.as_ref().map(|s| &s[..]) {
@@ -122,45 +120,43 @@ impl Target {
         let target = target.to_owned();
         if target_list.iter().any(|t| t == &target) {
             Ok(Target::BuiltIn { triple: target })
-        } else {
-            if target.ends_with(".json") {
-                if let Some(triple) = Path::new(&target)
-                    .file_stem()
-                    .and_then(|f| f.to_str()) {
-                    Ok(Target::Path {
-                        json: PathBuf::from(&target),
-                        triple: triple.to_owned(),
-                    })
-                } else {
-                    try!(Err(format!("error extracting triple from {}",
-                                     target)))
-                }
+        } else if target.ends_with(".json") {
+            if let Some(triple) = Path::new(&target)
+                .file_stem()
+                .and_then(|f| f.to_str()) {
+                Ok(Target::Path {
+                    json: PathBuf::from(&target),
+                    triple: triple.to_owned(),
+                })
             } else {
-                let json = Path::new(&target).with_extension("json");
+                try!(Err(format!("error extracting triple from {}",
+                                 target)))
+            }
+        } else {
+            let json = Path::new(&target).with_extension("json");
 
-                if json.exists() {
-                    Ok(Target::Custom {
-                        json: json,
-                        triple: target,
-                    })
-                } else {
-                    if let Some(target_dir) = env::var_os("RUST_TARGET_PATH") {
-                        let json = PathBuf::from(target_dir)
-                            .join(&target)
-                            .with_extension("json");
+            if json.exists() {
+                Ok(Target::Custom {
+                    json: json,
+                    triple: target,
+                })
+            } else {
+                if let Some(target_dir) = env::var_os("RUST_TARGET_PATH") {
+                    let json = PathBuf::from(target_dir)
+                        .join(&target)
+                        .with_extension("json");
 
-                        if json.exists() {
-                            return Ok(Target::Custom {
-                                json: json,
-                                triple: target,
-                            });
-                        }
+                    if json.exists() {
+                        return Ok(Target::Custom {
+                            json: json,
+                            triple: target,
+                        });
                     }
-
-                    try!(Err(format!("no target specification file found \
-                                      for {}",
-                                     target)))
                 }
+
+                try!(Err(format!("no target specification file found \
+                                  for {}",
+                                 target)))
             }
         }
     }
@@ -172,9 +168,7 @@ impl Target {
         cmd.arg("--target");
 
         match *self {
-            Target::BuiltIn { ref triple } => {
-                cmd.arg(triple);
-            }
+            Target::BuiltIn { ref triple } |
             Target::Custom { ref triple, .. } => {
                 cmd.arg(triple);
             }

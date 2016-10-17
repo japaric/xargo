@@ -30,7 +30,7 @@ The magic happens when you call `xargo` with the `--target` flag. In that case, 
 care of building a sysroot with cross compiled crates and calling `cargo build` with the appropriate
 `RUSTFLAGS` variable. Example below:
 
-![Screenshot](http://i.imgur.com/pUIfnwu.jpg)
+![Screenshot](https://i.imgur.com/qAvB81X.png)
 
 `xargo` will cache the sysroot, so you can use it across different Cargo projects without having to
 build a sysroot for each project. `xargo` will also take care of rebuilding the sysroot when
@@ -47,16 +47,18 @@ build a sysroot for each project. `xargo` will also take care of rebuilding the 
 
 [rustup]: https://www.rustup.rs/
 
-## Dependencies
-
-- `cargo` and `rustc` must be in $PATH
-- Xargo depends on [the cargo crate](https://crates.io/crates/cargo), which depends on [libssh2-sys](https://crates.io/crates/libssh2-sys), which requires `cmake` and the OpenSSL headers to build.
-  - On Fedora, run:
-    - `sudo dnf install cmake openssl-devel`
-  - On Ubuntu, run
-    - `sudo apt-get install cmake libssl-dev`
-
 ## Installation
+
+### Using a binary release
+
+We have binary releases for the [three major platforms] supported by Rust. To install these
+binaries, simply extract the tarball/zipfile and place the binary contained therein somewhere in you
+PATH. If using rustup, it's recommended to place the binary in `~/.cargo/bin`, which is where rustup
+is also installed.
+
+[three major platforms]: https://github.com/japaric/xargo/releases 
+
+### Build it yourself
 
 ```
 cargo install xargo

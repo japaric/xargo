@@ -61,11 +61,13 @@ script:
   # chmod: Travis can't cache files that are not readable by "others"
   - if [ -z $TRAVIS_TAG ] || [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
       cargo generate-lockfile;
+
       if [[ $TRAVIS_OS_NAME = linux ]]; then
-        sh ci/run-docker.sh $TARGET;
+        sh ci/run-docker.sh $TARGET || exit 1;
       else
-        sh ci/run.sh;
+        sh ci/run.sh || exit 1;
       fi;
+
       chmod -R a+r $HOME/.cargo;
     fi
 

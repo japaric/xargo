@@ -26,7 +26,7 @@ pub fn args() -> Result<Args> {
     let mut target = None;
     let mut verbose = false;
     while let Some(arg) = args.next() {
-        if !arg.starts_with("-") {
+        if !arg.starts_with('-') {
             subcommand = subcommand.or_else(|| Some(arg.clone()));
         }
 
@@ -48,7 +48,7 @@ pub fn args() -> Result<Args> {
                 })
         } else if arg == "--target" {
             target = target.or_else(|| args.next().map(|s| s.to_owned()))
-        } else if arg.contains("--target") && arg.contains(" ") {
+        } else if arg.contains("--target") && arg.contains(' ') {
             // Special case for `xargo watch 'build --target $triple'`
             let mut args = arg.split_whitespace();
 

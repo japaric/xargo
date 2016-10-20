@@ -58,7 +58,7 @@ pub fn meta() -> Result<VersionMeta> {
 
 pub fn flags(target: &Target, tool: &str) -> Result<Vec<String>> {
     let tool = tool.to_ascii_uppercase();
-    if let Some(flags) = env::var(&tool).ok() {
+    if let Ok(flags) = env::var(&tool) {
         return Ok(flags.split_whitespace().map(|s| s.to_owned()).collect());
     }
 

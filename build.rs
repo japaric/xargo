@@ -32,15 +32,25 @@ fn commit_info() -> String {
 }
 
 fn commit_hash() -> Result<String, IgnoredError> {
-    Ok(try!(String::from_utf8(try!(Command::new("git")
-            .args(&["rev-parse", "--short", "HEAD"])
-            .output())
-        .stdout)))
+    let output = try!(Command::new("git")
+        .args(&["rev-parse", "--short", "HEAD"])
+        .output());
+
+    if output.status.success() {
+        Ok(try!(String::from_utf8(output.stdout)))
+    } else {
+        Err(IgnoredError {})
+    }
 }
 
 fn commit_date() -> Result<String, IgnoredError> {
-    Ok(try!(String::from_utf8(try!(Command::new("git")
-            .args(&["log", "-1", "--date=short", "--pretty=format:%cd"])
-            .output())
-        .stdout)))
+    let output = try!(Command::new("git")
+        .args(&["log", "-1", "--date=short", "--pretty=format:%cd"])
+        .output());
+
+    if output.status.success() {
+        Ok(try!(String::from_utf8(output.stdout)))
+    } else {
+        Err(IgnoredError {})
+    }
 }

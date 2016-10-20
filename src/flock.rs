@@ -191,12 +191,12 @@ fn acquire(msg: &str,
              msg)
         .ok();
 
-    return block().chain_err(|| format!("failed to lock file {}", path_));
+    block().chain_err(|| format!("failed to lock file {}", path_))
 }
 
 fn create_dir_all(path: &Path) -> io::Result<()> {
     match create_dir(path) {
-        Ok(()) => return Ok(()),
+        Ok(()) => Ok(()),
         Err(e) => {
             if e.kind() == io::ErrorKind::NotFound {
                 if let Some(p) = path.parent() {

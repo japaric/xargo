@@ -28,11 +28,29 @@ use parse::Args;
 use errors::*;
 
 fn main() {
+    fn show_backtrace() -> bool {
+        env::var("RUST_BACKTRACE").as_ref().map(|s| &s[..]) == Ok("1")
+    }
+
     match run() {
         Err(e) => {
-            writeln!(io::stderr(), "{:?}", e).ok();
-            process::exit(1);
-        }
+            let stderr = io::stderr();
+            let mut stderr = stderr.lock();
+
+            writeln!(stderr, "{}", e).ok();
+
+            for e in e.iter().skip(1) {
+                writeln!(stderr, "caused by: {}", e).ok();
+            }
+
+            if show_backtrace() {
+                if let Some(backtrace) = e.backtrace() {
+                    writeln!(stderr, "{:?}", backtrace).ok();
+                }
+            }
+
+            process::exit(1)
+        },
         Ok(status) => {
             if !status.success() {
                 process::exit(status.code().unwrap_or(1))
@@ -53,7 +71,7 @@ fn run() -> Result<ExitStatus> {
     };
 
     let needs_sysroot = match subcommand.as_ref().map(|s| &s[..]) {
-        // we need rebuild the sysroot for these subcommands
+        // we don't need to rebuild the sysroot for these subcommands
         None | Some("clean") | Some("init") | Some("new") |
         Some("update") | Some("search") => None,
         _ => {

@@ -37,7 +37,7 @@ fn main() {
             let stderr = io::stderr();
             let mut stderr = stderr.lock();
 
-            writeln!(stderr, "{}", e).ok();
+            writeln!(stderr, "error: {}", e).ok();
 
             for e in e.iter().skip(1) {
                 writeln!(stderr, "caused by: {}", e).ok();
@@ -47,10 +47,14 @@ fn main() {
                 if let Some(backtrace) = e.backtrace() {
                     writeln!(stderr, "{:?}", backtrace).ok();
                 }
+            } else {
+                writeln!(stderr,
+                         "note: run with `RUST_BACKTRACE=1` for a backtrace")
+                    .ok();
             }
 
             process::exit(1)
-        },
+        }
         Ok(status) => {
             if !status.success() {
                 process::exit(status.code().unwrap_or(1))
@@ -64,7 +68,8 @@ fn run() -> Result<ExitStatus> {
 
     let target = if let Some(target) = target.as_ref() {
         Some(try!(Target::from(target)))
-    } else if let Some(target) = try!(parse::target_in_cargo_config()) {
+    } else if let Some(target) =
+        try!(parse::target_in_cargo_config()) {
         Some(try!(Target::from(&target)))
     } else {
         None
@@ -109,7 +114,8 @@ fn run() -> Result<ExitStatus> {
 
         cmd.env("RUSTFLAGS", flags.join(" "));
 
-        // Make sure the sysroot is not blown up while the Cargo command is running
+        // Make sure the sysroot is not blown up while the Cargo command is
+        // running
         Some((xargo::lock_ro(&try!(rustc::meta()).host),
               xargo::lock_ro(target.triple())))
     } else {
@@ -147,8 +153,7 @@ impl Target {
                     triple: triple.to_owned(),
                 })
             } else {
-                try!(Err(format!("error extracting triple from {}",
-                                 target)))
+                try!(Err(format!("error extracting triple from {}", target)))
             }
         } else {
             let json = Path::new(&target).with_extension("json");

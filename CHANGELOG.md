@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- No weird `()` output in `xargo -V` if Xargo was built via `cargo install`
+- Better formatted error messages. Mention RUST_BACKTRACE for backtraces.
+
 ## [v0.2.0]
 
 ### Added

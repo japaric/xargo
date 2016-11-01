@@ -497,3 +497,47 @@ fn profile_lto_changed() {
 
     cleanup(TARGET);
 }
+
+// We should not rebuild the sysroot if the arguments we passed to the linker
+// changed
+#[test]
+fn linker_flags_changed() {
+    const TARGET: &'static str = "__linker_flags_changed";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    fs::create_dir(td.join(".cargo")).unwrap();
+    File::create(td.join(".cargo/config"))
+        .unwrap()
+        .write_all(format!("[target.{}]\nrustflags = [\"-C\", \
+                            \"link-arg=-lfoo\"]",
+                           TARGET)
+            .as_bytes())
+        .unwrap();
+
+    let output = try!(xargo()
+        .args(&["build", "--target", TARGET])
+        .current_dir(td)
+        .output());
+
+    assert!(output.status.success());
+
+    assert!(try!(String::from_utf8(output.stderr))
+        .lines()
+        .all(|l| !(l.contains("Compiling") && l.contains("core"))));
+
+    cleanup(TARGET);
+}

@@ -12,6 +12,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   the `std` facade as it no longer depends on hard coded crate names like
   `rustc_unicode`.
 
+- Xargo won't rebuild the sysroot if the only thing that changed in Cargo.toml
+  is profile.*.lto. Enabling/disabling LTO doesn't change how dependencies are
+  compiled.
+
 ## [v0.2.1] - 2016-10-22
 
 ### Changed

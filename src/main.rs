@@ -246,9 +246,10 @@ impl CommandExt for Command {
             .chain_err(|| format!("failed to execute {}", cmd)));
 
         if !output.status.success() {
-            try!(Err(format!("{} failed with exit status: {:?}",
+            try!(Err(format!("{} failed with exit status: {:?}.\nstderr:\n{}",
                              cmd,
-                             output.status.code())))
+                             output.status.code(),
+                             String::from_utf8_lossy(&output.stderr))))
         }
 
         Ok(try!(String::from_utf8(output.stdout)

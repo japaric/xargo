@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 
+extern crate daggy;
 #[macro_use]
 extern crate error_chain;
 extern crate fs2;
 extern crate libc;
+extern crate serde_json;
 extern crate tempdir;
 extern crate walkdir;
 
@@ -13,7 +15,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::{env, mem, process};
 
+use parse::Args;
+use errors::*;
+
 mod cargo;
+mod dag;
 mod errors;
 mod flock;
 mod fs;
@@ -23,9 +29,6 @@ mod rustc;
 mod sysroot;
 mod toml;
 mod xargo;
-
-use parse::Args;
-use errors::*;
 
 fn main() {
     fn show_backtrace() -> bool {
@@ -186,25 +189,6 @@ impl Target {
 }
 
 impl Target {
-    fn has_atomics(&self) -> Result<bool> {
-        let mut cmd = rustc::rustc();
-        cmd.arg("--target");
-
-        match *self {
-            Target::BuiltIn { ref triple } |
-            Target::Custom { ref triple, .. } => {
-                cmd.arg(triple);
-            }
-            Target::Path { ref json, .. } => {
-                cmd.arg(json);
-            }
-        }
-
-        cmd.args(&["--print", "cfg"]);
-
-        Ok(try!(cmd.run_and_get_stdout()).contains("target_has_atomic"))
-    }
-
     fn hash<H>(&self, hasher: &mut H) -> Result<()>
         where H: Hasher
     {
@@ -242,11 +226,19 @@ impl Target {
 }
 
 trait CommandExt {
+    fn run_and_get_status(&mut self) -> Result<ExitStatus>;
     fn run_and_get_stdout(&mut self) -> Result<String>;
     fn run_or_error(&mut self) -> Result<()>;
 }
 
 impl CommandExt for Command {
+    fn run_and_get_status(&mut self) -> Result<ExitStatus> {
+        let cmd = &format!("`{:?}`", self);
+
+        Ok(try!(self.status()
+            .chain_err(|| format!("failed to execute {}", cmd))))
+    }
+
     fn run_and_get_stdout(&mut self) -> Result<String> {
         let cmd = &format!("`{:?}`", self);
 

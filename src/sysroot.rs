@@ -111,13 +111,56 @@ pub fn update(target: &Target, verbose: bool) -> Result<()> {
     Ok(())
 }
 
+/// Removes the profile.*.lto sections from a Cargo.toml
+///
+/// Returns `None` if the Cargo.toml becomes empty after pruning it
+fn prune_cargo_toml(value: &toml::Value) -> Option<toml::Value> {
+    let mut value = value.clone();
+
+    let mut empty_profile_section = false;
+    if let Some(&mut toml::Value::Table(ref mut profiles)) =
+        value.lookup_mut("profile") {
+        let mut gc_list = vec![];
+        for (profile, options) in profiles.iter_mut() {
+            if let toml::Value::Table(ref mut options) = *options {
+                options.remove("lto");
+
+                if options.is_empty() {
+                    gc_list.push(profile.to_owned());
+                }
+            }
+        }
+
+        for profile in gc_list {
+            profiles.remove(&profile[..]);
+        }
+
+        if profiles.is_empty() {
+            empty_profile_section = true;
+        }
+    }
+
+    let mut empty_cargo_toml = false;
+    if empty_profile_section {
+        if let toml::Value::Table(ref mut table) = value {
+            table.remove("profile");
+
+            if table.is_empty() {
+                empty_cargo_toml = true;
+            }
+        }
+    }
+
+    if empty_cargo_toml { None } else { Some(value) }
+}
+
 fn update_target_sysroot(target: &Target,
                          meta: &VersionMeta,
                          verbose: bool)
                          -> Result<()> {
     // The hash is a digest of the following elements:
     // - RUSTFLAGS / build.rustflags / target.*.rustflags
-    // - The [profile] in Cargo.toml
+    // - The [profile] in Cargo.toml minus its profile.*.lto sections
     // - The contents of the target specification file
     // - `rustc` version
     let hasher = &mut SipHasher::new();
@@ -127,7 +170,7 @@ fn update_target_sysroot(target: &Target,
     }
 
     let profile = try!(parse::profile_in_cargo_toml());
-    if let Some(profile) = profile.as_ref() {
+    if let Some(profile) = profile.as_ref().and_then(prune_cargo_toml) {
         profile.to_string().hash(hasher);
     }
 

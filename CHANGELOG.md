@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Xargo will now try to build every crate "below" `std`, i.e. all its
+  dependencies, in topological order. This makes Xargo robust against changes in
+  the `std` facade as it no longer depends on hard coded crate names like
+  `rustc_unicode`.
+
 ## [v0.2.1] - 2016-10-22
 
 ### Changed

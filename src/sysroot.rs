@@ -5,10 +5,11 @@ use std::process::Command;
 use tempdir::TempDir;
 
 use errors::*;
-use {fs, io, parse, rustc, toml, xargo};
 use rustc::{Channel, VersionMeta};
 use {CommandExt, Target};
+use {dag, fs, io, parse, rustc, toml, xargo};
 
+/// A cargo create used to compile the sysroot
 pub struct Crate {
     td: TempDir,
     triple: String,
@@ -37,19 +38,10 @@ version = "0.0.0"
         };
         let crate_dir = &sysroot.crate_dir().to_owned();
 
-        let deps = if try!(target.has_atomics()) {
-            vec!["alloc", "collections", "core", "rand", "rustc_unicode"]
-        } else {
-            vec!["core", "rand", "rustc_unicode"]
-        };
         let mut toml = CARGO_TOML.to_owned();
 
-        for dep in &deps {
-            toml.push_str(&format!("{} = {{ path = '{}' }}\n",
-                                   dep,
-                                   rust_src.join(format!("src/lib{}", dep))
-                                       .display()));
-        }
+        toml.push_str(&format!("std = {{ path = '{}' }}\n",
+                               rust_src.join("src/libstd").display()));
 
         if let Some(profile) = profile.as_ref() {
             toml.push_str(&profile.to_string());
@@ -83,9 +75,15 @@ version = "0.0.0"
             cmd
         };
 
-        for dep in &deps {
-            try!(cargo().arg("-p").arg(dep).run_or_error());
-        }
+        let dg = try!(dag::build(rust_src));
+
+        try!(dg.compile(|pkg| {
+            cargo()
+                .arg("-p")
+                .arg(pkg)
+                .run_and_get_status()
+                .map(|es| es.success())
+        }));
 
         Ok(sysroot)
     }

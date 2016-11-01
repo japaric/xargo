@@ -5,6 +5,7 @@ run() {
     # will be owned by root
     mkdir -p target
 
+    # FIXME(#82) `/rust` should be mounted as read-only
     docker build -t $1 ci/docker/$1
     docker run \
            --rm \
@@ -19,7 +20,7 @@ run() {
            -v $HOME/.cargo:/cargo \
            -v `pwd`/target:/target \
            -v `pwd`:/checkout:ro \
-           -v `rustc --print sysroot`:/rust:ro \
+           -v `rustc --print sysroot`:/rust \
            -w /checkout \
            -it $1 \
            sh -c "HOME=/tmp PATH=\$PATH:/rust/bin ci/run.sh"

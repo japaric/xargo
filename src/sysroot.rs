@@ -154,18 +154,40 @@ fn prune_cargo_toml(value: &toml::Value) -> Option<toml::Value> {
     if empty_cargo_toml { None } else { Some(value) }
 }
 
+fn prune_rustflags(flags: Vec<String>) -> Vec<String> {
+    let mut pruned_flags = vec![];
+    let mut flags = flags.into_iter();
+
+    while let Some(flag) = flags.next() {
+        if flag == "-C" {
+            if let Some(next_flag) = flags.next() {
+                if next_flag.starts_with("link-arg") {
+                    // drop
+                } else {
+                    pruned_flags.push(flag);
+                    pruned_flags.push(next_flag);
+                }
+            }
+        } else {
+            pruned_flags.push(flag);
+        }
+    }
+
+    pruned_flags
+}
+
 fn update_target_sysroot(target: &Target,
                          meta: &VersionMeta,
                          verbose: bool)
                          -> Result<()> {
     // The hash is a digest of the following elements:
-    // - RUSTFLAGS / build.rustflags / target.*.rustflags
+    // - RUSTFLAGS / build.rustflags / target.*.rustflags minus linker flags
     // - The [profile] in Cargo.toml minus its profile.*.lto sections
     // - The contents of the target specification file
     // - `rustc` version
     let hasher = &mut SipHasher::new();
 
-    for flag in try!(rustc::flags(target, "rustflags")) {
+    for flag in prune_rustflags(try!(rustc::flags(target, "rustflags"))) {
         flag.hash(hasher);
     }
 

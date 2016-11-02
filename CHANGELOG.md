@@ -16,6 +16,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   is profile.*.lto. Enabling/disabling LTO doesn't change how dependencies are
   compiled.
 
+- Xargo won't rebuild the sysroot if the linker flags (`-C link-arg`) have
+  changed. Those don't affect how the dependencies are compiled.
+
 ## [v0.2.1] - 2016-10-22
 
 ### Changed

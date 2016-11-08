@@ -101,4 +101,3 @@ branches:
 notifications:
   email:
     on_success: never
-  webhooks: https://homu.herokuapp.com/travis

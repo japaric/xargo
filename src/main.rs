@@ -1,4 +1,4 @@
-aaaaaa#![allow(dead_code)]
+#![allow(dead_code)]
 
 extern crate daggy;
 #[macro_use]

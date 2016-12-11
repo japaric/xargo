@@ -60,13 +60,16 @@ fn run(cmd: &mut Command) {
 fn exists_rlib(krate: &str, target: &str) -> bool {
     let home = env::home_dir().unwrap();
 
-    for entry in try!(fs::read_dir(home.join(format!(".xargo/lib/rustlib/{}/lib", target)))) {
+    let libdir = home.join(format!(".xargo/lib/rustlib/{}/lib", target));
+    for entry in try!(fs::read_dir(libdir)) {
         let path = &try!(entry).path();
 
-        if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("rlib") &&
+        if path.is_file() &&
+           path.extension().and_then(|e| e.to_str()) == Some("rlib") &&
            path.file_stem()
             .and_then(|f| f.to_str())
-            .map(|s| s.starts_with(&format!("lib{}", krate))) == Some(true) {
+            .map(|s| s.starts_with(&format!("lib{}", krate))) ==
+           Some(true) {
             return true;
         }
     }
@@ -137,8 +140,8 @@ fn doc() {
 }
 
 // Calling `xargo build` twice shouldn't trigger a sysroot rebuild
-// The only case the sysroot would have to be rebuild is when the source is updated but that
-// shouldn't happen when running this test suite.
+// The only case the sysroot would have to be rebuild is when the source is
+// updated but that shouldn't happen when running this test suite.
 #[test]
 fn twice() {
     const TARGET: &'static str = "__twice";
@@ -172,7 +175,8 @@ fn twice() {
     cleanup(TARGET);
 }
 
-// Check that `xargo build` builds a sysroot for the default target in .cargo/config
+// Check that `xargo build` builds a sysroot for the default target in
+// .cargo/config
 #[test]
 fn cargo_config() {
     const CONFIG: &'static str = "[build]\ntarget = '{}'";
@@ -424,8 +428,8 @@ panic = \"abort\"
     cleanup(TARGET);
 }
 
-// Make sure we build a sysroot for the built-in `thumbv*` targets which don't ship with binary
-// releases of the standard crates
+// Make sure we build a sysroot for the built-in `thumbv*` targets which don't
+// ship with binary releases of the standard crates
 #[test]
 fn thumb() {
     const TARGET: &'static str = "thumbv7m-none-eabi";
@@ -448,6 +452,92 @@ fn thumb() {
     for krate in CRATES {
         assert!(exists_rlib(krate, TARGET));
     }
+
+    cleanup(TARGET);
+}
+
+// We should not rebuild the sysroot if profile.*.lto changed
+#[test]
+fn profile_lto_changed() {
+    const TARGET: &'static str = "__profile_lto_changed";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(td.join("Cargo.toml"))
+        .unwrap()
+        .write_all(b"[profile.dev]\nlto = true")
+        .unwrap();
+
+    let output = try!(xargo()
+        .args(&["build", "--target", TARGET])
+        .current_dir(td)
+        .output());
+
+    assert!(output.status.success());
+
+    assert!(try!(String::from_utf8(output.stderr))
+        .lines()
+        .all(|l| !(l.contains("Compiling") && l.contains("core"))));
+
+    cleanup(TARGET);
+}
+
+// We should not rebuild the sysroot if the arguments we passed to the linker
+// changed
+#[test]
+fn linker_flags_changed() {
+    const TARGET: &'static str = "__linker_flags_changed";
+
+    let td = try!(TempDir::new("xargo"));
+    let td = &td.path();
+    try!(try!(File::create(td.join(format!("{}.json", TARGET))))
+        .write_all(CUSTOM_JSON.as_bytes()));
+
+    run(xargo()
+        .args(&["init", "--vcs", "none", "--name", TARGET])
+        .current_dir(td));
+    try!(try!(OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(td.join("src/lib.rs")))
+        .write_all(LIB_RS));
+    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+
+    fs::create_dir(td.join(".cargo")).unwrap();
+    File::create(td.join(".cargo/config"))
+        .unwrap()
+        .write_all(format!("[target.{}]\nrustflags = [\"-C\", \
+                            \"link-arg=-lfoo\"]",
+                           TARGET)
+            .as_bytes())
+        .unwrap();
+
+    let output = try!(xargo()
+        .args(&["build", "--target", TARGET])
+        .current_dir(td)
+        .output());
+
+    assert!(output.status.success());
+
+    assert!(try!(String::from_utf8(output.stderr))
+        .lines()
+        .all(|l| !(l.contains("Compiling") && l.contains("core"))));
 
     cleanup(TARGET);
 }

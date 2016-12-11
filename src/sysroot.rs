@@ -5,10 +5,11 @@ use std::process::Command;
 use tempdir::TempDir;
 
 use errors::*;
-use {fs, io, parse, rustc, toml, xargo};
 use rustc::{Channel, VersionMeta};
 use {CommandExt, Target};
+use {dag, fs, io, parse, rustc, toml, xargo};
 
+/// A cargo create used to compile the sysroot
 pub struct Crate {
     td: TempDir,
     triple: String,
@@ -37,19 +38,10 @@ version = "0.0.0"
         };
         let crate_dir = &sysroot.crate_dir().to_owned();
 
-        let deps = if try!(target.has_atomics()) {
-            vec!["alloc", "collections", "core", "rand", "rustc_unicode"]
-        } else {
-            vec!["core", "rand", "rustc_unicode"]
-        };
         let mut toml = CARGO_TOML.to_owned();
 
-        for dep in &deps {
-            toml.push_str(&format!("{} = {{ path = '{}' }}\n",
-                                   dep,
-                                   rust_src.join(format!("src/lib{}", dep))
-                                       .display()));
-        }
+        toml.push_str(&format!("std = {{ path = '{}' }}\n",
+                               rust_src.join("src/libstd").display()));
 
         if let Some(profile) = profile.as_ref() {
             toml.push_str(&profile.to_string());
@@ -83,9 +75,15 @@ version = "0.0.0"
             cmd
         };
 
-        for dep in &deps {
-            try!(cargo().arg("-p").arg(dep).run_or_error());
-        }
+        let dg = try!(dag::build(rust_src));
+
+        try!(dg.compile(|pkg| {
+            cargo()
+                .arg("-p")
+                .arg(pkg)
+                .run_and_get_status()
+                .map(|es| es.success())
+        }));
 
         Ok(sysroot)
     }
@@ -113,23 +111,88 @@ pub fn update(target: &Target, verbose: bool) -> Result<()> {
     Ok(())
 }
 
+/// Removes the profile.*.lto sections from a Cargo.toml
+///
+/// Returns `None` if the Cargo.toml becomes empty after pruning it
+fn prune_cargo_toml(value: &toml::Value) -> Option<toml::Value> {
+    let mut value = value.clone();
+
+    let mut empty_profile_section = false;
+    if let Some(&mut toml::Value::Table(ref mut profiles)) =
+        value.lookup_mut("profile") {
+        let mut gc_list = vec![];
+        for (profile, options) in profiles.iter_mut() {
+            if let toml::Value::Table(ref mut options) = *options {
+                options.remove("lto");
+
+                if options.is_empty() {
+                    gc_list.push(profile.to_owned());
+                }
+            }
+        }
+
+        for profile in gc_list {
+            profiles.remove(&profile[..]);
+        }
+
+        if profiles.is_empty() {
+            empty_profile_section = true;
+        }
+    }
+
+    let mut empty_cargo_toml = false;
+    if empty_profile_section {
+        if let toml::Value::Table(ref mut table) = value {
+            table.remove("profile");
+
+            if table.is_empty() {
+                empty_cargo_toml = true;
+            }
+        }
+    }
+
+    if empty_cargo_toml { None } else { Some(value) }
+}
+
+fn prune_rustflags(flags: Vec<String>) -> Vec<String> {
+    let mut pruned_flags = vec![];
+    let mut flags = flags.into_iter();
+
+    while let Some(flag) = flags.next() {
+        if flag == "-C" {
+            if let Some(next_flag) = flags.next() {
+                if next_flag.starts_with("link-arg") {
+                    // drop
+                } else {
+                    pruned_flags.push(flag);
+                    pruned_flags.push(next_flag);
+                }
+            }
+        } else {
+            pruned_flags.push(flag);
+        }
+    }
+
+    pruned_flags
+}
+
 fn update_target_sysroot(target: &Target,
                          meta: &VersionMeta,
                          verbose: bool)
                          -> Result<()> {
     // The hash is a digest of the following elements:
-    // - RUSTFLAGS / build.rustflags / target.*.rustflags
-    // - The [profile] in Cargo.toml
+    // - RUSTFLAGS / build.rustflags / target.*.rustflags minus linker flags
+    // - The [profile] in Cargo.toml minus its profile.*.lto sections
     // - The contents of the target specification file
     // - `rustc` version
     let hasher = &mut SipHasher::new();
 
-    for flag in try!(rustc::flags(target, "rustflags")) {
+    for flag in prune_rustflags(try!(rustc::flags(target, "rustflags"))) {
         flag.hash(hasher);
     }
 
     let profile = try!(parse::profile_in_cargo_toml());
-    if let Some(profile) = profile.as_ref() {
+    if let Some(profile) = profile.as_ref().and_then(prune_cargo_toml) {
         profile.to_string().hash(hasher);
     }
 

@@ -1,5 +1,3 @@
-[![Travis](https://travis-ci.org/japaric/xargo.svg?branch=master)](https://travis-ci.org/japaric/xargo)
-[![Appveyor](https://ci.appveyor.com/api/projects/status/5pb5okyox3te9dst?svg=true)](https://ci.appveyor.com/project/japaric/xargo)
 [![crates.io](https://img.shields.io/crates/v/xargo.svg)](https://crates.io/crates/xargo)
 [![crates.io](https://img.shields.io/crates/d/xargo.svg)](https://crates.io/crates/xargo)
 
@@ -56,7 +54,7 @@ binaries, simply extract the tarball/zipfile and place the binary contained ther
 PATH. If using rustup, it's recommended to place the binary in `~/.cargo/bin`, which is where rustup
 is also installed.
 
-[three major platforms]: https://github.com/japaric/xargo/releases 
+[three major platforms]: https://github.com/japaric/xargo/releases
 
 ### Build it yourself
 

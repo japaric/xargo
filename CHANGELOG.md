@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.2.2] - 2016-12-12
+
 ### Changed
 
 - Xargo will now try to build every crate "below" `std`, i.e. all its

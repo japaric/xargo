@@ -100,7 +100,7 @@ version = "0.0.0"
 pub fn update(target: &Target, verbose: bool) -> Result<()> {
     let meta = try!(rustc::meta());
 
-    if meta.channel != Channel::Nightly {
+    if meta.channel != Channel::Nightly && meta.channel != Channel::Dev {
         try!(Err("Xargo requires the nightly channel. Run `rustup default \
                   nightly` or similar"))
     }

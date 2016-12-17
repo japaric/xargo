@@ -16,16 +16,22 @@ use {CommandExt, Target};
 
 /// The `rust-src` component within `rustc`'s sysroot
 pub fn rust_src() -> Result<PathBuf> {
-    for entry in WalkDir::new(try!(sysroot())) {
+    let src = try!(sysroot()).join("lib/rustlib/src/rust");
+
+    if src.join("src/libstd/Cargo.toml").is_file() {
+        return Ok(src.to_owned());
+    }
+
+    for entry in WalkDir::new(try!(sysroot()).join("lib/rustlib/src")) {
         let entry =
             try!(entry.chain_err(|| "error recursively walking the sysroot"));
 
-        if entry.file_type().is_file() && entry.file_name() == "version" {
+        if entry.file_type().is_file() && entry.file_name() == "Cargo.toml" {
             let path = entry.path();
 
             if let Some(parent) = path.parent() {
                 if parent.components().rev().next() ==
-                   Some(Component::Normal(OsStr::new("rust"))) {
+                   Some(Component::Normal(OsStr::new("libstd"))) {
                     return Ok(parent.to_owned());
                 }
             }

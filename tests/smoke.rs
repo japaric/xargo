@@ -43,6 +43,7 @@ const NO_ATOMICS_JSON: &'static str = r#"
 fn xargo() -> Command {
     let mut path = try!(env::current_exe());
     path.pop();
+    path.pop();
     path.push("xargo");
     Command::new(path)
 }

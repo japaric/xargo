@@ -14,7 +14,7 @@ macro_rules! try {
 }
 
 const CRATES: &'static [&'static str] =
-    &["alloc", "collections", "core", "rand", "rustc_unicode"];
+    &["alloc", "collections", "core", "rand", "std_unicode"];
 const LIB_RS: &'static [u8] = b"#![no_std]";
 
 const CUSTOM_JSON: &'static str = r#"
@@ -348,7 +348,7 @@ fn rebuild_on_modified_rustflags() {
 #[test]
 fn no_atomics() {
     const TARGET: &'static str = "__no_atomics";
-    const CRATES: &'static [&'static str] = &["core", "rustc_unicode"];
+    const CRATES: &'static [&'static str] = &["core", "std_unicode"];
 
     let td = try!(TempDir::new("xargo"));
     let td = &td.path();

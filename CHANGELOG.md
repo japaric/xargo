@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Support for the 'dev' channel. When using the dev channel, you must specify
+  the path to the Rust source directory via the XARGO_RUST_SRC environment
+  variable.
+
 ## [v0.2.2] - 2016-12-12
 
 ### Changed

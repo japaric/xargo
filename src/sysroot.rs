@@ -1,3 +1,4 @@
+use std::env;
 use std::hash::{Hash, Hasher, SipHasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -100,12 +101,21 @@ version = "0.0.0"
 pub fn update(target: &Target, verbose: bool) -> Result<()> {
     let meta = try!(rustc::meta());
 
-    if meta.channel != Channel::Nightly {
-        try!(Err("Xargo requires the nightly channel. Run `rustup default \
-                  nightly` or similar"))
-    }
+    let rust_src = match meta.channel {
+        Channel::Dev => {
+            PathBuf::from(try!(env::var_os("XARGO_RUST_SRC").ok_or({
+                "The XARGO_RUST_SRC env variable must be set and point to the \
+                 Rust source directory when working with the 'dev' channel"
+            })))
+        }
+        Channel::Nightly => try!(rustc::rust_src()),
+        _ => {
+            try!(Err("Xargo requires the nightly or the dev channel. Run \
+                      `rustup default nightly` or similar"))
+        }
+    };
 
-    try!(update_target_sysroot(target, &meta, verbose));
+    try!(update_target_sysroot(target, &meta, &rust_src, verbose));
     try!(update_host_sysroot(&meta));
 
     Ok(())
@@ -178,6 +188,7 @@ fn prune_rustflags(flags: Vec<String>) -> Vec<String> {
 
 fn update_target_sysroot(target: &Target,
                          meta: &VersionMeta,
+                         rust_src: &Path,
                          verbose: bool)
                          -> Result<()> {
     // The hash is a digest of the following elements:
@@ -211,8 +222,6 @@ fn update_target_sysroot(target: &Target,
     let old_hash = try!(io::read_hash(&lock));
 
     if old_hash != Some(new_hash) {
-        let rust_src = try!(rustc::rust_src());
-
         let sysroot = try!(Crate::build(&rust_src, target, &profile, verbose));
 
         try!(fs::remove_siblings(&lock));

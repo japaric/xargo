@@ -205,6 +205,9 @@ impl Target {
         match *self {
             Target::BuiltIn { ref triple } => {
                 match &triple[..] {
+                    "arm-unknown-linux-musleabi" |
+                    "arm-unknown-linux-musleabihf" |
+                    "armv7-unknown-linux-musleabihf" |
                     "thumbv6m-none-eabi" |
                     "thumbv7m-none-eabi" |
                     "thumbv7em-none-eabi" |

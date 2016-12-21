@@ -4,8 +4,10 @@ test_mode() {
     cargo build --target $TARGET
     cargo run --target $TARGET -- -V
 
+    export RUST_BACKTRACE=1
+    export RUST_TEST_THREADS=1
     if [ $TRAVIS_RUST_VERSION = nightly ]; then
-        cargo test --target $TARGET
+        cargo test --target $TARGET --verbose
     fi
 }
 

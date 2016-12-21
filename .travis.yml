@@ -98,6 +98,7 @@ branches:
     # Release tags
     - /^v\d+\.\d+\.\d+.*$/
     - auto
+    - master
     - try
 
 notifications:

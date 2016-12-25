@@ -1,4 +1,5 @@
-//! Copy paste of Cargo's src/util/flock.rs with modifications to not depend on other Cargo stuff
+//! Copy paste of Cargo's src/util/flock.rs with modifications to not depend on
+//! other Cargo stuff
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -36,16 +37,16 @@ impl FileLock {
 
     pub fn remove_siblings(&self) -> io::Result<()> {
         let path = self.path();
-        for entry in try!(path.parent().unwrap().read_dir()) {
-            let entry = try!(entry);
+        for entry in path.parent().unwrap().read_dir()? {
+            let entry = entry?;
             if Some(&entry.file_name()[..]) == path.file_name() {
                 continue;
             }
-            let kind = try!(entry.file_type());
+            let kind = entry.file_type()?;
             if kind.is_dir() {
-                try!(fs::remove_dir_all(entry.path()));
+                fs::remove_dir_all(entry.path())?;
             } else {
-                try!(fs::remove_file(entry.path()));
+                fs::remove_file(entry.path())?;
             }
         }
         Ok(())
@@ -93,30 +94,28 @@ impl Filesystem {
             -> Result<FileLock> {
         let path = self.path.join(path);
 
-        let f = try!(opts.open(&path)
-            .or_else(|e| {
-                if e.kind() == io::ErrorKind::NotFound &&
-                   state == State::Exclusive {
-                    try!(create_dir_all(path.parent().unwrap()));
-                    opts.open(&path)
-                } else {
-                    Err(e)
-                }
+        let f = opts.open(&path)
+            .or_else(|e| if e.kind() == io::ErrorKind::NotFound &&
+                            state == State::Exclusive {
+                create_dir_all(path.parent().unwrap())?;
+                opts.open(&path)
+            } else {
+                Err(e)
             })
-            .chain_err(|| format!("failed to open {}", path.display())));
+            .chain_err(|| format!("failed to open {}", path.display()))?;
 
         match state {
             State::Exclusive => {
-                try!(acquire(msg,
-                             &path,
-                             &|| f.try_lock_exclusive(),
-                             &|| f.lock_exclusive()));
+                acquire(msg,
+                        &path,
+                        &|| f.try_lock_exclusive(),
+                        &|| f.lock_exclusive())?;
             }
             State::Shared => {
-                try!(acquire(msg,
-                             &path,
-                             &|| f.try_lock_shared(),
-                             &|| f.lock_shared()));
+                acquire(msg,
+                        &path,
+                        &|| f.try_lock_shared(),
+                        &|| f.lock_shared())?;
             }
         }
 
@@ -179,8 +178,7 @@ fn acquire(msg: &str,
         }
         Err(e) => {
             if e.raw_os_error() != fs2::lock_contended_error().raw_os_error() {
-                try!(Err(e)
-                    .chain_err(|| format!("failed to lock file {}", path_)))
+                Err(e).chain_err(|| format!("failed to lock file {}", path_))?
             }
         }
     }

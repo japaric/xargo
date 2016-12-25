@@ -16,15 +16,15 @@ use {CommandExt, Target};
 
 /// The `rust-src` component within `rustc`'s sysroot
 pub fn rust_src() -> Result<PathBuf> {
-    let src = try!(sysroot()).join("lib/rustlib/src/rust");
+    let src = sysroot()?.join("lib/rustlib/src/rust");
 
     if src.join("src/libstd/Cargo.toml").is_file() {
         return Ok(src.to_owned());
     }
 
-    for entry in WalkDir::new(try!(sysroot()).join("lib/rustlib/src")) {
+    for entry in WalkDir::new(sysroot()?.join("lib/rustlib/src")) {
         let entry =
-            try!(entry.chain_err(|| "error recursively walking the sysroot"));
+            entry.chain_err(|| "error recursively walking the sysroot")?;
 
         if entry.file_type().is_file() && entry.file_name() == "Cargo.toml" {
             let path = entry.path();
@@ -38,13 +38,12 @@ pub fn rust_src() -> Result<PathBuf> {
         }
     }
 
-    try!(Err("`rust-src` component not found. Run `rustup component add \
-              rust-src`."))
+    Err("`rust-src` component not found. Run `rustup component add rust-src`.")?
 }
 
 pub fn target_list() -> Result<Vec<String>> {
-    let stdout =
-        try!(rustc().args(&["--print", "target-list"]).run_and_get_stdout());
+    let stdout = rustc().args(&["--print", "target-list"])
+        .run_and_get_stdout()?;
 
     Ok(stdout.split('\n')
         .filter_map(|s| if s.is_empty() {
@@ -57,9 +56,8 @@ pub fn target_list() -> Result<Vec<String>> {
 
 /// Parsed `rustc -Vv` output
 pub fn meta() -> Result<VersionMeta> {
-    Ok(rustc_version::version_meta_for(&try!(rustc()
-        .arg("-Vv")
-        .run_and_get_stdout())))
+    Ok(rustc_version::version_meta_for(&rustc().arg("-Vv")
+        .run_and_get_stdout()?))
 }
 
 pub fn flags(target: &Target, tool: &str) -> Result<Vec<String>> {
@@ -69,7 +67,7 @@ pub fn flags(target: &Target, tool: &str) -> Result<Vec<String>> {
     }
 
     let tool = tool.to_ascii_lowercase();
-    if let Some(value) = try!(cargo::config()).and_then(|t| {
+    if let Some(value) = cargo::config()?.and_then(|t| {
         t.lookup(&format!("target.{}.{}", target.triple(), tool))
             .or_else(|| t.lookup(&format!("build.{}", tool)))
             .cloned()
@@ -90,9 +88,8 @@ pub fn flags(target: &Target, tool: &str) -> Result<Vec<String>> {
         }
 
         if error {
-            try!(Err(format!("{} in .cargo/config should be an array of \
-                              string",
-                             tool)))
+            Err(format!("{} in .cargo/config should be an array of string",
+                        tool))?
         } else {
             Ok(flags)
         }
@@ -103,10 +100,10 @@ pub fn flags(target: &Target, tool: &str) -> Result<Vec<String>> {
 }
 
 pub fn sysroot() -> Result<PathBuf> {
-    Ok(PathBuf::from(try!(rustc()
-            .arg("--print")
-            .arg("sysroot")
-            .run_and_get_stdout())
+    Ok(PathBuf::from(rustc()
+        .arg("--print")
+        .arg("sysroot")
+        .run_and_get_stdout()?
         .trim_right()))
 }
 

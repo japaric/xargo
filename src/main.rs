@@ -67,13 +67,13 @@ fn main() {
 }
 
 fn run() -> Result<ExitStatus> {
-    let Args { mut cmd, target, subcommand, verbose } = try!(parse::args());
+    let Args { mut cmd, target, subcommand, verbose } = parse::args()?;
 
     let target = if let Some(target) = target.as_ref() {
-        Some(try!(Target::from(target)))
+        Some(Target::from(target)?)
     } else if let Some(target) =
-        try!(parse::target_in_cargo_config()) {
-        Some(try!(Target::from(&target)))
+        parse::target_in_cargo_config()? {
+        Some(Target::from(&target)?)
     } else {
         None
     };
@@ -85,7 +85,7 @@ fn run() -> Result<ExitStatus> {
         _ => {
             if let Some(target) = target.as_ref() {
                 if target.needs_sysroot() {
-                    try!(sysroot::update(target, verbose));
+                    sysroot::update(target, verbose)?;
                     Some(target)
                 } else {
                     None
@@ -98,10 +98,10 @@ fn run() -> Result<ExitStatus> {
 
     let locks = if let Some(target) = needs_sysroot {
         // TODO(Filesystem.display()) this could be better ...
-        let sysroot = format!("{}", try!(xargo::home()).display());
+        let sysroot = format!("{}", xargo::home()?.display());
 
         if subcommand.as_ref().map(|s| &s[..]) == Some("doc") {
-            let mut flags = try!(rustc::flags(target, "rustdocflags"));
+            let mut flags = rustc::flags(target, "rustdocflags")?;
             flags.push("--sysroot".to_owned());
 
             flags.push(sysroot.clone());
@@ -109,7 +109,7 @@ fn run() -> Result<ExitStatus> {
             cmd.env("RUSTDOCFLAGS", flags.join(" "));
         }
 
-        let mut flags = try!(rustc::flags(target, "rustflags"));
+        let mut flags = rustc::flags(target, "rustflags")?;
         flags.push("--sysroot".to_owned());
 
         // TODO(Filesystem.display()) this could be better ...
@@ -119,14 +119,14 @@ fn run() -> Result<ExitStatus> {
 
         // Make sure the sysroot is not blown up while the Cargo command is
         // running
-        Some((xargo::lock_ro(&try!(rustc::meta()).host),
+        Some((xargo::lock_ro(&rustc::meta()?.host),
               xargo::lock_ro(target.triple())))
     } else {
         None
     };
 
-    let status = try!(cmd.status()
-        .chain_err(|| "failed to execute `cargo`. Is it not installed?"));
+    let status = cmd.status()
+        .chain_err(|| "failed to execute `cargo`. Is it not installed?")?;
 
     mem::drop(locks);
 
@@ -142,7 +142,7 @@ pub enum Target {
 
 impl Target {
     fn from(target: &str) -> Result<Target> {
-        let target_list = try!(rustc::target_list());
+        let target_list = rustc::target_list()?;
 
         let target = target.to_owned();
         if target_list.iter().any(|t| t == &target) {
@@ -156,7 +156,7 @@ impl Target {
                     triple: triple.to_owned(),
                 })
             } else {
-                try!(Err(format!("error extracting triple from {}", target)))
+                Err(format!("error extracting triple from {}", target))?
             }
         } else {
             let json = Path::new(&target).with_extension("json");
@@ -180,9 +180,8 @@ impl Target {
                     }
                 }
 
-                try!(Err(format!("no target specification file found \
-                                  for {}",
-                                 target)))
+                Err(format!("no target specification file found for {}",
+                            target))?
             }
         }
     }
@@ -195,7 +194,7 @@ impl Target {
         match *self {
             Target::BuiltIn { .. } => {}
             Target::Custom { ref json, .. } |
-            Target::Path { ref json, .. } => try!(io::read(json)).hash(hasher),
+            Target::Path { ref json, .. } => io::read(json)?.hash(hasher),
         }
 
         Ok(())
@@ -235,21 +234,21 @@ impl CommandExt for Command {
     fn run_and_get_status(&mut self) -> Result<ExitStatus> {
         let cmd = &format!("`{:?}`", self);
 
-        Ok(try!(self.status()
-            .chain_err(|| format!("failed to execute {}", cmd))))
+        Ok(self.status()
+            .chain_err(|| format!("failed to execute {}", cmd))?)
     }
 
     fn run_and_get_stdout(&mut self) -> Result<String> {
         let cmd = &format!("`{:?}`", self);
 
-        let output = try!(self.output()
-            .chain_err(|| format!("failed to execute {}", cmd)));
+        let output = self.output()
+            .chain_err(|| format!("failed to execute {}", cmd))?;
 
         if !output.status.success() {
-            try!(Err(format!("{} failed with exit status: {:?}.\nstderr:\n{}",
-                             cmd,
-                             output.status.code(),
-                             String::from_utf8_lossy(&output.stderr))))
+            Err(format!("{} failed with exit status: {:?}.\nstderr:\n{}",
+                        cmd,
+                        output.status.code(),
+                        String::from_utf8_lossy(&output.stderr)))?
         }
 
         Ok(try!(String::from_utf8(output.stdout)
@@ -259,13 +258,11 @@ impl CommandExt for Command {
     fn run_or_error(&mut self) -> Result<()> {
         let cmd = &format!("`{:?}`", self);
 
-        let exit = try!(self.status()
-            .chain_err(|| format!("failed to execute {}", cmd)));
+        let exit = self.status()
+            .chain_err(|| format!("failed to execute {}", cmd))?;
 
         if !exit.success() {
-            try!(Err(format!("{} failed with exit status {:?}",
-                             cmd,
-                             exit.code())))
+            Err(format!("{} failed with exit status {:?}", cmd, exit.code()))?
         }
 
         Ok(())

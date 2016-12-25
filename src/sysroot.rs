@@ -48,9 +48,9 @@ version = "0.0.0"
             toml.push_str(&profile.to_string());
         }
 
-        try!(io::write(&crate_dir.join("Cargo.toml"), &toml));
-        try!(fs::mkdir(&crate_dir.join("src")));
-        try!(io::write(&crate_dir.join("src/lib.rs"), ""));
+        io::write(&crate_dir.join("Cargo.toml"), &toml)?;
+        fs::mkdir(&crate_dir.join("src"))?;
+        io::write(&crate_dir.join("src/lib.rs"), "")?;
 
         let cargo = || {
             let mut cmd = Command::new("cargo");
@@ -76,15 +76,15 @@ version = "0.0.0"
             cmd
         };
 
-        let dg = try!(dag::build(rust_src));
+        let dg = dag::build(rust_src)?;
 
-        try!(dg.compile(|pkg| {
-            cargo()
-                .arg("-p")
-                .arg(pkg)
-                .run_and_get_status()
-                .map(|es| es.success())
-        }));
+        dg.compile(|pkg| {
+                cargo()
+                    .arg("-p")
+                    .arg(pkg)
+                    .run_and_get_status()
+                    .map(|es| es.success())
+            })?;
 
         Ok(sysroot)
     }
@@ -99,24 +99,25 @@ version = "0.0.0"
 }
 
 pub fn update(target: &Target, verbose: bool) -> Result<()> {
-    let meta = try!(rustc::meta());
+    let meta = rustc::meta()?;
 
     let rust_src = match meta.channel {
         Channel::Dev => {
-            PathBuf::from(try!(env::var_os("XARGO_RUST_SRC").ok_or({
-                "The XARGO_RUST_SRC env variable must be set and point to the \
-                 Rust source directory when working with the 'dev' channel"
-            })))
+            PathBuf::from(env::var_os("XARGO_RUST_SRC").ok_or({
+                    "The XARGO_RUST_SRC env variable must be set and point to \
+                     the Rust source directory when working with the 'dev' \
+                     channel"
+                })?)
         }
-        Channel::Nightly => try!(rustc::rust_src()),
+        Channel::Nightly => rustc::rust_src()?,
         _ => {
-            try!(Err("Xargo requires the nightly or the dev channel. Run \
-                      `rustup default nightly` or similar"))
+            Err("Xargo requires the nightly or the dev channel. Run `rustup \
+                 default nightly` or similar")?
         }
     };
 
-    try!(update_target_sysroot(target, &meta, &rust_src, verbose));
-    try!(update_host_sysroot(&meta));
+    update_target_sysroot(target, &meta, &rust_src, verbose)?;
+    update_host_sysroot(&meta)?;
 
     Ok(())
 }
@@ -198,16 +199,16 @@ fn update_target_sysroot(target: &Target,
     // - `rustc` version
     let hasher = &mut SipHasher::new();
 
-    for flag in prune_rustflags(try!(rustc::flags(target, "rustflags"))) {
+    for flag in prune_rustflags(rustc::flags(target, "rustflags")?) {
         flag.hash(hasher);
     }
 
-    let profile = try!(parse::profile_in_cargo_toml());
+    let profile = parse::profile_in_cargo_toml()?;
     if let Some(profile) = profile.as_ref().and_then(prune_cargo_toml) {
         profile.to_string().hash(hasher);
     }
 
-    try!(target.hash(hasher));
+    target.hash(hasher)?;
 
     if let Some(commit_hash) = meta.commit_hash.as_ref() {
         commit_hash.hash(hasher);
@@ -218,18 +219,18 @@ fn update_target_sysroot(target: &Target,
     let new_hash = hasher.finish();
 
     let triple = target.triple();
-    let lock = try!(xargo::lock_rw(triple));
-    let old_hash = try!(io::read_hash(&lock));
+    let lock = xargo::lock_rw(triple)?;
+    let old_hash = io::read_hash(&lock)?;
 
     if old_hash != Some(new_hash) {
-        let sysroot = try!(Crate::build(&rust_src, target, &profile, verbose));
+        let sysroot = Crate::build(&rust_src, target, &profile, verbose)?;
 
-        try!(fs::remove_siblings(&lock));
+        fs::remove_siblings(&lock)?;
 
         let dst = lock.parent().join("lib");
-        try!(fs::cp_r(&sysroot.deps_dir(), &dst));
+        fs::cp_r(&sysroot.deps_dir(), &dst)?;
 
-        try!(io::write_hash(&lock, new_hash));
+        io::write_hash(&lock, new_hash)?;
     }
 
     Ok(())
@@ -237,23 +238,22 @@ fn update_target_sysroot(target: &Target,
 
 fn update_host_sysroot(meta: &VersionMeta) -> Result<()> {
     let host = &meta.host;
-    let lock = try!(xargo::lock_rw(host));
+    let lock = xargo::lock_rw(host)?;
 
     let hasher = &mut SipHasher::new();
     host.hash(hasher);
 
     let new_hash = hasher.finish();
-    let old_hash = try!(io::read_hash(&lock));
+    let old_hash = io::read_hash(&lock)?;
 
     if old_hash != Some(new_hash) {
-        try!(fs::remove_siblings(&lock));
+        fs::remove_siblings(&lock)?;
 
-        let src =
-            try!(rustc::sysroot()).join("lib/rustlib").join(host).join("lib");
+        let src = rustc::sysroot()?.join("lib/rustlib").join(host).join("lib");
         let dst = lock.parent().join("lib");
-        try!(fs::cp_r(&src, &dst));
+        fs::cp_r(&src, &dst)?;
 
-        try!(io::write_hash(&lock, new_hash));
+        io::write_hash(&lock, new_hash)?;
     }
 
     Ok(())

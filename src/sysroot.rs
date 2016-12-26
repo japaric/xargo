@@ -1,5 +1,6 @@
+use std::collections::hash_map::DefaultHasher;
 use std::env;
-use std::hash::{Hash, Hasher, SipHasher};
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -197,7 +198,7 @@ fn update_target_sysroot(target: &Target,
     // - The [profile] in Cargo.toml minus its profile.*.lto sections
     // - The contents of the target specification file
     // - `rustc` version
-    let hasher = &mut SipHasher::new();
+    let hasher = &mut DefaultHasher::new();
 
     for flag in prune_rustflags(rustc::flags(target, "rustflags")?) {
         flag.hash(hasher);
@@ -240,7 +241,7 @@ fn update_host_sysroot(meta: &VersionMeta) -> Result<()> {
     let host = &meta.host;
     let lock = xargo::lock_rw(host)?;
 
-    let hasher = &mut SipHasher::new();
+    let hasher = &mut DefaultHasher::new();
     host.hash(hasher);
 
     let new_hash = hasher.finish();

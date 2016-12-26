@@ -11,7 +11,7 @@ pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
         let nc = src.components().count();
 
         for entry in WalkDir::new(src) {
-            let entry = try!(entry);
+            let entry = entry?;
             let src = entry.path();
 
             let mut components = src.components();
@@ -21,9 +21,9 @@ pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
             let dst = dst.join(components.as_path());
 
             if entry.file_type().is_file() {
-                try!(fs::copy(src, dst));
+                fs::copy(src, dst)?;
             } else if !dst.exists() {
-                try!(fs::create_dir(dst));
+                fs::create_dir(dst)?;
             }
         }
 
@@ -38,18 +38,18 @@ pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
 }
 
 pub fn mkdir(path: &Path) -> Result<()> {
-    try!(fs::create_dir(path).chain_err(|| {
-        format!("couldn't create a directory at {}", path.display())
-    }));
+    fs::create_dir(path).chain_err(|| {
+            format!("couldn't create a directory at {}", path.display())
+        })?;
     Ok(())
 }
 
 pub fn remove_siblings(lock: &FileLock) -> Result<()> {
-    try!(lock.remove_siblings()
+    lock.remove_siblings()
         .chain_err(|| {
             format!("couldn't clear the contents of {}",
                     lock.parent().display())
-        }));
+        })?;
 
     Ok(())
 }

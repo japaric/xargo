@@ -47,7 +47,8 @@ install:
   # curl: cargo + rustc
   # case: rust-std
   # rustup: rust-src
-  - if [ -z $TRAVIS_TAG ] || [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
+  # NOTE(TRAVIS_BRANCH) Travis is configured to only build *pushes* (not PRs).
+  - if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
       curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y;
       source ~/.cargo/env;
       case $TARGET in
@@ -59,7 +60,8 @@ install:
 
 script:
   # chmod: Travis can't cache files that are not readable by "others"
-  - if [ -z $TRAVIS_TAG ] || [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
+  # NOTE(TRAVIS_BRANCH) See the NOTE in the `install` section
+  - if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
       cargo generate-lockfile;
 
       if [[ $TRAVIS_OS_NAME = linux ]]; then
@@ -96,6 +98,7 @@ branches:
     # Release tags
     - /^v\d+\.\d+\.\d+.*$/
     - auto
+    - master
     - try
 
 notifications:

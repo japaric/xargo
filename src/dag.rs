@@ -57,7 +57,7 @@ impl DependencyGraph {
         let mut at_least_one_dep_failed = false;
 
         for (_, child) in self.dag.children(pkg).iter(&self.dag) {
-            if !try!(self.compile_(child, successes, failures, f)) {
+            if !self.compile_(child, successes, failures, f)? {
                 at_least_one_dep_failed = true;
             }
         }
@@ -70,7 +70,7 @@ impl DependencyGraph {
         } else if successes.contains(&pkg) {
             Ok(true)
         } else {
-            if try!(f(self.name_of(pkg))) {
+            if f(self.name_of(pkg))? {
                 successes.push(pkg);
                 Ok(true)
             } else {

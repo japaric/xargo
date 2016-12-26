@@ -74,7 +74,7 @@ pub fn args() -> Result<Args> {
 }
 
 pub fn profile_in_cargo_toml() -> Result<Option<toml::Value>> {
-    let toml = try!(cargo::toml());
+    let toml = cargo::toml()?;
 
     if let Some(profile) = toml.lookup("profile") {
         let mut table = toml::Table::new();
@@ -86,12 +86,12 @@ pub fn profile_in_cargo_toml() -> Result<Option<toml::Value>> {
 }
 
 pub fn target_in_cargo_config() -> Result<Option<String>> {
-    if let Some(config) = try!(cargo::config()) {
+    if let Some(config) = cargo::config()? {
         if let Some(target) = config.lookup("build.target") {
             if let Some(target) = target.as_str() {
                 Ok(Some(target.to_owned()))
             } else {
-                try!(Err("build.target in .cargo/config is not a string"))
+                Err("build.target in .cargo/config is not a string")?
             }
         } else {
             Ok(None)

@@ -10,10 +10,10 @@ use errors::*;
 use io;
 
 pub fn parse(file: &Path) -> Result<Value> {
-    if let Some(table) = Parser::new(&try!(io::read(file))).parse() {
+    if let Some(table) = Parser::new(&io::read(file)?).parse() {
         Ok(Value::Table(table))
     } else {
-        try!(Err(format!("error parsing {} as TOML", file.display())))
+        Err(format!("error parsing {} as TOML", file.display()))?
     }
 }
 
@@ -26,7 +26,7 @@ impl ValueExt for Value {
         if let Some(s) = self.lookup(key).and_then(|v| v.as_str()) {
             Ok(s)
         } else {
-            try!(Err(format!("key {} not found", key)))
+            Err(format!("key {} not found", key))?
         }
     }
 }

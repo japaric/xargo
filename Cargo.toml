@@ -11,7 +11,7 @@ version = "0.3.0"
 
 [dependencies]
 error-chain = "0.7.2"
-fs2 = "0.4.0"
+fs2 = "0.4.1"
 libc = "0.2.18"
 rustc_version = "0.1.7"
 serde_json = "0.8.4"

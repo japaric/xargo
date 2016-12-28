@@ -60,6 +60,7 @@ version = "0.0.0"
     let cargo = || {
         let mut cmd = Command::new("cargo");
         cmd.env("RUSTFLAGS", rustflags.to_string());
+        cmd.env_remove("CARGO_TARGET_DIR");
         cmd.arg("build");
 
         match () {

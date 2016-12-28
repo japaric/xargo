@@ -26,6 +26,7 @@ build: false
 test_script:
   - if [%APPVEYOR_REPO_TAG%]==[false] (
       if [%RUST_VERSION%]==[nightly] (
+        cargo test --target %TARGET% --features dev &
         cargo test --target %TARGET%
       ) else (
         cargo build --target %TARGET%

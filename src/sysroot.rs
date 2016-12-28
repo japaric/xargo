@@ -1,261 +1,267 @@
+use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
-use std::env;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::fmt;
 
+use rustc_version::VersionMeta;
 use tempdir::TempDir;
+use toml::Value;
 
+use cargo::{Root, Rustflags};
 use errors::*;
-use rustc::{Channel, VersionMeta};
-use {CommandExt, Target};
-use {dag, fs, io, parse, rustc, toml, xargo};
+use extensions::CommandExt;
+use rustc::{Src, Sysroot, Target};
+use util;
+use xargo::Home;
+use {cargo, xargo};
 
-/// A cargo create used to compile the sysroot
-pub struct Crate {
-    td: TempDir,
-    triple: String,
+#[cfg(feature = "dev")]
+fn profile() -> &'static str {
+    "debug"
 }
 
-impl Crate {
-    pub fn build(rust_src: &Path,
-                 target: &Target,
-                 profile: &Option<toml::Value>,
-                 verbose: bool)
-                 -> Result<Self> {
-        const CARGO_TOML: &'static str = r#"
+#[cfg(not(feature = "dev"))]
+fn profile() -> &'static str {
+    "release"
+}
+
+fn build(target: &Target,
+         deps: &Dependencies,
+         ctoml: &cargo::Toml,
+         home: &Home,
+         rustflags: &Rustflags,
+         hash: u64,
+         verbose: bool)
+         -> Result<()> {
+    const TOML: &'static str = r#"
 [package]
 authors = ["The Rust Project Developers"]
 name = "sysroot"
 version = "0.0.0"
-
-[dependencies]
 "#;
 
-        let triple = target.triple();
-        let sysroot = Crate {
-            td: try!(TempDir::new("xargo")
-                .chain_err(|| "couldn't create a temporary directory")),
-            triple: triple.to_owned(),
-        };
-        let crate_dir = &sysroot.crate_dir().to_owned();
+    let td = TempDir::new("xargo")
+        .chain_err(|| "couldn't create a temporary directory")?;
+    let td = td.path();
 
-        let mut toml = CARGO_TOML.to_owned();
+    let mut stoml = TOML.to_owned();
+    stoml.push_str(&deps.to_string());
 
-        toml.push_str(&format!("std = {{ path = '{}' }}\n",
-                               rust_src.join("src/libstd").display()));
+    if let Some(profile) = ctoml.profile() {
+        stoml.push_str(&profile.to_string())
+    }
 
-        if let Some(profile) = profile.as_ref() {
-            toml.push_str(&profile.to_string());
-        }
+    util::write(&td.join("Cargo.toml"), &stoml)?;
+    util::mkdir(&td.join("src"))?;
+    util::write(&td.join("src/lib.rs"), "")?;
 
-        io::write(&crate_dir.join("Cargo.toml"), &toml)?;
-        fs::mkdir(&crate_dir.join("src"))?;
-        io::write(&crate_dir.join("src/lib.rs"), "")?;
+    let cargo = || {
+        let mut cmd = Command::new("cargo");
+        cmd.env("RUSTFLAGS", rustflags.to_string());
+        cmd.arg("build");
 
-        let cargo = || {
-            let mut cmd = Command::new("cargo");
-            cmd.env_remove("CARGO_TARGET_DIR");
-            cmd.args(&["build", "--release", "--manifest-path"])
-                .arg(crate_dir.join("Cargo.toml"));
-
-            cmd.arg("--target");
-            match *target {
-                Target::BuiltIn { ref triple } |
-                Target::Custom { ref triple, .. } => {
-                    cmd.arg(triple);
-                }
-                Target::Path { ref json, .. } => {
-                    cmd.arg(json);
-                }
+        match () {
+            #[cfg(feature = "dev")]
+            () => {}
+            #[cfg(not(feature = "dev"))]
+            () => {
+                cmd.arg("--release");
             }
-
-            if verbose {
-                cmd.arg("-v");
-            }
-
-            cmd
-        };
-
-        let dg = dag::build(rust_src)?;
-
-        dg.compile(|pkg| {
-                cargo()
-                    .arg("-p")
-                    .arg(pkg)
-                    .run_and_get_status()
-                    .map(|es| es.success())
-            })?;
-
-        Ok(sysroot)
-    }
-
-    fn crate_dir(&self) -> &Path {
-        self.td.path()
-    }
-
-    pub fn deps_dir(&self) -> PathBuf {
-        self.td.path().join("target").join(&self.triple).join("release/deps")
-    }
-}
-
-pub fn update(target: &Target, verbose: bool) -> Result<()> {
-    let meta = rustc::meta()?;
-
-    let rust_src = match meta.channel {
-        Channel::Dev => {
-            PathBuf::from(env::var_os("XARGO_RUST_SRC").ok_or({
-                    "The XARGO_RUST_SRC env variable must be set and point to \
-                     the Rust source directory when working with the 'dev' \
-                     channel"
-                })?)
         }
-        Channel::Nightly => rustc::rust_src()?,
-        _ => {
-            Err("Xargo requires the nightly or the dev channel. Run `rustup \
-                 default nightly` or similar")?
+        cmd.arg("--manifest-path");
+        cmd.arg(td.join("Cargo.toml"));
+        cmd.args(&["--target", target.triple()]);
+
+        if verbose {
+            cmd.arg("-v");
         }
+
+        cmd
     };
 
-    update_target_sysroot(target, &meta, &rust_src, verbose)?;
-    update_host_sysroot(&meta)?;
+    for krate in deps.crates() {
+        cargo().arg("-p").arg(krate).run(verbose)?;
+    }
+
+    // Copy artifacts to Xargo sysroot
+    let rustlib = home.lock_rw(target.triple())?;
+    rustlib.remove_siblings()
+        .chain_err(|| format!("couldn't clear {}", rustlib.path().display()))?;
+    let dst = rustlib.parent().join("lib");
+    util::mkdir(&dst)?;
+    util::cp_r(&td.join("target")
+                   .join(target.triple())
+                   .join(profile())
+                   .join("deps"),
+               &dst)?;
+
+    // Create hash file
+    util::write(&rustlib.parent().join(".hash"), &hash.to_string())?;
 
     Ok(())
 }
 
-/// Removes the profile.*.lto sections from a Cargo.toml
-///
-/// Returns `None` if the Cargo.toml becomes empty after pruning it
-fn prune_cargo_toml(value: &toml::Value) -> Option<toml::Value> {
-    let mut value = value.clone();
+fn old_hash(target: &str, home: &Home) -> Result<Option<u64>> {
+    // FIXME this should be `lock_ro`
+    let lock = home.lock_rw(target)?;
+    let hfile = lock.parent().join(".hash");
 
-    let mut empty_profile_section = false;
-    if let Some(&mut toml::Value::Table(ref mut profiles)) =
-        value.lookup_mut("profile") {
-        let mut gc_list = vec![];
-        for (profile, options) in profiles.iter_mut() {
-            if let toml::Value::Table(ref mut options) = *options {
-                options.remove("lto");
-
-                if options.is_empty() {
-                    gc_list.push(profile.to_owned());
-                }
-            }
-        }
-
-        for profile in gc_list {
-            profiles.remove(&profile[..]);
-        }
-
-        if profiles.is_empty() {
-            empty_profile_section = true;
-        }
+    if hfile.exists() {
+        Ok(util::read(&hfile)?.parse().ok())
+    } else {
+        Ok(None)
     }
-
-    let mut empty_cargo_toml = false;
-    if empty_profile_section {
-        if let toml::Value::Table(ref mut table) = value {
-            table.remove("profile");
-
-            if table.is_empty() {
-                empty_cargo_toml = true;
-            }
-        }
-    }
-
-    if empty_cargo_toml { None } else { Some(value) }
 }
 
-fn prune_rustflags(flags: Vec<String>) -> Vec<String> {
-    let mut pruned_flags = vec![];
-    let mut flags = flags.into_iter();
+/// Computes the hash of the would-be target sysroot
+///
+/// This information is used to compute the hash
+///
+/// - Dependencies in `Xargo.toml` for a specific target
+/// - RUSTFLAGS / build.rustflags / target.*.rustflags
+/// - The target specification file, is any
+/// - `[profile.release]` in `Cargo.toml`
+/// - `rustc` commit hash
+fn hash(target: &Target,
+        dependencies: &Dependencies,
+        rustflags: &Rustflags,
+        ctoml: &cargo::Toml,
+        meta: &VersionMeta)
+        -> Result<u64> {
+    let mut hasher = DefaultHasher::new();
 
-    while let Some(flag) = flags.next() {
-        if flag == "-C" {
-            if let Some(next_flag) = flags.next() {
-                if next_flag.starts_with("link-arg") {
-                    // drop
-                } else {
-                    pruned_flags.push(flag);
-                    pruned_flags.push(next_flag);
-                }
+    dependencies.hash(&mut hasher);
+
+    rustflags.hash(&mut hasher);
+
+    target.hash(&mut hasher)?;
+
+    if let Some(profile) = ctoml.profile() {
+        profile.hash(&mut hasher);
+    }
+
+    if let Some(ref hash) = meta.commit_hash {
+        hash.hash(&mut hasher);
+    }
+
+    Ok(hasher.finish())
+}
+
+pub fn update(target: &Target,
+              home: &Home,
+              root: &Root,
+              rustflags: &Rustflags,
+              meta: &VersionMeta,
+              src: &Src,
+              sysroot: &Sysroot,
+              verbose: bool)
+              -> Result<()> {
+    let ctoml = cargo::toml(root)?;
+    let xtoml = xargo::toml(root)?;
+
+    let deps = Dependencies::from(xtoml.as_ref(), target.triple(), &src)?;
+
+    let hash = hash(target, &deps, rustflags, &ctoml, meta)?;
+
+    if old_hash(target.triple(), home)? != Some(hash) {
+        build(target, &deps, &ctoml, home, rustflags, hash, verbose)?;
+    }
+
+    // copy host artifacts into the sysroot, if necessary
+    let lock = home.lock_rw(&meta.host)?;
+    let hfile = lock.parent().join(".hash");
+
+    let hash = meta.commit_hash.as_ref().map(|s| &**s).unwrap_or("");
+    if hfile.exists() {
+        if util::read(&hfile)? == hash {
+            return Ok(());
+        }
+    }
+
+    lock.remove_siblings()
+        .chain_err(|| format!("couldn't clear {}", lock.path().display()))?;
+    let dst = lock.parent().join("lib");
+    util::mkdir(&dst)?;
+    util::cp_r(&sysroot.path()
+                   .join("lib/rustlib")
+                   .join(&meta.host)
+                   .join("lib"),
+               &dst)?;
+
+    util::write(&hfile, hash)?;
+
+    Ok(())
+}
+
+/// Sysroot dependencies for a particular target
+pub struct Dependencies {
+    crates: Vec<String>,
+    table: Value,
+}
+
+impl Dependencies {
+    fn from(toml: Option<&xargo::Toml>,
+            target: &str,
+            src: &Src)
+            -> Result<Self> {
+        let mut deps = if let Some(value) =
+            toml.and_then(|t| t.dependencies(target)) {
+            if let Some(table) = value.as_table() {
+                table.clone()
+            } else {
+                Err(format!("Xargo.toml: target.{}.dependencies must be a \
+                             table",
+                            target))?
             }
         } else {
-            pruned_flags.push(flag);
+            // If no dependencies were listed, we assume `core` as the only
+            // dependency
+            let mut t = BTreeMap::new();
+            t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
+            t
+        };
+
+        let mut crates = vec![];
+        for (k, v) in deps.iter_mut() {
+            crates.push(k.clone());
+
+            let path =
+                src.path().join(format!("lib{}", k)).display().to_string();
+
+            if let Value::Table(ref mut map) = *v {
+                map.insert("path".to_owned(), Value::String(path));
+            } else {
+                Err(format!("Xargo.toml: target.{}.dependencies.{} must be \
+                             a table",
+                            target,
+                            k))?
+            }
         }
+
+        let mut map = BTreeMap::new();
+        map.insert("dependencies".to_owned(), Value::Table(deps));
+
+        Ok(Dependencies {
+            crates: crates,
+            table: Value::Table(map),
+        })
     }
 
-    pruned_flags
+    fn crates(&self) -> &[String] {
+        &self.crates
+    }
+
+    fn hash<H>(&self, hasher: &mut H)
+        where H: Hasher
+    {
+        self.table.to_string().hash(hasher);
+    }
 }
 
-fn update_target_sysroot(target: &Target,
-                         meta: &VersionMeta,
-                         rust_src: &Path,
-                         verbose: bool)
-                         -> Result<()> {
-    // The hash is a digest of the following elements:
-    // - RUSTFLAGS / build.rustflags / target.*.rustflags minus linker flags
-    // - The [profile] in Cargo.toml minus its profile.*.lto sections
-    // - The contents of the target specification file
-    // - `rustc` version
-    let hasher = &mut DefaultHasher::new();
-
-    for flag in prune_rustflags(rustc::flags(target, "rustflags")?) {
-        flag.hash(hasher);
+impl Display for Dependencies {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(&self.table, f)
     }
-
-    let profile = parse::profile_in_cargo_toml()?;
-    if let Some(profile) = profile.as_ref().and_then(prune_cargo_toml) {
-        profile.to_string().hash(hasher);
-    }
-
-    target.hash(hasher)?;
-
-    if let Some(commit_hash) = meta.commit_hash.as_ref() {
-        commit_hash.hash(hasher);
-    } else {
-        meta.semver.hash(hasher);
-    }
-
-    let new_hash = hasher.finish();
-
-    let triple = target.triple();
-    let lock = xargo::lock_rw(triple)?;
-    let old_hash = io::read_hash(&lock)?;
-
-    if old_hash != Some(new_hash) {
-        let sysroot = Crate::build(&rust_src, target, &profile, verbose)?;
-
-        fs::remove_siblings(&lock)?;
-
-        let dst = lock.parent().join("lib");
-        fs::cp_r(&sysroot.deps_dir(), &dst)?;
-
-        io::write_hash(&lock, new_hash)?;
-    }
-
-    Ok(())
-}
-
-fn update_host_sysroot(meta: &VersionMeta) -> Result<()> {
-    let host = &meta.host;
-    let lock = xargo::lock_rw(host)?;
-
-    let hasher = &mut DefaultHasher::new();
-    host.hash(hasher);
-
-    let new_hash = hasher.finish();
-    let old_hash = io::read_hash(&lock)?;
-
-    if old_hash != Some(new_hash) {
-        fs::remove_siblings(&lock)?;
-
-        let src = rustc::sysroot()?.join("lib/rustlib").join(host).join("lib");
-        let dst = lock.parent().join("lib");
-        fs::cp_r(&src, &dst)?;
-
-        io::write_hash(&lock, new_hash)?;
-    }
-
-    Ok(())
 }

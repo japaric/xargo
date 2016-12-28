@@ -1,112 +1,162 @@
-extern crate rustc_version;
-
-use std::ascii::AsciiExt;
 use std::env;
 use std::ffi::OsStr;
-use std::path::{Component, PathBuf};
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
+pub use rustc_version::version_meta as version;
+
+use serde_json::Value;
+use serde_json;
 use walkdir::WalkDir;
 
-pub use self::rustc_version::{Channel, VersionMeta};
-
-use cargo;
+use CurrentDirectory;
 use errors::*;
-use {CommandExt, Target};
+use extensions::CommandExt;
+use {util, rustc};
 
-/// The `rust-src` component within `rustc`'s sysroot
-pub fn rust_src() -> Result<PathBuf> {
-    let src = sysroot()?.join("lib/rustlib/src/rust");
+fn command() -> Command {
+    env::var_os("RUSTC")
+        .map(Command::new)
+        .unwrap_or_else(|| Command::new("rustc"))
+}
 
-    if src.join("src/libstd/Cargo.toml").is_file() {
-        return Ok(src.to_owned());
+/// `rustc --print target-list`
+pub fn targets(verbose: bool) -> Result<Vec<String>> {
+    command()
+        .args(&["--print", "target-list"])
+        .run_and_get_stdout(verbose)
+        .map(|t| t.lines().map(|l| l.to_owned()).collect())
+}
+
+/// `rustc --print sysroot`
+pub fn sysroot(verbose: bool) -> Result<Sysroot> {
+    command()
+        .args(&["--print", "sysroot"])
+        .run_and_get_stdout(verbose)
+        .map(|l| Sysroot { path: PathBuf::from(l.trim()) })
+}
+/// Path to Rust source
+pub struct Src {
+    path: PathBuf,
+}
+
+impl Src {
+    pub fn from_env() -> Result<Self> {
+        Ok(env::var_os("XARGO_RUST_SRC").map(|s| Src { path: PathBuf::from(s) })
+            .ok_or("The XARGO_RUST_SRC env variable must be set and \
+                    point to the Rust source directory when working \
+                    with the 'dev' channel")?)
     }
 
-    for entry in WalkDir::new(sysroot()?.join("lib/rustlib/src")) {
-        let entry =
-            entry.chain_err(|| "error recursively walking the sysroot")?;
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
 
-        if entry.file_type().is_file() && entry.file_name() == "Cargo.toml" {
-            let path = entry.path();
+/// Path to the original sysroot
+pub struct Sysroot {
+    path: PathBuf,
+}
 
-            if let Some(parent) = path.parent() {
-                if parent.components().rev().next() ==
-                   Some(Component::Normal(OsStr::new("libstd"))) {
-                    return Ok(parent.to_owned());
+impl Sysroot {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Returns the path to Rust source, `$SRC`, where `$SRC/libstd/Carg.toml`
+    /// exists
+    pub fn src(&self) -> Result<Src> {
+        let src = self.path().join("lib/rustlib/src");
+
+        if src.join("rust/src/libstd/Cargo.toml").is_file() {
+            return Ok(Src { path: src.join("rust/src") });
+        }
+
+        for e in WalkDir::new(src) {
+            let e = e.chain_err(|| "couldn't walk the sysroot")?;
+
+            // Looking for $SRC/libstd/Cargo.toml
+            if e.file_type().is_file() && e.file_name() == "Cargo.toml" {
+                let toml = e.path();
+
+                if let Some(std) = toml.parent() {
+                    if let Some(src) = std.parent() {
+                        if std.file_name() == Some(OsStr::new("libstd")) {
+                            return Ok(Src { path: src.to_owned() });
+                        }
+                    }
                 }
             }
         }
-    }
 
-    Err("`rust-src` component not found. Run `rustup component add rust-src`.")?
+        Err("`rust-src` component not found. Run `rustup component add \
+             rust-src`.")?
+    }
 }
 
-pub fn target_list() -> Result<Vec<String>> {
-    let stdout = rustc().args(&["--print", "target-list"])
-        .run_and_get_stdout()?;
+#[derive(Debug)]
+pub enum Target {
+    Builtin { triple: String },
+    Custom { json: PathBuf, triple: String },
+}
 
-    Ok(stdout.split('\n')
-        .filter_map(|s| if s.is_empty() {
-            None
+impl Target {
+    pub fn new(triple: &str,
+               cd: &CurrentDirectory,
+               verbose: bool)
+               -> Result<Option<Target>> {
+        let triple = triple.to_owned();
+
+        if rustc::targets(verbose)?.iter().any(|t| t == &triple) {
+            Ok(Some(Target::Builtin { triple: triple }))
         } else {
-            Some(s.to_owned())
-        })
-        .collect())
-}
+            let mut json = cd.path().join(&triple);
+            json.set_extension("json");
 
-/// Parsed `rustc -Vv` output
-pub fn meta() -> Result<VersionMeta> {
-    Ok(rustc_version::version_meta_for(&rustc().arg("-Vv")
-        .run_and_get_stdout()?))
-}
+            if json.exists() {
+                return Ok(Some(Target::Custom {
+                    json: json,
+                    triple: triple,
+                }));
+            } else {
+                if let Some(p) = env::var_os("RUST_TARGET_PATH") {
+                    let mut json = PathBuf::from(p);
+                    json.push(&triple);
+                    json.set_extension("json");
 
-pub fn flags(target: &Target, tool: &str) -> Result<Vec<String>> {
-    let tool = tool.to_ascii_uppercase();
-    if let Ok(flags) = env::var(&tool) {
-        return Ok(flags.split_whitespace().map(|s| s.to_owned()).collect());
-    }
-
-    let tool = tool.to_ascii_lowercase();
-    if let Some(value) = cargo::config()?.and_then(|t| {
-        t.lookup(&format!("target.{}.{}", target.triple(), tool))
-            .or_else(|| t.lookup(&format!("build.{}", tool)))
-            .cloned()
-    }) {
-        let mut error = false;
-        let mut flags = vec![];
-        if let Some(values) = value.as_slice() {
-            for value in values {
-                if let Some(flag) = value.as_str() {
-                    flags.push(flag.to_owned());
-                } else {
-                    error = true;
-                    break;
+                    if json.exists() {
+                        return Ok(Some(Target::Custom {
+                            json: json,
+                            triple: triple,
+                        }));
+                    }
                 }
             }
-        } else {
-            error = true;
-        }
 
-        if error {
-            Err(format!("{} in .cargo/config should be an array of string",
-                        tool))?
-        } else {
-            Ok(flags)
+            Ok(None)
         }
-    } else {
-        Ok(vec![])
     }
 
-}
+    pub fn triple(&self) -> &str {
+        match *self {
+            Target::Builtin { ref triple } => triple,
+            Target::Custom { ref triple, .. } => triple,
+        }
+    }
 
-pub fn sysroot() -> Result<PathBuf> {
-    Ok(PathBuf::from(rustc()
-        .arg("--print")
-        .arg("sysroot")
-        .run_and_get_stdout()?
-        .trim_right()))
-}
+    pub fn hash<H>(&self, hasher: &mut H) -> Result<()>
+        where H: Hasher
+    {
+        if let Target::Custom { ref json, .. } = *self {
+            // Here we roundtrip to/from JSON to get the same hash when some
+            // fields of the JSON file has been shuffled around
+            serde_json::from_str::<Value>(&util::read(json)?)
+                .chain_err(|| format!("{} is not valid JSON", json.display()))?
+                .to_string()
+                .hash(hasher);
+        }
 
-pub fn rustc() -> Command {
-    Command::new(env::var("RUSTC").as_ref().map(|s| &s[..]).unwrap_or("rustc"))
+        Ok(())
+    }
 }

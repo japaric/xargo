@@ -1,36 +1,36 @@
-#![allow(dead_code)]
+#![deny(warnings)]
 
-extern crate daggy;
 #[macro_use]
 extern crate error_chain;
 extern crate fs2;
 extern crate libc;
+extern crate rustc_version;
 extern crate serde_json;
 extern crate tempdir;
+extern crate toml;
 extern crate walkdir;
 
-use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
-use std::{env, mem, process};
+use std::process::ExitStatus;
+use std::{env, io, process};
 
-use parse::Args;
+use rustc_version::Channel;
+
 use errors::*;
+use rustc::Target;
 
 mod cargo;
-mod dag;
+mod cli;
 mod errors;
+mod extensions;
 mod flock;
-mod fs;
-mod io;
-mod parse;
 mod rustc;
 mod sysroot;
-mod toml;
+mod util;
 mod xargo;
 
-fn main() {
+pub fn main() {
     fn show_backtrace() -> bool {
         env::var("RUST_BACKTRACE").as_ref().map(|s| &s[..]) == Ok("1")
     }
@@ -67,204 +67,93 @@ fn main() {
 }
 
 fn run() -> Result<ExitStatus> {
-    let Args { mut cmd, target, subcommand, verbose } = parse::args()?;
+    let args = cli::args();
+    let verbose = args.verbose();
 
-    let target = if let Some(target) = target.as_ref() {
-        Some(Target::from(target)?)
-    } else if let Some(target) =
-        parse::target_in_cargo_config()? {
-        Some(Target::from(&target)?)
-    } else {
-        None
-    };
+    let meta = rustc::version();
 
-    let needs_sysroot = match subcommand.as_ref().map(|s| &s[..]) {
-        // we don't need to rebuild the sysroot for these subcommands
-        None | Some("clean") | Some("init") | Some("new") |
-        Some("update") | Some("search") => None,
-        _ => {
-            if let Some(target) = target.as_ref() {
-                if target.needs_sysroot() {
-                    sysroot::update(target, verbose)?;
-                    Some(target)
+    if let Some(sc) = args.subcommand() {
+        if !sc.needs_sysroot() {
+            return cargo::run(&args, verbose);
+        }
+    } else if args.version() {
+        writeln!(io::stderr(),
+                 concat!("xargo ", env!("CARGO_PKG_VERSION"), "{}"),
+                 include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
+            .ok();
+    }
+
+    let cd = CurrentDirectory::get()?;
+
+    let config = cargo::config()?;
+    if let Some(root) = cargo::root()? {
+        // We can't build sysroot with stable or beta due to unstable features
+        let sysroot = rustc::sysroot(verbose)?;
+        let src = match meta.channel {
+            Channel::Dev => rustc::Src::from_env()?,
+            Channel::Nightly => sysroot.src()?,
+            Channel::Stable | Channel::Beta => return cargo::run(&args, verbose),
+        };
+
+        let target = if let Some(triple) = args.target() {
+            if triple != meta.host {
+                Target::new(triple, &cd, verbose)?
+            } else {
+                None
+            }
+        } else {
+            if let Some(ref config) = config {
+                if let Some(triple) = config.target()? {
+                    if triple != meta.host {
+                        Target::new(triple, &cd, verbose)?
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             } else {
                 None
             }
+        };
+
+        if let Some(target) = target {
+            let home = xargo::home()?;
+            let rustflags = cargo::rustflags(config.as_ref(), target.triple())?;
+
+            sysroot::update(&target,
+                            &home,
+                            &root,
+                            &rustflags,
+                            &meta,
+                            &src,
+                            &sysroot,
+                            verbose)?;
+            return xargo::run(&args,
+                              &target,
+                              rustflags,
+                              &home,
+                              &meta,
+                              config.as_ref(),
+                              verbose);
         }
-    };
+    }
 
-    let locks = if let Some(target) = needs_sysroot {
-        // TODO(Filesystem.display()) this could be better ...
-        let sysroot = format!("{}", xargo::home()?.display());
-
-        if subcommand.as_ref().map(|s| &s[..]) == Some("doc") {
-            let mut flags = rustc::flags(target, "rustdocflags")?;
-            flags.push("--sysroot".to_owned());
-
-            flags.push(sysroot.clone());
-
-            cmd.env("RUSTDOCFLAGS", flags.join(" "));
-        }
-
-        let mut flags = rustc::flags(target, "rustflags")?;
-        flags.push("--sysroot".to_owned());
-
-        // TODO(Filesystem.display()) this could be better ...
-        flags.push(sysroot);
-
-        cmd.env("RUSTFLAGS", flags.join(" "));
-
-        // Make sure the sysroot is not blown up while the Cargo command is
-        // running
-        Some((xargo::lock_ro(&rustc::meta()?.host),
-              xargo::lock_ro(target.triple())))
-    } else {
-        None
-    };
-
-    let status = cmd.status()
-        .chain_err(|| "failed to execute `cargo`. Is it not installed?")?;
-
-    mem::drop(locks);
-
-    Ok(status)
+    cargo::run(&args, verbose)
 }
 
-#[derive(Debug)]
-pub enum Target {
-    BuiltIn { triple: String },
-    Custom { triple: String, json: PathBuf },
-    Path { triple: String, json: PathBuf },
+pub struct CurrentDirectory {
+    path: PathBuf,
 }
 
-impl Target {
-    fn from(target: &str) -> Result<Target> {
-        let target_list = rustc::target_list()?;
-
-        let target = target.to_owned();
-        if target_list.iter().any(|t| t == &target) {
-            Ok(Target::BuiltIn { triple: target })
-        } else if target.ends_with(".json") {
-            if let Some(triple) = Path::new(&target)
-                .file_stem()
-                .and_then(|f| f.to_str()) {
-                Ok(Target::Path {
-                    json: PathBuf::from(&target),
-                    triple: triple.to_owned(),
-                })
-            } else {
-                Err(format!("error extracting triple from {}", target))?
-            }
-        } else {
-            let json = Path::new(&target).with_extension("json");
-
-            if json.exists() {
-                Ok(Target::Custom {
-                    json: json,
-                    triple: target,
-                })
-            } else {
-                if let Some(target_dir) = env::var_os("RUST_TARGET_PATH") {
-                    let json = PathBuf::from(target_dir)
-                        .join(&target)
-                        .with_extension("json");
-
-                    if json.exists() {
-                        return Ok(Target::Custom {
-                            json: json,
-                            triple: target,
-                        });
-                    }
-                }
-
-                Err(format!("no target specification file found for {}",
-                            target))?
-            }
-        }
-    }
-}
-
-impl Target {
-    fn hash<H>(&self, hasher: &mut H) -> Result<()>
-        where H: Hasher
-    {
-        match *self {
-            Target::BuiltIn { .. } => {}
-            Target::Custom { ref json, .. } |
-            Target::Path { ref json, .. } => io::read(json)?.hash(hasher),
-        }
-
-        Ok(())
+impl CurrentDirectory {
+    fn get() -> Result<CurrentDirectory> {
+        env::current_dir()
+            .chain_err(|| "couldn't get the current directory")
+            .map(|cd| CurrentDirectory { path: cd })
     }
 
-    fn needs_sysroot(&self) -> bool {
-        match *self {
-            Target::BuiltIn { ref triple } => {
-                match &triple[..] {
-                    "thumbv6m-none-eabi" |
-                    "thumbv7m-none-eabi" |
-                    "thumbv7em-none-eabi" |
-                    "thumbv7em-none-eabihf" => true,
-                    _ => false,
-                }
-            }
-            _ => true,
-        }
-    }
-
-    fn triple(&self) -> &str {
-        match *self {
-            Target::BuiltIn { ref triple } |
-            Target::Custom { ref triple, .. } |
-            Target::Path { ref triple, .. } => triple,
-        }
-    }
-}
-
-trait CommandExt {
-    fn run_and_get_status(&mut self) -> Result<ExitStatus>;
-    fn run_and_get_stdout(&mut self) -> Result<String>;
-    fn run_or_error(&mut self) -> Result<()>;
-}
-
-impl CommandExt for Command {
-    fn run_and_get_status(&mut self) -> Result<ExitStatus> {
-        let cmd = &format!("`{:?}`", self);
-
-        Ok(self.status()
-            .chain_err(|| format!("failed to execute {}", cmd))?)
-    }
-
-    fn run_and_get_stdout(&mut self) -> Result<String> {
-        let cmd = &format!("`{:?}`", self);
-
-        let output = self.output()
-            .chain_err(|| format!("failed to execute {}", cmd))?;
-
-        if !output.status.success() {
-            Err(format!("{} failed with exit status: {:?}.\nstderr:\n{}",
-                        cmd,
-                        output.status.code(),
-                        String::from_utf8_lossy(&output.stderr)))?
-        }
-
-        Ok(try!(String::from_utf8(output.stdout)
-            .chain_err(|| format!("{} output was not UTF-8 encoded", cmd))))
-    }
-
-    fn run_or_error(&mut self) -> Result<()> {
-        let cmd = &format!("`{:?}`", self);
-
-        let exit = self.status()
-            .chain_err(|| format!("failed to execute {}", cmd))?;
-
-        if !exit.success() {
-            Err(format!("{} failed with exit status {:?}", cmd, exit.code()))?
-        }
-
-        Ok(())
+    fn path(&self) -> &Path {
+        &self.path
     }
 }

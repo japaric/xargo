@@ -1,544 +1,602 @@
+#![cfg_attr(not(feature = "dev"), allow(dead_code))]
+#![deny(warnings)]
+
+#[macro_use]
+extern crate error_chain;
+extern crate rustc_version;
 extern crate tempdir;
 
-use std::env;
-use std::fs::{self, File, OpenOptions};
-use std::process::Command;
+use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::{env, fs};
 
 use tempdir::TempDir;
 
-macro_rules! t {
-    ($e:expr) => {
-        $e.unwrap_or_else(|e| panic!("{} with {}", stringify!($e), e))
+use errors::*;
+
+mod errors {
+    error_chain!();
+}
+
+macro_rules! run {
+    () => {
+        if let Err(e) = run() {
+            panic!("{}", e)
+        }
     }
 }
 
-const CRATES: &'static [&'static str] =
-    &["alloc", "collections", "core", "rand", "std_unicode"];
-const LIB_RS: &'static [u8] = b"#![no_std]";
+fn cleanup(target: &str) -> Result<()> {
+    let p = home()?.join(".xargo").join("lib/rustlib").join(target);
 
-const CUSTOM_JSON: &'static str = r#"
-    {
-      "arch": "arm",
-      "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
-      "llvm-target": "thumbv7m-none-eabi",
-      "os": "none",
-      "target-endian": "little",
-      "target-pointer-width": "32"
-    }
-"#;
-
-const NO_ATOMICS_JSON: &'static str = r#"
-    {
-      "arch": "arm",
-      "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
-      "llvm-target": "thumbv6m-none-eabi",
-      "max-atomic-width": 0,
-      "os": "none",
-      "target-endian": "little",
-      "target-pointer-width": "32"
-    }
-"#;
-
-fn xargo() -> Command {
-    let mut path = t!(env::current_exe());
-    path.pop();
-    path.pop();
-    path.push("xargo");
-    Command::new(path)
-}
-
-fn run(cmd: &mut Command) {
-    println!("running: {:?}", cmd);
-    let output = t!(cmd.output());
-    if !output.status.success() {
-        println!("--- stdout:\n{}", String::from_utf8_lossy(&output.stdout));
-        println!("--- stderr:\n{}", String::from_utf8_lossy(&output.stderr));
-        panic!("expected success, got: {}", output.status);
+    if p.exists() {
+        fs::remove_dir_all(&p)
+            .chain_err(|| format!("couldn't clean sysroot for {}", target))
+    } else {
+        Ok(())
     }
 }
 
-fn exists_rlib(krate: &str, target: &str) -> bool {
-    let home = env::home_dir().unwrap();
+fn exists(krate: &str, target: &str) -> Result<bool> {
+    let p = home()
+        ?
+        .join(".xargo/lib/rustlib")
+        .join(target)
+        .join("lib");
 
-    let libdir = home.join(format!(".xargo/lib/rustlib/{}/lib", target));
-    for entry in t!(fs::read_dir(libdir)) {
-        let path = &t!(entry).path();
+    for e in
+        fs::read_dir(&p).chain_err(|| {
+                format!("couldn't read the directory {}", p.display())
+            })? {
+        let e = e.chain_err(|| {
+                format!("error reading the contents of the directory {}",
+                        p.display())
+            })?;
 
-        if path.is_file() &&
-           path.extension().and_then(|e| e.to_str()) == Some("rlib") &&
-           path.file_stem()
-            .and_then(|f| f.to_str())
-            .map(|s| s.starts_with(&format!("lib{}", krate))) ==
-           Some(true) {
-            return true;
+        if e.file_name().to_string_lossy().contains(krate) {
+            return Ok(true);
         }
     }
 
-    false
+    Ok(false)
 }
 
-fn cleanup(target: &str) {
-    let path = env::home_dir()
-        .unwrap()
-        .join(format!(".xargo/lib/rustlib/{}", target));
+fn home() -> Result<PathBuf> {
+    Ok(env::home_dir()
+       .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?)
+}
 
-    if path.exists() {
-        t!(fs::remove_dir_all(path));
+fn host() -> String {
+    rustc_version::version_meta().host
+}
+
+fn mkdir(path: &Path) -> Result<()> {
+    fs::create_dir(path).chain_err(|| {
+        format!("couldn't create the directory {}", path.display())
+    })
+}
+
+fn sysroot_was_built(stderr: &str, target: &str) -> bool {
+    stderr.lines().filter(|l| l.starts_with("+")).any(|l| {
+        l.contains("cargo") && l.contains("build") &&
+        l.contains("--target") && l.contains(target) &&
+        l.contains("-p") && l.contains("core")
+    })
+}
+
+fn write(path: &Path, append: bool, contents: &str) -> Result<()> {
+    let p = path.display();
+    let mut opts = OpenOptions::new();
+
+    if append {
+        opts.append(true);
+    } else {
+        opts.create(true);
+        opts.truncate(true);
+    }
+
+    opts.write(true)
+        .open(path)
+        .chain_err(|| format!("couldn't open {}", p))?
+        .write_all(contents.as_bytes())
+        .chain_err(|| format!("couldn't write to {}", p))
+}
+
+fn xargo() -> Result<Command> {
+    let mut p = env::current_exe()
+        .chain_err(|| "couldn't get path to current executable")?;
+    p.pop();
+    p.pop();
+    p.push("xargo");
+    Ok(Command::new(p))
+}
+
+trait CommandExt {
+    fn run(&mut self) -> Result<()>;
+    fn run_and_get_stderr(&mut self) -> Result<String>;
+}
+
+impl CommandExt for Command {
+    fn run(&mut self) -> Result<()> {
+        let status = self.status()
+            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("`{:?}` failed with exit code: {:?}",
+                        self,
+                        status.code()))?
+        }
+    }
+
+    fn run_and_get_stderr(&mut self) -> Result<String> {
+        let out = self.output()
+            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
+
+        if out.status.success() {
+            Ok(String::from_utf8(out.stderr).chain_err(|| {
+                format!("`{:?}` output was not UTF-8",
+                        self)
+            })?)
+        } else {
+            Err(format!("`{:?}` failed with exit code: {:?}",
+                        self,
+                        out.status.code()))?
+        }
     }
 }
 
+struct Project {
+    name: &'static str,
+    td: TempDir,
+}
+
+impl Project {
+    fn new(name: &'static str) -> Result<Self> {
+        const JSON: &'static str = r#"
+{
+    "arch": "arm",
+    "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+    "llvm-target": "thumbv6m-none-eabi",
+    "max-atomic-width": 0,
+    "os": "none",
+    "target-endian": "little",
+    "target-pointer-width": "32"
+}
+"#;
+
+        let td =
+            TempDir::new("xargo")
+            .chain_err(|| "couldn't create a temporary directory")?;
+
+        xargo()?
+            .args(&["init", "--lib", "--vcs", "none", "--name", name])
+            .current_dir(td.path())
+            .run()?;
+
+        write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
+
+        write(&td.path().join(format!("{}.json", name)), false, JSON)?;
+
+        Ok(Project {
+            name: name,
+            td: td,
+        })
+    }
+
+
+    /// Calls `xargo build`
+    fn build(&self, target: &str) -> Result<()> {
+        xargo()
+            ?
+            .args(&["build", "--target", target])
+            .current_dir(self.td.path())
+            .run()
+    }
+
+    /// Calls `xargo build` and collects STDERR
+    fn build_and_get_stderr(&self, target: Option<&str>) -> Result<String> {
+        let mut cmd = xargo()?;
+        cmd.arg("build");
+
+        if let Some(target) = target {
+            cmd.args(&["--target", target]);
+        }
+
+        cmd.arg("-v")
+            .current_dir(self.td.path())
+            .run_and_get_stderr()
+    }
+
+    /// Appends a string to the project `Cargo.toml`
+    fn cargo_toml(&self, contents: &str) -> Result<()> {
+        write(&self.td.path().join("Cargo.toml"), true, contents)
+    }
+
+    /// Adds a `.cargo/config` to the project
+    fn config(&self, contents: &str) -> Result<()> {
+        mkdir(&self.td.path().join(".cargo"))?;
+
+        write(&self.td.path().join(".cargo/config"), false, contents)
+    }
+
+    /// Calls `xargo doc`
+    fn doc(&self, target: &str) -> Result<()> {
+        xargo()
+            ?
+            .args(&["doc", "--target", target])
+            .current_dir(self.td.path())
+            .run()
+    }
+
+    /// Adds a `Xargo.toml` to the project
+    fn xargo_toml(&self, toml: &str) -> Result<()> {
+        write(&self.td.path().join("Xargo.toml"), false, toml)
+    }
+}
+
+impl Drop for Project {
+    fn drop(&mut self) {
+        cleanup(self.name).unwrap()
+    }
+}
+
+/// Test vanilla `xargo build`
+#[cfg(feature = "dev")]
 #[test]
 fn simple() {
-    const TARGET: &'static str = "__simple";
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__simple";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
+        project.build(TARGET)?;
+        assert!(exists("core", TARGET)?);
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
-
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        Ok(())
     }
 
-    cleanup(TARGET);
+    run!()
 }
 
+/// Test building a sysroot that contains more than just the `core` crate
+#[cfg(feature = "dev")]
+#[test]
+fn collections() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__collections";
+
+        let project = Project::new(TARGET)?;
+        project.xargo_toml(r#"
+[target.__collections.dependencies.collections]
+"#)?;
+        project.build(TARGET)?;
+        assert!(exists("core", TARGET)?);
+        assert!(exists("collections", TARGET)?);
+
+        Ok(())
+    }
+
+    run!()
+}
+
+/// Test `xargo doc`
+#[cfg(feature = "dev")]
 #[test]
 fn doc() {
-    const TARGET: &'static str = "__doc";
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__doc";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
+        project.doc(TARGET)?;
+        assert!(exists("core", TARGET)?);
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo().args(&["doc", "--target", TARGET]).current_dir(td));
-
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        Ok(())
     }
 
-    cleanup(TARGET);
+    run!()
 }
 
-// Calling `xargo build` twice shouldn't trigger a sysroot rebuild
-// The only case the sysroot would have to be rebuild is when the source is
-// updated but that shouldn't happen when running this test suite.
+/// Check that calling `xargo build` a second time doesn't rebuild the sysroot
+#[cfg(feature = "dev")]
 #[test]
 fn twice() {
-    const TARGET: &'static str = "__twice";
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__twice";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET])
-        .current_dir(td)
-        .output());
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    assert!(output.status.success());
+        assert!(!sysroot_was_built(&stderr, TARGET));
 
-    assert!(t!(String::from_utf8(output.stderr))
-        .lines()
-        .all(|l| !l.contains("Compiling")));
+        Ok(())
+    }
 
-    cleanup(TARGET);
+    run!()
 }
 
-// Check that `xargo build` builds a sysroot for the default target in
-// .cargo/config
+/// Check that if `build.target` is set in `.cargo/config`, that target will be
+/// used to build the sysroot
+#[cfg(feature = "dev")]
 #[test]
-fn cargo_config() {
-    const CONFIG: &'static str = "[build]\ntarget = '{}'";
-    const TARGET: &'static str = "__cargo_config";
+fn build_target() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__build_target";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
+        project.config(r#"
+[build]
+target = "__build_target"
+"#)?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    t!(fs::create_dir(td.join(".cargo")));
-    t!(t!(File::create(td.join(".cargo/config")))
-        .write_all(CONFIG.replace("{}", TARGET).as_bytes()));
-    run(xargo().arg("build").current_dir(td));
+        let stderr = project.build_and_get_stderr(None)?;
 
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        assert!(sysroot_was_built(&stderr, TARGET));
+
+        Ok(())
     }
 
-    cleanup(TARGET);
+    run!()
 }
 
-// Check that `--targer foo` overrides the default target in .cargo/config
+/// Check that `--target` overrides `build.target`
+#[cfg(feature = "dev")]
 #[test]
-fn override_cargo_config() {
-    const CONFIG: &'static [u8] = b"[build]\ntarget = 'dummy'";
-    const TARGET: &'static str = "__override_cargo_config";
+fn override_build_target() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__override_build_target";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
+        project.config(r#"
+[build]
+target = "BAD"
+"#)?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    t!(fs::create_dir(td.join(".cargo")));
-    t!(t!(File::create(td.join(".cargo/config"))).write_all(CONFIG));
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        assert!(sysroot_was_built(&stderr, TARGET));
+
+        Ok(())
     }
 
-    cleanup(TARGET);
+    run!()
 }
 
-// Check that the rustflags in .cargo/config are used to build the sysroot
+/// We shouldn't rebuild the sysroot if `profile.release.lto` changed
+#[cfg(feature = "dev")]
 #[test]
-fn rustflags_in_cargo_config() {
-    const TARGET: &'static str = "__rustflags_in_cargo_config";
-    const CARGO_CONFIG: &'static str = "[build]\nrustflags = ['--cfg', \
-                                        'xargo']";
+fn lto_changed() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__lto_changed";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
-    t!(fs::create_dir(td.join(".cargo")));
-    t!(t!(File::create(td.join(".cargo/config")))
-        .write_all(CARGO_CONFIG.as_bytes()));
+        let project = Project::new(TARGET)?;
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET, "--verbose"])
-        .current_dir(td)
-        .output());
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    assert!(output.status.success());
+        project.cargo_toml(r#"
+[profile.release]
+lto = true
+"#)?;
 
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
+
+        assert!(!sysroot_was_built(&stderr, TARGET));
+
+        Ok(())
     }
 
-    let mut at_least_once = false;
-    for line in t!(String::from_utf8(output.stderr)).lines() {
-        if line.contains("Running") && line.contains("rustc") &&
-           line.contains(TARGET) {
-            at_least_once = true;
-            assert!(line.contains("--cfg xargo"));
-        }
-    }
-
-    assert!(at_least_once);
-
-    cleanup(TARGET);
+    run!()
 }
 
-// Check that the sysroot is rebuilt when RUSTFLAGS is modified
+/// Modifying RUSTFLAGS should trigger a rebuild of the sysroot
+#[cfg(feature = "dev")]
 #[test]
-fn rebuild_on_modified_rustflags() {
-    const TARGET: &'static str = "__rebuild_on_modified_rustflags";
+fn rustflags_changed() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__rustflags_changed";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo()
-        .args(&["build", "--target", TARGET, "--verbose"])
-        .current_dir(td));
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        project.config(r#"
+[build]
+rustflags = ["--cfg", "xargo"]
+"#)?;
+
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
+
+        assert!(sysroot_was_built(&stderr, TARGET));
+
+        Ok(())
     }
 
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET])
-        .current_dir(td)
-        .env("RUSTFLAGS", "--cfg xargo")
-        .output());
+    run!()
+}
 
-    assert!(output.status.success());
+/// Check that RUSTFLAGS are passed to all `rustc`s
+#[cfg(feature = "dev")]
+#[test]
+fn rustflags() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__rustflags";
 
-    let stderr = t!(String::from_utf8(output.stderr));
+        let project = Project::new(TARGET)?;
 
-    for krate in CRATES {
+        project.config(r#"
+[build]
+rustflags = ["--cfg", "xargo"]
+"#)?;
+
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
+
         assert!(stderr.lines()
-            .any(|l| l.contains("Compiling") && l.contains(krate)));
-        assert!(exists_rlib(krate, TARGET));
+            .filter(|l| !l.starts_with("+") && l.contains("rustc"))
+            .all(|l| l.contains("--cfg") && l.contains("xargo")));
+
+        Ok(())
     }
 
-    // Another call with the same RUSTFLAGS shouldn't trigger a rebuild
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET])
-        .current_dir(td)
-        .env("RUSTFLAGS", "--cfg xargo")
-        .output());
-
-    assert!(output.status.success());
-
-    let stderr = t!(String::from_utf8(output.stderr));
-
-    assert!(stderr.lines().all(|l| !l.contains("Compiling")));
-
-    cleanup(TARGET);
+    run!()
 }
 
-// For targets that don't support atomics, Xargo only compiles the `core` crate
-#[test]
-fn no_atomics() {
-    const TARGET: &'static str = "__no_atomics";
-    const CRATES: &'static [&'static str] = &["core", "std_unicode"];
-
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(NO_ATOMICS_JSON.as_bytes()));
-
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
-
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
-    }
-
-    cleanup(TARGET);
-}
-
+/// Check that `-C panic=abort` is passed to `rustc` when `panic = "abort"` is
+/// set in `profile.release`
+#[cfg(not(feature = "dev"))]
 #[test]
 fn panic_abort() {
-    const TARGET: &'static str = "__panic_abort";
-    const PROFILES: &'static [u8] = b"
-[profile.dev]
-panic = \"abort\"
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__panic_abort";
 
+        let project = Project::new(TARGET)?;
+
+        project.cargo_toml(r#"
 [profile.release]
-panic = \"abort\"
-";
+panic = "abort"
+"#)?;
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    t!(t!(OpenOptions::new()
-            .append(true)
-            .write(true)
-            .open(td.join("Cargo.toml")))
-        .write_all(PROFILES));
+        assert!(stderr.lines()
+            .filter(|l| !l.starts_with("+") && l.contains("--release"))
+            .all(|l| l.contains("-C") && l.contains("panic=abort")));
 
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET, "--verbose"])
-        .current_dir(td)
-        .output());
-
-    assert!(output.status.success());
-
-    let stderr = t!(String::from_utf8(output.stderr));
-
-    let mut at_least_once = false;
-    for line in stderr.lines() {
-        if line.contains("Running") && line.contains("rustc") &&
-           line.contains(TARGET) {
-            at_least_once = true;
-
-            if !line.contains("-C panic=abort") {
-                panic!("{}", line);
-            }
-            // assert!(line.contains("-C panic=abort"));
-        }
+        Ok(())
     }
 
-    assert!(at_least_once);
-
-    cleanup(TARGET);
+    run!()
 }
 
-// Make sure we build a sysroot for the built-in `thumbv*` targets which don't
-// ship with binary releases of the standard crates
+/// Check that adding linker arguments doesn't trigger a sysroot rebuild
+#[cfg(feature = "dev")]
 #[test]
-fn thumb() {
-    const TARGET: &'static str = "thumbv7m-none-eabi";
+fn link_arg() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__link_arg";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
+        let project = Project::new(TARGET)?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    cleanup(TARGET);
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    for krate in CRATES {
-        assert!(exists_rlib(krate, TARGET));
+        project.config(r#"
+[target.__link_arg]
+rustflags = ["-C", "link-arg=-lfoo"]
+"#)?;
+
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
+
+        assert!(!sysroot_was_built(&stderr, TARGET));
+
+        Ok(())
     }
 
-    cleanup(TARGET);
+    run!()
 }
 
-// We should not rebuild the sysroot if profile.*.lto changed
+/// The sysroot should be rebuilt if the target specification changed
+#[cfg(feature = "dev")]
 #[test]
-fn profile_lto_changed() {
-    const TARGET: &'static str = "__profile_lto_changed";
+fn specification_changed() {
+    fn run() -> Result<()> {
+        const JSON: &'static str = r#"
+{
+    "arch": "arm",
+    "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+    "llvm-target": "thumbv6m-none-eabi",
+    "max-atomic-width": 0,
+    "os": "none",
+    "panic-strategy": "abort",
+    "target-endian": "little",
+    "target-pointer-width": "32"
+}
+"#;
+        const TARGET: &'static str = "__specification_changed";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(td.join("Cargo.toml"))
-        .unwrap()
-        .write_all(b"[profile.dev]\nlto = true")
-        .unwrap();
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET])
-        .current_dir(td)
-        .output());
+        write(&project.td.path().join("__specification_changed.json"),
+              false,
+              JSON)?;
 
-    assert!(output.status.success());
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    assert!(t!(String::from_utf8(output.stderr))
-        .lines()
-        .all(|l| !(l.contains("Compiling") && l.contains("core"))));
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    cleanup(TARGET);
+        Ok(())
+    }
+
+    run!()
 }
 
-// We should not rebuild the sysroot if the arguments we passed to the linker
-// changed
+/// The sysroot should NOT be rebuilt if the target specification didn't really
+/// changed, e.g. some fields were moved around
+#[cfg(feature = "dev")]
 #[test]
-fn linker_flags_changed() {
-    const TARGET: &'static str = "__linker_flags_changed";
+fn unchanged_specification() {
+    fn run() -> Result<()> {
+        const JSON: &'static str = r#"
+{
+    "arch": "arm",
+    "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+    "llvm-target": "thumbv6m-none-eabi",
+    "os": "none",
+    "max-atomic-width": 0,
+    "target-endian": "little",
+    "target-pointer-width": "32"
+}
+"#;
+        const TARGET: &'static str = "__unchanged_specification";
 
-    let td = t!(TempDir::new("xargo"));
-    let td = &td.path();
-    t!(t!(File::create(td.join(format!("{}.json", TARGET))))
-        .write_all(CUSTOM_JSON.as_bytes()));
+        let project = Project::new(TARGET)?;
 
-    run(xargo()
-        .args(&["init", "--vcs", "none", "--name", TARGET])
-        .current_dir(td));
-    t!(t!(OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(td.join("src/lib.rs")))
-        .write_all(LIB_RS));
-    run(xargo().args(&["build", "--target", TARGET]).current_dir(td));
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    fs::create_dir(td.join(".cargo")).unwrap();
-    File::create(td.join(".cargo/config"))
-        .unwrap()
-        .write_all(format!("[target.{}]\nrustflags = [\"-C\", \
-                            \"link-arg=-lfoo\"]",
-                           TARGET)
-            .as_bytes())
-        .unwrap();
+        assert!(sysroot_was_built(&stderr, TARGET));
 
-    let output = t!(xargo()
-        .args(&["build", "--target", TARGET])
-        .current_dir(td)
-        .output());
+        write(&project.td.path().join("__unchanged_specification.json"),
+              false,
+              JSON)?;
 
-    assert!(output.status.success());
+        let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-    assert!(t!(String::from_utf8(output.stderr))
-        .lines()
-        .all(|l| !(l.contains("Compiling") && l.contains("core"))));
+        assert!(!sysroot_was_built(&stderr, TARGET));
 
-    cleanup(TARGET);
+        Ok(())
+    }
+
+    run!()
+}
+
+/// No sysroot should be built for the host
+#[cfg(feature = "dev")]
+#[test]
+fn no_sysroot_for_host() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__no_sysroot_for_host";
+
+        let project = Project::new(TARGET)?;
+
+        let host = host();
+        let stderr = project.build_and_get_stderr(Some(&host))?;
+
+        assert!(!sysroot_was_built(&stderr, &host));
+
+        Ok(())
+    }
+
+    run!()
 }

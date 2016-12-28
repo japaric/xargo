@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- [breaking-change] By default, Xargo now only compiles the `core` crate. To
+  build more crates, use a `Xargo.toml` file
+
+- [breaking-change] Xargo will now build a sysroot for any target that's not the
+  host.
+
+- The verbose flag, `-v`, makes Xargo print all the shell commands it invokes
+  to stderr.
+
 ## [v0.2.3] - 2016-12-19
 
 ### Added

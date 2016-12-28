@@ -3,13 +3,11 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::{fs, io, path};
+use std::path::{Display, Path, PathBuf};
+use std::{fs, io};
 
 use fs2::FileExt;
 use fs2;
-
-use errors::*;
 
 #[derive(PartialEq)]
 enum State {
@@ -23,10 +21,6 @@ pub struct FileLock {
 }
 
 impl FileLock {
-    pub fn file(&self) -> &File {
-        &self.file
-    }
-
     pub fn parent(&self) -> &Path {
         self.path.parent().unwrap()
     }
@@ -68,7 +62,7 @@ impl Filesystem {
         Filesystem::new(self.path.join(other))
     }
 
-    pub fn open_ro<P>(&self, path: P, msg: &str) -> Result<FileLock>
+    pub fn open_ro<P>(&self, path: P, msg: &str) -> io::Result<FileLock>
         where P: AsRef<Path>
     {
         self.open(path.as_ref(),
@@ -77,7 +71,7 @@ impl Filesystem {
                   msg)
     }
 
-    pub fn open_rw<P>(&self, path: P, msg: &str) -> Result<FileLock>
+    pub fn open_rw<P>(&self, path: P, msg: &str) -> io::Result<FileLock>
         where P: AsRef<Path>
     {
         self.open(path.as_ref(),
@@ -91,7 +85,7 @@ impl Filesystem {
             opts: &OpenOptions,
             state: State,
             msg: &str)
-            -> Result<FileLock> {
+            -> io::Result<FileLock> {
         let path = self.path.join(path);
 
         let f = opts.open(&path)
@@ -101,8 +95,7 @@ impl Filesystem {
                 opts.open(&path)
             } else {
                 Err(e)
-            })
-            .chain_err(|| format!("failed to open {}", path.display()))?;
+            })?;
 
         match state {
             State::Exclusive => {
@@ -125,7 +118,7 @@ impl Filesystem {
         })
     }
 
-    pub fn display(&self) -> path::Display {
+    pub fn display(&self) -> Display {
         self.path.display()
     }
 }
@@ -140,7 +133,7 @@ fn acquire(msg: &str,
            path: &Path,
            try: &Fn() -> io::Result<()>,
            block: &Fn() -> io::Result<()>)
-           -> Result<()> {
+           -> io::Result<()> {
     #[cfg(all(target_os = "linux", not(target_env = "musl")))]
     fn is_on_nfs_mount(path: &Path) -> bool {
         use std::ffi::CString;
@@ -169,7 +162,6 @@ fn acquire(msg: &str,
         return Ok(());
     }
 
-    let path_ = path.display();
     match try() {
         Ok(_) => return Ok(()),
         #[cfg(target_os = "macos")]
@@ -178,7 +170,7 @@ fn acquire(msg: &str,
         }
         Err(e) => {
             if e.raw_os_error() != fs2::lock_contended_error().raw_os_error() {
-                Err(e).chain_err(|| format!("failed to lock file {}", path_))?
+                return Err(e);
             }
         }
     }
@@ -189,7 +181,7 @@ fn acquire(msg: &str,
              msg)
         .ok();
 
-    block().chain_err(|| format!("failed to lock file {}", path_))
+    block()
 }
 
 fn create_dir_all(path: &Path) -> io::Result<()> {

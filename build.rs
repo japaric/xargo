@@ -5,13 +5,13 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
-struct IgnoredError {}
+struct Some {}
 
-impl<E> From<E> for IgnoredError
+impl<E> From<E> for Some
     where E: Error
 {
-    fn from(_: E) -> IgnoredError {
-        IgnoredError {}
+    fn from(_: E) -> Some {
+        Some {}
     }
 }
 
@@ -31,26 +31,25 @@ fn commit_info() -> String {
     }
 }
 
-fn commit_hash() -> Result<String, IgnoredError> {
-    let output = try!(Command::new("git")
-        .args(&["rev-parse", "--short", "HEAD"])
-        .output());
+fn commit_hash() -> Result<String, Some> {
+    let output = Command::new("git").args(&["rev-parse", "--short", "HEAD"])
+        .output()?;
 
     if output.status.success() {
-        Ok(try!(String::from_utf8(output.stdout)))
+        Ok(String::from_utf8(output.stdout)?)
     } else {
-        Err(IgnoredError {})
+        Err(Some {})
     }
 }
 
-fn commit_date() -> Result<String, IgnoredError> {
-    let output = try!(Command::new("git")
+fn commit_date() -> Result<String, Some> {
+    let output = Command::new("git")
         .args(&["log", "-1", "--date=short", "--pretty=format:%cd"])
-        .output());
+        .output()?;
 
     if output.status.success() {
-        Ok(try!(String::from_utf8(output.stdout)))
+        Ok(String::from_utf8(output.stdout)?)
     } else {
-        Err(IgnoredError {})
+        Err(Some {})
     }
 }

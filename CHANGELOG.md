@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.0] - 2016-12-28
+
 ### Changed
 
 - [breaking-change] By default, Xargo now only compiles the `core` crate. To
@@ -191,7 +193,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.0...HEAD
+[v0.3.0]: https://github.com/japaric/xargo/compare/v0.2.2...v0.3.0
+[v0.2.3]: https://github.com/japaric/xargo/compare/v0.2.2...v0.2.3
+[v0.2.2]: https://github.com/japaric/xargo/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/japaric/xargo/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/japaric/xargo/compare/v0.1.14...v0.2.0
 [v0.1.14]: https://github.com/japaric/xargo/compare/v0.1.13...v0.1.14

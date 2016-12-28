@@ -1,9 +1,9 @@
 [package]
 authors = ["Jorge Aparicio <japaricious@gmail.com>"]
 build = "build.rs"
-description = "Effortless cross compilation to custom bare-metal targets like ARM Cortex-M"
+description = "The sysroot manager that lets you build and customize `std`"
 documentation = "https://github.com/japaric/xargo#xargo"
-keywords = ["cli", "cross", "compilation", "custom", "target"]
+keywords = ["cli", "cross", "compilation", "std"]
 license = "MIT OR Apache-2.0"
 name = "xargo"
 repository = "https://github.com/japaric/xargo"

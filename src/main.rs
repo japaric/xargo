@@ -81,6 +81,8 @@ fn run() -> Result<ExitStatus> {
                  concat!("xargo ", env!("CARGO_PKG_VERSION"), "{}"),
                  include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
             .ok();
+
+        return cargo::run(&args, verbose);
     }
 
     let cd = CurrentDirectory::get()?;

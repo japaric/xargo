@@ -28,15 +28,17 @@ matrix:
 
     # Linux
     - env: TARGET=i686-unknown-linux-gnu
-    - env: TARGET=i686-unknown-linux-musl
+    # TODO re-enable when cross gets support for this target
+    # - env: TARGET=i686-unknown-linux-musl
     # This target is handled by the default build job
     # - env: TARGET=x86_64-unknown-linux-gnu
     - env: TARGET=x86_64-unknown-linux-musl
 
     - env: TARGET=i686-unknown-linux-gnu
       rust: nightly
-    - env: TARGET=i686-unknown-linux-musl
-      rust: nightly
+    # TODO re-enable when cross gets support for this target
+    # - env: TARGET=i686-unknown-linux-musl
+    #   rust: nightly
     - env: TARGET=x86_64-unknown-linux-gnu
       rust: nightly
     - env: TARGET=x86_64-unknown-linux-musl

@@ -1,6 +1,6 @@
 set -ex
 
-run() {
+main() {
     local src_dir=$(pwd)\
           stage=
 
@@ -13,6 +13,7 @@ run() {
             ;;
     esac
 
+    cargo rustc --target $TARGET --release -- -C lto
     cp target/$TARGET/release/xargo $stage/
 
     cd $stage
@@ -22,4 +23,4 @@ run() {
     rm -rf $stage
 }
 
-run
+main

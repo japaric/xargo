@@ -1,4 +1,3 @@
-cache: cargo
 dist: trusty
 language: generic
 language: rust
@@ -59,7 +58,6 @@ install:
     fi
 
 script:
-  # chmod: Travis can't cache files that are not readable by "others"
   # NOTE(TRAVIS_BRANCH) See the NOTE in the `install` section
   - if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
       cargo generate-lockfile;
@@ -70,11 +68,10 @@ script:
         sh ci/run.sh || exit 1;
       fi;
 
-      chmod -R a+r $HOME/.cargo;
     fi
 
 before_deploy:
-  - sh ci/package.sh $TARGET
+  - sh ci/before_deploy.sh
 
 deploy:
   provider: releases
@@ -88,10 +85,9 @@ deploy:
     condition: $TRAVIS_RUST_VERSION = $DEPLOY_VERSION
     tags: true
 
-cache:
-  directories:
-    - $HOME/.cargo
-    - target
+cache: cargo
+before_cache:
+  - chmod -R a+r $HOME/.cargo;
 
 branches:
   only:

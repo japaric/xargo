@@ -1,6 +1,6 @@
 set -ex
 
-test_mode() {
+main() {
     cargo build --target $TARGET
     cargo run --target $TARGET -- -V
 
@@ -10,16 +10,4 @@ test_mode() {
     fi
 }
 
-deploy_mode() {
-    cargo rustc --target $TARGET --release -- -C lto
-}
-
-run() {
-    if [ -z $TRAVIS_TAG ]; then
-        test_mode
-    elif [ $TRAVIS_RUST_VERSION = $DEPLOY_VERSION ]; then
-        deploy_mode
-    fi
-}
-
-run
+main

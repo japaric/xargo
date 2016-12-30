@@ -43,31 +43,19 @@ matrix:
       rust: nightly
 
 install:
-  # curl: cargo + rustc
-  # case: rust-std
-  # rustup: rust-src
   # NOTE(TRAVIS_BRANCH) Travis is configured to only build *pushes* (not PRs).
-  - if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
-      curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y;
+  - if [ ! -z $TRAVIS_TAG ] || [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
+      curl https://sh.rustup.rs -sSf |
+        sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y;
       source ~/.cargo/env;
-      case $TARGET in
-        x86_64-apple-darwin | x86_64-unknown-linux-gnu) ;;
-        *) rustup target add $TARGET ;;
-      esac;
-      rustup component add rust-src;
+      cargo install -f cross --vers 0.1.1;
+      test -n $TRAVIS_TAG || rustup component add rust-src;
     fi
 
 script:
   # NOTE(TRAVIS_BRANCH) See the NOTE in the `install` section
   - if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
-      cargo generate-lockfile;
-
-      if [[ $TRAVIS_OS_NAME = linux ]]; then
-        sh ci/run-docker.sh $TARGET || exit 1;
-      else
-        sh ci/run.sh || exit 1;
-      fi;
-
+      sh ci/script.sh;
     fi
 
 before_deploy:

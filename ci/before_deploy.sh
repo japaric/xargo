@@ -13,8 +13,8 @@ main() {
             ;;
     esac
 
-    cargo rustc --target $TARGET --release -- -C lto
-    cp target/$TARGET/release/xargo $stage/
+    cross rustc --target $TARGET --release -- -C lto
+    cp target/$TARGET/release/$CRATE_NAME $stage/
 
     cd $stage
     tar czf $src_dir/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *

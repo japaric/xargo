@@ -44,7 +44,7 @@ deploy:
   description: 'Windows release'
   artifact: /.*\.zip/
   auth_token:
-    secure: bQ29dEXeNG5VP2hQcWiZ1xsfmkGosteCDNeYu/cXTX4lOeghOp0qANpQXmGfal29
+    secure: eKL1bZzuKQzvnpQZhujz1FJaeBp7Y9fHDbDeumve4lyREn68CTsusQDezg0lB4Bv
   provider: GitHub
   on:
     # NOTE this "version" must match %DEPLOY_VERSION% (see top)

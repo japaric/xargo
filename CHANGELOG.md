@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.1] - 2016-12-30
+
+### Added
+
+- You can now specify the location where Xargo stores the sysroots via the
+  `XARGO_HOME` environment variable. If unspecified, the sysroots will be stored
+  in `$HOME/.xargo`
+
 ## [v0.3.0] - 2016-12-28
 
 ### Changed
@@ -193,8 +201,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.0...HEAD
-[v0.3.0]: https://github.com/japaric/xargo/compare/v0.2.2...v0.3.0
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.1...HEAD
+[v0.3.1]: https://github.com/japaric/xargo/compare/v0.3.0...v0.3.1
+[v0.3.0]: https://github.com/japaric/xargo/compare/v0.2.3...v0.3.0
 [v0.2.3]: https://github.com/japaric/xargo/compare/v0.2.2...v0.2.3
 [v0.2.2]: https://github.com/japaric/xargo/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/japaric/xargo/compare/v0.2.0...v0.2.1

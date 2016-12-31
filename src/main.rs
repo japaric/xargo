@@ -94,7 +94,9 @@ fn run() -> Result<ExitStatus> {
         let src = match meta.channel {
             Channel::Dev => rustc::Src::from_env()?,
             Channel::Nightly => sysroot.src()?,
-            Channel::Stable | Channel::Beta => return cargo::run(&args, verbose),
+            Channel::Stable | Channel::Beta => {
+                return cargo::run(&args, verbose)
+            }
         };
 
         let target = if let Some(triple) = args.target() {

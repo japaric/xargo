@@ -1,4 +1,4 @@
-use std::path::Display;
+use std::path::{Display, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::{env, mem};
 
@@ -71,9 +71,15 @@ impl Home {
 }
 
 pub fn home() -> Result<Home> {
-    Ok(env::home_dir()
-        .map(|home| Home { path: Filesystem::new(home.join(".xargo")) })
-        .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?)
+    let p = if let Some(h) = env::var_os("XARGO_HOME") {
+        PathBuf::from(h)
+    } else {
+        env::home_dir()
+            .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
+            .join(".xargo")
+    };
+
+    Ok(Home { path: Filesystem::new(p) })
 }
 
 pub struct Toml {

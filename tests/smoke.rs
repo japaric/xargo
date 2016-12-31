@@ -28,8 +28,19 @@ macro_rules! run {
     }
 }
 
+// Returns Xargo's "home"
+fn home() -> Result<PathBuf> {
+    if let Some(h) = env::var_os("XARGO_HOME") {
+        Ok(PathBuf::from(h))
+    } else {
+        Ok(env::home_dir()
+            .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
+            .join(".xargo"))
+    }
+}
+
 fn cleanup(target: &str) -> Result<()> {
-    let p = home()?.join(".xargo").join("lib/rustlib").join(target);
+    let p = home()?.join("lib/rustlib").join(target);
 
     if p.exists() {
         fs::remove_dir_all(&p)
@@ -42,7 +53,7 @@ fn cleanup(target: &str) -> Result<()> {
 fn exists(krate: &str, target: &str) -> Result<bool> {
     let p = home()
         ?
-        .join(".xargo/lib/rustlib")
+        .join("lib/rustlib")
         .join(target)
         .join("lib");
 
@@ -61,11 +72,6 @@ fn exists(krate: &str, target: &str) -> Result<bool> {
     }
 
     Ok(false)
-}
-
-fn home() -> Result<PathBuf> {
-    Ok(env::home_dir()
-       .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?)
 }
 
 fn host() -> String {

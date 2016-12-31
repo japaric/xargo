@@ -50,7 +50,7 @@ install:
       curl https://sh.rustup.rs -sSf |
         sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y;
       source ~/.cargo/env;
-      cargo install -f cross --vers 0.1.1;
+      cargo install -f --git https://github.com/japaric/cross;
       rustup component add rust-src;
     fi
 

@@ -1,4 +1,4 @@
-#![deny(warnings)]
+// #![deny(warnings)]
 
 #[macro_use]
 extern crate error_chain;
@@ -92,8 +92,8 @@ fn run() -> Result<ExitStatus> {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {
-            Channel::Dev => rustc::Src::from_env()?,
-            Channel::Nightly => sysroot.src()?,
+            Channel::Dev | Channel::Nightly => rustc::Src::from_env()?,
+            // Channel::Nightly => sysroot.src()?,
             Channel::Stable | Channel::Beta => {
                 return cargo::run(&args, verbose)
             }

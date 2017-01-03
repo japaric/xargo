@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.2] - 2017-01-03
+
 ### Changed
 
 - `XARGO_RUST_SRC` is now used when working with nightly Rust and it has
@@ -206,7 +208,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.2...HEAD
+[v0.3.2]: https://github.com/japaric/xargo/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/japaric/xargo/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/japaric/xargo/compare/v0.2.3...v0.3.0
 [v0.2.3]: https://github.com/japaric/xargo/compare/v0.2.2...v0.2.3

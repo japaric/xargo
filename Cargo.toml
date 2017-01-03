@@ -7,7 +7,7 @@ keywords = ["cli", "cross", "compilation", "std"]
 license = "MIT OR Apache-2.0"
 name = "xargo"
 repository = "https://github.com/japaric/xargo"
-version = "0.3.1"
+version = "0.3.2"
 
 [dependencies]
 error-chain = "0.7.2"

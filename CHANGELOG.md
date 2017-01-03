@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Support for building a custom sysroot when compiling natively.
+
 ## [v0.3.2] - 2017-01-03
 
 ### Changed

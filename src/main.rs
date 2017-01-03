@@ -10,6 +10,7 @@ extern crate tempdir;
 extern crate toml;
 extern crate walkdir;
 
+use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
@@ -29,6 +30,44 @@ mod rustc;
 mod sysroot;
 mod util;
 mod xargo;
+
+// We use a different sysroot for Native compilation to avoid file locking
+//
+// Cross compilation requires `lib/rustlib/$HOST` to match `rustc`'s sysroot,
+// whereas Native compilation wants to use a custom `lib/rustlib/$HOST`. If each
+// mode has its own sysroot then we avoid sharing that directory and thus file
+// locking it.
+pub enum CompilationMode {
+    Cross(Target),
+    Native(String),
+}
+
+impl CompilationMode {
+    fn hash<H>(&self, hasher: &mut H) -> Result<()>
+        where H: Hasher
+    {
+        match *self {
+            CompilationMode::Cross(ref target) => target.hash(hasher)?,
+            CompilationMode::Native(ref triple) => triple.hash(hasher),
+        }
+
+        Ok(())
+    }
+
+    fn triple(&self) -> &str {
+        match *self {
+            CompilationMode::Cross(ref target) => target.triple(),
+            CompilationMode::Native(ref triple) => triple,
+        }
+    }
+
+    fn is_native(&self) -> bool {
+        match *self {
+            CompilationMode::Native(_) => true,
+            _ => false,
+        }
+    }
+}
 
 pub fn main() {
     fn show_backtrace() -> bool {
@@ -107,33 +146,31 @@ fn run() -> Result<ExitStatus> {
             }
         };
 
-        let target = if let Some(triple) = args.target() {
-            if triple != meta.host {
-                Target::new(triple, &cd, verbose)?
+        let cmode = if let Some(triple) = args.target() {
+            if triple == meta.host {
+                Some(CompilationMode::Native(meta.host.clone()))
             } else {
-                None
+                Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)
             }
         } else {
             if let Some(ref config) = config {
                 if let Some(triple) = config.target()? {
-                    if triple != meta.host {
-                        Target::new(triple, &cd, verbose)?
-                    } else {
-                        None
-                    }
+                    Target::new(triple, &cd, verbose)
+                        ?
+                        .map(CompilationMode::Cross)
                 } else {
-                    None
+                    Some(CompilationMode::Native(meta.host.clone()))
                 }
             } else {
-                None
+                Some(CompilationMode::Native(meta.host.clone()))
             }
         };
 
-        if let Some(target) = target {
-            let home = xargo::home()?;
-            let rustflags = cargo::rustflags(config.as_ref(), target.triple())?;
+        if let Some(cmode) = cmode {
+            let home = xargo::home(&cmode)?;
+            let rustflags = cargo::rustflags(config.as_ref(), cmode.triple())?;
 
-            sysroot::update(&target,
+            sysroot::update(&cmode,
                             &home,
                             &root,
                             &rustflags,
@@ -142,7 +179,7 @@ fn run() -> Result<ExitStatus> {
                             &sysroot,
                             verbose)?;
             return xargo::run(&args,
-                              &target,
+                              &cmode,
                               rustflags,
                               &home,
                               &meta,

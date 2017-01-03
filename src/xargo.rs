@@ -5,16 +5,16 @@ use std::{env, mem};
 use toml::Value;
 use rustc_version::VersionMeta;
 
+use CompilationMode;
 use cargo::{Config, Root, Rustflags, Subcommand};
 use cli::Args;
 use errors::*;
 use extensions::CommandExt;
 use flock::{FileLock, Filesystem};
-use rustc::Target;
 use {cargo, util};
 
 pub fn run(args: &Args,
-           target: &Target,
+           cmode: &CompilationMode,
            rustflags: Rustflags,
            home: &Home,
            meta: &VersionMeta,
@@ -26,12 +26,13 @@ pub fn run(args: &Args,
 
     if args.subcommand() == Some(Subcommand::Doc) {
         cmd.env("RUSTDOCFLAGS",
-                cargo::rustdocflags(config, target.triple())?.for_xargo(home));
+                cargo::rustdocflags(config, cmode.triple())?.for_xargo(home));
     }
 
     cmd.env("RUSTFLAGS", rustflags.for_xargo(home));
 
-    let locks = (home.lock_ro(&meta.host), home.lock_ro(target.triple()));
+    let locks = (home.lock_ro(&meta.host),
+                 home.lock_ro(cmode.triple()));
 
     let status = cmd.run_and_get_status(verbose)?;
 
@@ -49,34 +50,43 @@ impl Home {
         self.path.display()
     }
 
-    pub fn lock_ro(&self, target: &str) -> Result<FileLock> {
+    fn path(&self, triple: &str) -> Filesystem {
         self.path
             .join("lib/rustlib")
-            .join(target)
-            .open_ro(".sentinel", &format!("{}'s sysroot", target))
+            .join(triple)
+    }
+
+    pub fn lock_ro(&self, triple: &str) -> Result<FileLock> {
+        let fs = self.path(triple);
+
+        fs.open_ro(".sentinel", &format!("{}'s sysroot", triple))
             .chain_err(|| {
-                format!("couldn't lock {}'s sysroot as read-only", target)
+                format!("couldn't lock {}'s sysroot as read-only", triple)
             })
     }
 
-    pub fn lock_rw(&self, target: &str) -> Result<FileLock> {
-        self.path
-            .join("lib/rustlib")
-            .join(target)
-            .open_rw(".sentinel", &format!("{}'s sysroot", target))
+    pub fn lock_rw(&self, triple: &str) -> Result<FileLock> {
+        let fs = self.path(triple);
+
+        fs.open_rw(".sentinel", &format!("{}'s sysroot", triple))
             .chain_err(|| {
-                format!("couldn't lock {}'s sysroot as read-write", target)
+                format!("couldn't lock {}'s sysroot as read-only", triple)
             })
     }
 }
 
-pub fn home() -> Result<Home> {
+pub fn home(cmode: &CompilationMode) -> Result<Home> {
     let p = if let Some(h) = env::var_os("XARGO_HOME") {
         PathBuf::from(h)
     } else {
-        env::home_dir()
+        let mut p = env::home_dir()
             .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
-            .join(".xargo")
+            .join(".xargo");
+
+        if cmode.is_native() {
+            p.push("HOST");
+        }
+        p
     };
 
     Ok(Home { path: Filesystem::new(p) })

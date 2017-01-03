@@ -51,7 +51,7 @@ impl Src {
     }
 }
 
-/// Path to the original sysroot
+/// Path to `rustc`'s sysroot
 pub struct Sysroot {
     path: PathBuf,
 }

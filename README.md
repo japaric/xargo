@@ -150,10 +150,6 @@ $ xargo build --target msp430-none-elf
   because `std` and other standard crates depend on unstable features so it's
   not possible to build the sysroot with stable or beta.
 
-- Because of how sysroots work, `xargo` *can't*, and won't, build a sysroot for
-  the HOST. IOW, `xargo` will only build/use sysroots when you are cross
-  compiling.
-
 - As of nightly-2016-12-19, `std` can't be compiled from the `rust-src`
   component *without* patching the source.
 

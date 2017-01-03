@@ -19,7 +19,9 @@ tempdir = "0.3.5"
 toml = "0.2.1"
 walkdir = "1.0.3"
 
+[dev-dependencies.parking_lot]
+features = ["nightly"]
+version = "0.3.6"
+
 [features]
-# Causes Xargo to always build the sysroot using the dev profile
-# This is mainly for shorter test times
 dev = []

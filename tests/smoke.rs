@@ -1,8 +1,10 @@
 #![cfg_attr(not(feature = "dev"), allow(dead_code))]
 #![deny(warnings)]
+#![feature(const_fn)]
 
 #[macro_use]
 extern crate error_chain;
+extern crate parking_lot;
 extern crate rustc_version;
 extern crate tempdir;
 
@@ -12,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
+use parking_lot::{Mutex, MutexGuard};
 use tempdir::TempDir;
 
 use errors::*;
@@ -193,7 +196,6 @@ impl Project {
         })
     }
 
-
     /// Calls `xargo build`
     fn build(&self, target: &str) -> Result<()> {
         xargo()
@@ -247,6 +249,66 @@ impl Project {
 impl Drop for Project {
     fn drop(&mut self) {
         cleanup(self.name).unwrap()
+    }
+}
+
+fn hcleanup(triple: &str) -> Result<()> {
+    let p = home()?.join("HOST/lib/rustlib").join(triple);
+
+    if p.exists() {
+        fs::remove_dir_all(&p)
+            .chain_err(|| format!("couldn't clean sysroot for {}", triple))
+    } else {
+        Ok(())
+    }
+}
+
+struct HProject {
+    _guard: MutexGuard<'static, ()>,
+    host: String,
+    td: TempDir,
+}
+
+impl HProject {
+    fn new() -> Result<Self> {
+        // There can only be one instance of this type at any point in time
+        static ONCE: Mutex<()> = Mutex::new(());
+
+        let guard = ONCE.lock();
+
+        let td =
+            TempDir::new("xargo")
+            .chain_err(|| "couldn't create a temporary directory")?;
+
+        xargo()?
+            .args(&["init", "--lib", "--vcs", "none", "--name", "host"])
+            .current_dir(td.path())
+            .run()?;
+
+        write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
+
+        Ok(HProject {
+            _guard: guard,
+            host: host(),
+            td: td,
+        })
+    }
+
+    /// Calls `xargo build` and collects STDERR
+    fn build_and_get_stderr(&self) -> Result<String> {
+        let mut cmd = xargo()?;
+        cmd.arg("build");
+
+        cmd.arg("-v")
+            .current_dir(self.td.path())
+            .run_and_get_stderr()
+    }
+
+}
+
+impl Drop for HProject {
+    fn drop(&mut self) {
+        hcleanup(&self.host).unwrap()
     }
 }
 
@@ -587,19 +649,40 @@ fn unchanged_specification() {
     run!()
 }
 
-/// No sysroot should be built for the host
+/// Check that a sysroot is built for the host
 #[cfg(feature = "dev")]
 #[test]
-fn no_sysroot_for_host() {
+fn host_once() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__no_sysroot_for_host";
+        let target = host();
+        let project = HProject::new()?;
 
-        let project = Project::new(TARGET)?;
+        let stderr = project.build_and_get_stderr()?;
 
-        let host = host();
-        let stderr = project.build_and_get_stderr(Some(&host))?;
+        assert!(sysroot_was_built(&stderr, &target));
 
-        assert!(!sysroot_was_built(&stderr, &host));
+        Ok(())
+    }
+
+    run!()
+}
+
+/// Check that the sysroot is not rebuilt when `xargo build` is called a second
+/// time
+#[cfg(feature = "dev")]
+#[test]
+fn host_twice() {
+    fn run() -> Result<()> {
+        let target = host();
+        let project = HProject::new()?;
+
+        let stderr = project.build_and_get_stderr()?;
+
+        assert!(sysroot_was_built(&stderr, &target));
+
+        let stderr = project.build_and_get_stderr()?;
+
+        assert!(!sysroot_was_built(&stderr, &target));
 
         Ok(())
     }

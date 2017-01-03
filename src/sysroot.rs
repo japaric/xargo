@@ -9,10 +9,11 @@ use rustc_version::VersionMeta;
 use tempdir::TempDir;
 use toml::Value;
 
+use CompilationMode;
 use cargo::{Root, Rustflags};
 use errors::*;
 use extensions::CommandExt;
-use rustc::{Src, Sysroot, Target};
+use rustc::{Src, Sysroot};
 use util;
 use xargo::Home;
 use {cargo, xargo};
@@ -27,7 +28,7 @@ fn profile() -> &'static str {
     "release"
 }
 
-fn build(target: &Target,
+fn build(cmode: &CompilationMode,
          deps: &Dependencies,
          ctoml: &cargo::Toml,
          home: &Home,
@@ -73,7 +74,7 @@ version = "0.0.0"
         }
         cmd.arg("--manifest-path");
         cmd.arg(td.join("Cargo.toml"));
-        cmd.args(&["--target", target.triple()]);
+        cmd.args(&["--target", cmode.triple()]);
 
         if verbose {
             cmd.arg("-v");
@@ -87,13 +88,13 @@ version = "0.0.0"
     }
 
     // Copy artifacts to Xargo sysroot
-    let rustlib = home.lock_rw(target.triple())?;
+    let rustlib = home.lock_rw(cmode.triple())?;
     rustlib.remove_siblings()
         .chain_err(|| format!("couldn't clear {}", rustlib.path().display()))?;
     let dst = rustlib.parent().join("lib");
     util::mkdir(&dst)?;
     util::cp_r(&td.join("target")
-                   .join(target.triple())
+                   .join(cmode.triple())
                    .join(profile())
                    .join("deps"),
                &dst)?;
@@ -104,9 +105,9 @@ version = "0.0.0"
     Ok(())
 }
 
-fn old_hash(target: &str, home: &Home) -> Result<Option<u64>> {
+fn old_hash(cmode: &CompilationMode, home: &Home) -> Result<Option<u64>> {
     // FIXME this should be `lock_ro`
-    let lock = home.lock_rw(target)?;
+    let lock = home.lock_rw(cmode.triple())?;
     let hfile = lock.parent().join(".hash");
 
     if hfile.exists() {
@@ -125,7 +126,7 @@ fn old_hash(target: &str, home: &Home) -> Result<Option<u64>> {
 /// - The target specification file, is any
 /// - `[profile.release]` in `Cargo.toml`
 /// - `rustc` commit hash
-fn hash(target: &Target,
+fn hash(cmode: &CompilationMode,
         dependencies: &Dependencies,
         rustflags: &Rustflags,
         ctoml: &cargo::Toml,
@@ -137,7 +138,7 @@ fn hash(target: &Target,
 
     rustflags.hash(&mut hasher);
 
-    target.hash(&mut hasher)?;
+    cmode.hash(&mut hasher)?;
 
     if let Some(profile) = ctoml.profile() {
         profile.hash(&mut hasher);
@@ -150,7 +151,7 @@ fn hash(target: &Target,
     Ok(hasher.finish())
 }
 
-pub fn update(target: &Target,
+pub fn update(cmode: &CompilationMode,
               home: &Home,
               root: &Root,
               rustflags: &Rustflags,
@@ -162,15 +163,19 @@ pub fn update(target: &Target,
     let ctoml = cargo::toml(root)?;
     let xtoml = xargo::toml(root)?;
 
-    let deps = Dependencies::from(xtoml.as_ref(), target.triple(), &src)?;
+    let deps = Dependencies::from(xtoml.as_ref(), cmode.triple(), &src)?;
 
-    let hash = hash(target, &deps, rustflags, &ctoml, meta)?;
+    let hash = hash(cmode, &deps, rustflags, &ctoml, meta)?;
 
-    if old_hash(target.triple(), home)? != Some(hash) {
-        build(target, &deps, &ctoml, home, rustflags, hash, verbose)?;
+    if old_hash(cmode, home)? != Some(hash) {
+        build(cmode, &deps, &ctoml, home, rustflags, hash, verbose)?;
     }
 
     // copy host artifacts into the sysroot, if necessary
+    if cmode.is_native() {
+        return Ok(())
+    }
+
     let lock = home.lock_rw(&meta.host)?;
     let hfile = lock.parent().join(".hash");
 

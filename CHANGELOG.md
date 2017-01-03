@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `XARGO_RUST_SRC` is now used when working with nightly Rust and it has
+  precedence over the `rust-src` component.
+
 ## [v0.3.1] - 2016-12-30
 
 ### Added

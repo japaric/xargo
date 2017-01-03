@@ -42,11 +42,8 @@ pub struct Src {
 }
 
 impl Src {
-    pub fn from_env() -> Result<Self> {
-        Ok(env::var_os("XARGO_RUST_SRC").map(|s| Src { path: PathBuf::from(s) })
-            .ok_or("The XARGO_RUST_SRC env variable must be set and \
-                    point to the Rust source directory when working \
-                    with the 'dev' channel")?)
+    pub fn from_env() -> Option<Self> {
+        env::var_os("XARGO_RUST_SRC").map(|s| Src { path: PathBuf::from(s) })
     }
 
     pub fn path(&self) -> &Path {

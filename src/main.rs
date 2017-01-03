@@ -92,8 +92,16 @@ fn run() -> Result<ExitStatus> {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {
-            Channel::Dev => rustc::Src::from_env()?,
-            Channel::Nightly => sysroot.src()?,
+            Channel::Dev => rustc::Src::from_env().ok_or(
+                "The XARGO_RUST_SRC env variable must be set and point to the \
+                 Rust source directory when working with the 'dev' channel")?,
+            Channel::Nightly => {
+                if let Some(src) = rustc::Src::from_env() {
+                    src
+                } else {
+                    sysroot.src()?
+                }
+            }
             Channel::Stable | Channel::Beta => {
                 return cargo::run(&args, verbose)
             }

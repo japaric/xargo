@@ -76,18 +76,17 @@ impl Home {
 }
 
 pub fn home(cmode: &CompilationMode) -> Result<Home> {
-    let p = if let Some(h) = env::var_os("XARGO_HOME") {
+    let mut p = if let Some(h) = env::var_os("XARGO_HOME") {
         PathBuf::from(h)
     } else {
-        let mut p = env::home_dir()
+        env::home_dir()
             .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
-            .join(".xargo");
-
-        if cmode.is_native() {
-            p.push("HOST");
-        }
-        p
+            .join(".xargo")
     };
+
+    if cmode.is_native() {
+        p.push("HOST");
+    }
 
     Ok(Home { path: Filesystem::new(p) })
 }

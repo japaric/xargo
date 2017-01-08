@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Support for building a custom sysroot when compiling natively.
+- Support for specifying dependencies as `[dependencies]` in Xargo.toml.
 
 ## [v0.3.2] - 2017-01-03
 

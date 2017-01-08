@@ -31,8 +31,7 @@ pub fn run(args: &Args,
 
     cmd.env("RUSTFLAGS", rustflags.for_xargo(home));
 
-    let locks = (home.lock_ro(&meta.host),
-                 home.lock_ro(cmode.triple()));
+    let locks = (home.lock_ro(&meta.host), home.lock_ro(cmode.triple()));
 
     let status = cmd.run_and_get_status(verbose)?;
 
@@ -96,8 +95,13 @@ pub struct Toml {
 }
 
 impl Toml {
+    /// Returns the `dependencies` part of `Xargo.toml`
+    pub fn dependencies(&self) -> Option<&Value> {
+        self.table.lookup("dependencies")
+    }
+
     /// Returns the `target.{}.dependencies` part of `Xargo.toml`
-    pub fn dependencies(&self, target: &str) -> Option<&Value> {
+    pub fn target_dependencies(&self, target: &str) -> Option<&Value> {
         self.table.lookup(&format!("target.{}.dependencies", target))
     }
 }

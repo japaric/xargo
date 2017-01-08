@@ -303,7 +303,6 @@ impl HProject {
             .current_dir(self.td.path())
             .run_and_get_stderr()
     }
-
 }
 
 impl Drop for HProject {
@@ -329,20 +328,42 @@ fn simple() {
     run!()
 }
 
-/// Test building a sysroot that contains more than just the `core` crate
+/// Test building a dependency specified as `target.{}.dependencies` in
+/// Xargo.toml
 #[cfg(feature = "dev")]
 #[test]
-fn collections() {
+fn target_dependencies() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__collections";
+        const TARGET: &'static str = "__target_dependencies";
 
         let project = Project::new(TARGET)?;
         project.xargo_toml(r#"
-[target.__collections.dependencies.collections]
+[target.__target_dependencies.dependencies.alloc]
 "#)?;
         project.build(TARGET)?;
         assert!(exists("core", TARGET)?);
-        assert!(exists("collections", TARGET)?);
+        assert!(exists("alloc", TARGET)?);
+
+        Ok(())
+    }
+
+    run!()
+}
+
+/// Test building a dependency specified as `dependencies` in Xargo.toml
+#[cfg(feature = "dev")]
+#[test]
+fn dependencies() {
+    fn run() -> Result<()> {
+        const TARGET: &'static str = "__dependencies";
+
+        let project = Project::new(TARGET)?;
+        project.xargo_toml(r#"
+[dependencies.alloc]
+"#)?;
+        project.build(TARGET)?;
+        assert!(exists("core", TARGET)?);
+        assert!(exists("alloc", TARGET)?);
 
         Ok(())
     }

@@ -173,7 +173,7 @@ pub fn update(cmode: &CompilationMode,
 
     // copy host artifacts into the sysroot, if necessary
     if cmode.is_native() {
-        return Ok(())
+        return Ok(());
     }
 
     let lock = home.lock_rw(&meta.host)?;
@@ -212,22 +212,52 @@ impl Dependencies {
             target: &str,
             src: &Src)
             -> Result<Self> {
-        let mut deps = if let Some(value) =
-            toml.and_then(|t| t.dependencies(target)) {
-            if let Some(table) = value.as_table() {
-                table.clone()
-            } else {
-                Err(format!("Xargo.toml: target.{}.dependencies must be a \
-                             table",
-                            target))?
-            }
-        } else {
-            // If no dependencies were listed, we assume `core` as the only
-            // dependency
-            let mut t = BTreeMap::new();
-            t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
-            t
-        };
+        let mut deps =
+            match (toml.and_then(|t| t.dependencies()),
+                   toml.and_then(|t| t.target_dependencies(target))) {
+                (Some(value), Some(tvalue)) => {
+                    let mut deps = value.as_table()
+                        .cloned()
+                        .ok_or_else(|| {
+                            format!("Xargo.toml: `dependencies` must be a \
+                                     table")
+                        })?;
+
+                    let more_deps = tvalue.as_table()
+                        .ok_or_else(|| {
+                            format!("Xargo.toml: `target.{}.dependencies` \
+                                     must be a table",
+                                    target)
+                        })?;
+                    for (k, v) in more_deps {
+                        if deps.insert(k.to_owned(), v.clone()).is_some() {
+                            Err(format!("found duplicate dependency name \
+                                         {}, but all dependencies must have \
+                                         a unique name",
+                                        k))?
+                        }
+                    }
+
+                    deps
+                }
+                (Some(value), None) |
+                (None, Some(value)) => {
+                    if let Some(table) = value.as_table() {
+                        table.clone()
+                    } else {
+                        Err(format!("Xargo.toml: target.{}.dependencies \
+                                     must be a table",
+                                    target))?
+                    }
+                }
+                (None, None) => {
+                    // If no dependencies were listed, we assume `core` as the
+                    // only dependency
+                    let mut t = BTreeMap::new();
+                    t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
+                    t
+                }
+            };
 
         let mut crates = vec![];
         for (k, v) in deps.iter_mut() {

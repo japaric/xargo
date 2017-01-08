@@ -1,24 +1,37 @@
 dist: trusty
-language: generic
 language: rust
-rust: stable
 services: docker
 sudo: required
+
+rust: stable
 
 env:
   global:
     - CRATE_NAME=xargo
-    - DEPLOY_VERSION=stable
     - TARGET=x86_64-unknown-linux-gnu
 
 matrix:
   include:
+    # Linux
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=i686-unknown-linux-musl
+    # - env: TARGET=x86_64-unknown-linux-gnu  # this is the default job
+    - env: TARGET=x86_64-unknown-linux-musl
+
     # OSX
     - env: TARGET=i686-apple-darwin
       os: osx
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
+    - env: TARGET=i686-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=i686-unknown-linux-musl
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-musl
+      rust: nightly
     - env: TARGET=i686-apple-darwin
       os: osx
       rust: nightly
@@ -26,62 +39,33 @@ matrix:
       os: osx
       rust: nightly
 
-    # Linux
-    - env: TARGET=i686-unknown-linux-gnu
-    # TODO re-enable when cross gets support for this target
-    # - env: TARGET=i686-unknown-linux-musl
-    # This target is handled by the default build job
-    # - env: TARGET=x86_64-unknown-linux-gnu
-    - env: TARGET=x86_64-unknown-linux-musl
-
-    - env: TARGET=i686-unknown-linux-gnu
-      rust: nightly
-    # TODO re-enable when cross gets support for this target
-    # - env: TARGET=i686-unknown-linux-musl
-    #   rust: nightly
-    - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly
-    - env: TARGET=x86_64-unknown-linux-musl
-      rust: nightly
-
 install:
-  # NOTE(TRAVIS_BRANCH) Travis is configured to only build *pushes* (not PRs).
-  - if [ ! -z $TRAVIS_TAG ] || [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
-      curl https://sh.rustup.rs -sSf |
-        sh -s -- --default-toolchain=$TRAVIS_RUST_VERSION -y;
-      source ~/.cargo/env;
-      cargo install -f --git https://github.com/japaric/cross;
-      rustup component add rust-src;
-    fi
+  - sh ci/install.sh
+  - source ~/.cargo/env && rustup component add rust-src || true
 
 script:
-  # NOTE(TRAVIS_BRANCH) See the NOTE in the `install` section
-  - if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
-      sh ci/script.sh;
-    fi
+  - sh ci/script.sh
 
 before_deploy:
   - sh ci/before_deploy.sh
 
 deploy:
-  provider: releases
   api_key:
     secure: w4e9h16zrRR7Mhnon7vYxUSmU8rdglHfSpG+Rsgml95M0uoiaa9lVhMI9DInLz2nJW5bJbu2Oi94xJ+qbCrzq8Kw7G0nEICIQlbZFtk9AgGgOCK0y0F0FimjZvAjo7J6sy04ZaeeQUrydKZZqrq91HrBOmT4jpcsnAWOybGL3mD2MOlkuBztmGqd1+R3YnvVuINGyuOUmTdSt+ne94Xl0LBgy3eSHoURP7c5Jr/8cUFKHOEPYzAEg/sqahEzMfSGZ5BbcWZhfbfOEmcGYjSEq6UTiy4j2J8jTnf/ID9CWUjRMSXf3wZgQrFyOms8SVq8eRni5CigVMwDU0BGgcw5plmMIzC75Na2jebsv5VL4XVeFn9GCPdjmzE/bs9qEChxeQUqTMt5A/69iA5R10wW4SZAYCQtokgtflXolA9VCEqxy15XBUaCBX/TJr1+EBGqzVMdLa3TOM24eFeky0aLvh5rpF6VT1dUvTEn1rhFMNOANsqQ3UIa85WeoW80Q94z/du6G4n7t6YFTSYpYme5wrb++uIOXU23KE+XrPgRHDkAf8GD3jRabZKE2Cz9IX961+P6D9ual5O4BjAI+3xad1F7K/XF0k33z8fEbPMibZE3IVMrN7sk0EwAOmMDGjsRSCfHlkVgbrxB0XGcc99ndzqFRSul9tIVLVIpZNzuAeo=
   file_glob: true
   file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
-  # don't delete the target directory
-  skip_cleanup: true
   on:
-    condition: $TRAVIS_RUST_VERSION = $DEPLOY_VERSION
+    condition: $TRAVIS_RUST_VERSION = stable
     tags: true
+  provider: releases
+  skip_cleanup: true
 
 cache: cargo
 before_cache:
-  - chmod -R a+r $HOME/.cargo;
+  - chmod -R a+r $HOME/.cargo
 
 branches:
   only:
-    # Release tags
     - /^v\d+\.\d+\.\d+.*$/
     - auto
     - master

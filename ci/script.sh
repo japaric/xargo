@@ -10,4 +10,6 @@ main() {
     fi
 }
 
-main
+if [ -z $TRAVIS_TAG ] && [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then
+    main
+fi

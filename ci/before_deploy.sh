@@ -1,7 +1,7 @@
 set -ex
 
 main() {
-    local src_dir=$(pwd)\
+    local src=$(pwd) \
           stage=
 
     case $TRAVIS_OS_NAME in
@@ -13,12 +13,13 @@ main() {
             ;;
     esac
 
-    cross rustc --target $TARGET --release -- -C lto
-    cp target/$TARGET/release/$CRATE_NAME $stage/
+    cross rustc --bin xargo --target $TARGET --release -- -C lto
+
+    cp target/$TARGET/release/xargo $stage/
 
     cd $stage
-    tar czf $src_dir/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
-    cd $src_dir
+    tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
+    cd $src
 
     rm -rf $stage
 }

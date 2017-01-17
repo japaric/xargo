@@ -285,10 +285,14 @@ impl Blueprint {
                     0
                 };
 
-                let path =
-                    src.path().join(format!("lib{}", k)).display().to_string();
+                if !map.contains_key("path") && !map.contains_key("git") {
+                    let path = src.path()
+                        .join(format!("lib{}", k))
+                        .display()
+                        .to_string();
 
-                map.insert("path".to_owned(), Value::String(path));
+                    map.insert("path".to_owned(), Value::String(path));
+                }
 
                 blueprint.push(stage, k, map);
             } else {

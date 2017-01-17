@@ -41,7 +41,11 @@ matrix:
 
 install:
   - sh ci/install.sh
-  - source ~/.cargo/env && rustup component add rust-src || true
+  # NOTE(sed) work around for #36501
+  - source ~/.cargo/env &&
+      rustup component add rust-src &&
+      sed -i '/"dylib"/d' $(rustc --print sysroot)/**/Cargo.toml ||
+      true
 
 script:
   - sh ci/script.sh

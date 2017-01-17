@@ -270,7 +270,7 @@ struct HProject {
 }
 
 impl HProject {
-    fn new() -> Result<Self> {
+    fn new(test: bool) -> Result<Self> {
         // There can only be one instance of this type at any point in time
         static ONCE: Mutex<()> = Mutex::new(());
 
@@ -285,7 +285,13 @@ impl HProject {
             .current_dir(td.path())
             .run()?;
 
-        write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
+        if test {
+            write(&td.path().join("src/lib.rs"),
+                  false,
+                  "#![feature(alloc_system)]\nextern crate alloc_system;")?;
+        } else {
+            write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
+        }
 
         Ok(HProject {
             _guard: guard,
@@ -302,6 +308,11 @@ impl HProject {
         cmd.arg("-v")
             .current_dir(self.td.path())
             .run_and_get_stderr()
+    }
+
+    /// Adds a `Xargo.toml` to the project
+    fn xargo_toml(&self, toml: &str) -> Result<()> {
+        write(&self.td.path().join("Xargo.toml"), false, toml)
     }
 }
 
@@ -676,7 +687,7 @@ fn unchanged_specification() {
 fn host_once() {
     fn run() -> Result<()> {
         let target = host();
-        let project = HProject::new()?;
+        let project = HProject::new(false)?;
 
         let stderr = project.build_and_get_stderr()?;
 
@@ -695,7 +706,7 @@ fn host_once() {
 fn host_twice() {
     fn run() -> Result<()> {
         let target = host();
-        let project = HProject::new()?;
+        let project = HProject::new(false)?;
 
         let stderr = project.build_and_get_stderr()?;
 
@@ -704,6 +715,32 @@ fn host_twice() {
         let stderr = project.build_and_get_stderr()?;
 
         assert!(!sysroot_was_built(&stderr, &target));
+
+        Ok(())
+    }
+
+    run!()
+}
+
+/// Check multi stage sysroot builds with `xargo test`
+// We avoid Windows here just because it would be tricky to modify the rust-src
+// component (cf. #36501) from within the appveyor environment
+#[cfg(feature = "dev")]
+#[cfg(not(windows))]
+#[test]
+fn test() {
+    fn run() -> Result<()> {
+        let project = HProject::new(true)?;
+
+        project.xargo_toml("
+[dependencies.std]
+features = [\"panic_unwind\"]
+
+[dependencies.test]
+stage = 1
+")?;
+
+        xargo()?.arg("test").current_dir(project.td.path()).run()?;
 
         Ok(())
     }

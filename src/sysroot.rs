@@ -1,13 +1,11 @@
 use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::process::Command;
-use std::fmt;
 
 use rustc_version::VersionMeta;
 use tempdir::TempDir;
-use toml::Value;
+use toml::{Table, Value};
 
 use CompilationMode;
 use cargo::{Root, Rustflags};
@@ -29,7 +27,7 @@ fn profile() -> &'static str {
 }
 
 fn build(cmode: &CompilationMode,
-         deps: &Dependencies,
+         blueprint: Blueprint,
          ctoml: &cargo::Toml,
          home: &Home,
          rustflags: &Rustflags,
@@ -43,61 +41,67 @@ name = "sysroot"
 version = "0.0.0"
 "#;
 
-    let td = TempDir::new("xargo")
-        .chain_err(|| "couldn't create a temporary directory")?;
-    let td = td.path();
-
-    let mut stoml = TOML.to_owned();
-    stoml.push_str(&deps.to_string());
-
-    if let Some(profile) = ctoml.profile() {
-        stoml.push_str(&profile.to_string())
-    }
-
-    util::write(&td.join("Cargo.toml"), &stoml)?;
-    util::mkdir(&td.join("src"))?;
-    util::write(&td.join("src/lib.rs"), "")?;
-
-    let cargo = || {
-        let mut cmd = Command::new("cargo");
-        cmd.env("RUSTFLAGS", rustflags.to_string());
-        cmd.env_remove("CARGO_TARGET_DIR");
-        cmd.arg("build");
-
-        match () {
-            #[cfg(feature = "dev")]
-            () => {}
-            #[cfg(not(feature = "dev"))]
-            () => {
-                cmd.arg("--release");
-            }
-        }
-        cmd.arg("--manifest-path");
-        cmd.arg(td.join("Cargo.toml"));
-        cmd.args(&["--target", cmode.triple()]);
-
-        if verbose {
-            cmd.arg("-v");
-        }
-
-        cmd
-    };
-
-    for krate in deps.crates() {
-        cargo().arg("-p").arg(krate).run(verbose)?;
-    }
-
-    // Copy artifacts to Xargo sysroot
     let rustlib = home.lock_rw(cmode.triple())?;
     rustlib.remove_siblings()
         .chain_err(|| format!("couldn't clear {}", rustlib.path().display()))?;
     let dst = rustlib.parent().join("lib");
     util::mkdir(&dst)?;
-    util::cp_r(&td.join("target")
-                   .join(cmode.triple())
-                   .join(profile())
-                   .join("deps"),
-               &dst)?;
+    for (_, stage) in blueprint.stages {
+        let td = TempDir::new("xargo")
+            .chain_err(|| "couldn't create a temporary directory")?;
+        let td = td.path();
+
+        let mut stoml = TOML.to_owned();
+
+        let mut map = Table::new();
+        map.insert("dependencies".to_owned(), Value::Table(stage.toml));
+        stoml.push_str(&Value::Table(map).to_string());
+
+        if let Some(profile) = ctoml.profile() {
+            stoml.push_str(&profile.to_string())
+        }
+
+        util::write(&td.join("Cargo.toml"), &stoml)?;
+        util::mkdir(&td.join("src"))?;
+        util::write(&td.join("src/lib.rs"), "")?;
+
+        let cargo = || {
+            let mut cmd = Command::new("cargo");
+            cmd.env("RUSTFLAGS", rustflags.for_xargo(home));
+            cmd.env_remove("CARGO_TARGET_DIR");
+            cmd.arg("build");
+
+            match () {
+                #[cfg(feature = "dev")]
+                () => {}
+                #[cfg(not(feature = "dev"))]
+                () => {
+                    cmd.arg("--release");
+                }
+            }
+            cmd.arg("--manifest-path");
+            cmd.arg(td.join("Cargo.toml"));
+            cmd.args(&["--target", cmode.triple()]);
+
+            if verbose {
+                cmd.arg("-v");
+            }
+
+            cmd
+        };
+
+        for krate in stage.crates {
+            cargo().arg("-p").arg(krate).run(verbose)?;
+        }
+
+        // Copy artifacts to Xargo sysroot
+        util::cp_r(&td.join("target")
+                       .join(cmode.triple())
+                       .join(profile())
+                       .join("deps"),
+                   &dst)?;
+
+    }
 
     // Create hash file
     util::write(&rustlib.parent().join(".hash"), &hash.to_string())?;
@@ -127,14 +131,14 @@ fn old_hash(cmode: &CompilationMode, home: &Home) -> Result<Option<u64>> {
 /// - `[profile.release]` in `Cargo.toml`
 /// - `rustc` commit hash
 fn hash(cmode: &CompilationMode,
-        dependencies: &Dependencies,
+        blueprint: &Blueprint,
         rustflags: &Rustflags,
         ctoml: &cargo::Toml,
         meta: &VersionMeta)
         -> Result<u64> {
     let mut hasher = DefaultHasher::new();
 
-    dependencies.hash(&mut hasher);
+    blueprint.hash(&mut hasher);
 
     rustflags.hash(&mut hasher);
 
@@ -163,12 +167,12 @@ pub fn update(cmode: &CompilationMode,
     let ctoml = cargo::toml(root)?;
     let xtoml = xargo::toml(root)?;
 
-    let deps = Dependencies::from(xtoml.as_ref(), cmode.triple(), &src)?;
+    let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), &src)?;
 
-    let hash = hash(cmode, &deps, rustflags, &ctoml, meta)?;
+    let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
     if old_hash(cmode, home)? != Some(hash) {
-        build(cmode, &deps, &ctoml, home, rustflags, hash, verbose)?;
+        build(cmode, blueprint, &ctoml, home, rustflags, hash, verbose)?;
     }
 
     // copy host artifacts into the sysroot, if necessary
@@ -201,73 +205,92 @@ pub fn update(cmode: &CompilationMode,
     Ok(())
 }
 
-/// Sysroot dependencies for a particular target
-pub struct Dependencies {
+/// Per stage dependencies
+#[derive(Debug)]
+pub struct Stage {
     crates: Vec<String>,
-    table: Value,
+    toml: Table,
 }
 
-impl Dependencies {
+/// A sysroot that will be built in "stages"
+#[derive(Debug)]
+pub struct Blueprint {
+    stages: BTreeMap<i64, Stage>,
+}
+
+impl Blueprint {
+    fn new() -> Self {
+        Blueprint { stages: BTreeMap::new() }
+    }
+
     fn from(toml: Option<&xargo::Toml>,
             target: &str,
             src: &Src)
             -> Result<Self> {
-        let mut deps =
-            match (toml.and_then(|t| t.dependencies()),
-                   toml.and_then(|t| t.target_dependencies(target))) {
-                (Some(value), Some(tvalue)) => {
-                    let mut deps = value.as_table()
-                        .cloned()
-                        .ok_or_else(|| {
-                            format!("Xargo.toml: `dependencies` must be a \
-                                     table")
-                        })?;
+        let deps = match (toml.and_then(|t| t.dependencies()),
+                          toml.and_then(|t| t.target_dependencies(target))) {
+            (Some(value), Some(tvalue)) => {
+                let mut deps = value.as_table()
+                    .cloned()
+                    .ok_or_else(|| {
+                        format!("Xargo.toml: `dependencies` must be a table")
+                    })?;
 
-                    let more_deps = tvalue.as_table()
-                        .ok_or_else(|| {
-                            format!("Xargo.toml: `target.{}.dependencies` \
-                                     must be a table",
-                                    target)
-                        })?;
-                    for (k, v) in more_deps {
-                        if deps.insert(k.to_owned(), v.clone()).is_some() {
-                            Err(format!("found duplicate dependency name \
-                                         {}, but all dependencies must have \
-                                         a unique name",
-                                        k))?
-                        }
-                    }
-
-                    deps
-                }
-                (Some(value), None) |
-                (None, Some(value)) => {
-                    if let Some(table) = value.as_table() {
-                        table.clone()
-                    } else {
-                        Err(format!("Xargo.toml: target.{}.dependencies \
-                                     must be a table",
-                                    target))?
+                let more_deps = tvalue.as_table()
+                    .ok_or_else(|| {
+                        format!("Xargo.toml: `target.{}.dependencies` must be \
+                                 a table",
+                                target)
+                    })?;
+                for (k, v) in more_deps {
+                    if deps.insert(k.to_owned(), v.clone()).is_some() {
+                        Err(format!("found duplicate dependency name {}, \
+                                     but all dependencies must have a \
+                                     unique name",
+                                    k))?
                     }
                 }
-                (None, None) => {
-                    // If no dependencies were listed, we assume `core` as the
-                    // only dependency
-                    let mut t = BTreeMap::new();
-                    t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
-                    t
+
+                deps
+            }
+            (Some(value), None) |
+            (None, Some(value)) => {
+                if let Some(table) = value.as_table() {
+                    table.clone()
+                } else {
+                    Err(format!("Xargo.toml: target.{}.dependencies must be \
+                                 a table",
+                                target))?
                 }
-            };
+            }
+            (None, None) => {
+                // If no dependencies were listed, we assume `core` as the
+                // only dependency
+                let mut t = BTreeMap::new();
+                t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
+                t
+            }
+        };
 
-        let mut crates = vec![];
-        for (k, v) in deps.iter_mut() {
-            crates.push(k.clone());
+        let mut blueprint = Blueprint::new();
+        for (k, v) in deps {
+            if let Value::Table(mut map) = v {
+                let stage = if let Some(value) = map.remove("stage") {
+                    value.as_integer()
+                        .ok_or_else(|| {
+                            format!("dependencies.{}.stage must be an integer",
+                                    k)
+                        })?
+                } else {
+                    0
+                };
 
-            let path =
-                src.path().join(format!("lib{}", k)).display().to_string();
+                let path =
+                    src.path().join(format!("lib{}", k)).display().to_string();
 
-            if let Value::Table(ref mut map) = *v {
                 map.insert("path".to_owned(), Value::String(path));
+
+                blueprint.push(stage, k, map);
             } else {
                 Err(format!("Xargo.toml: target.{}.dependencies.{} must be \
                              a table",
@@ -276,28 +299,29 @@ impl Dependencies {
             }
         }
 
-        let mut map = BTreeMap::new();
-        map.insert("dependencies".to_owned(), Value::Table(deps));
-
-        Ok(Dependencies {
-            crates: crates,
-            table: Value::Table(map),
-        })
+        Ok(blueprint)
     }
 
-    fn crates(&self) -> &[String] {
-        &self.crates
+    fn push(&mut self, stage: i64, krate: String, toml: Table) {
+        let stage = self.stages.entry(stage).or_insert_with(|| {
+            Stage {
+                crates: vec![],
+                toml: Table::new(),
+            }
+        });
+
+        stage.toml.insert(krate.clone(), Value::Table(toml));
+        stage.crates.push(krate);
     }
 
     fn hash<H>(&self, hasher: &mut H)
         where H: Hasher
     {
-        self.table.to_string().hash(hasher);
-    }
-}
-
-impl Display for Dependencies {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Display::fmt(&self.table, f)
+        for stage in self.stages.values() {
+            for (k, v) in stage.toml.iter() {
+                k.hash(hasher);
+                v.to_string().hash(hasher);
+            }
+        }
     }
 }

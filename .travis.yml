@@ -43,9 +43,16 @@ install:
   - sh ci/install.sh
   # NOTE(sed) work around for #36501
   - source ~/.cargo/env &&
-      rustup component add rust-src &&
-      find $(rustc --print sysroot) -name Cargo.toml -print0 | xargs -0 sed -i '/"dylib"/d' ||
+      rustup component add rust-src ||
       true
+  - case $TRAVIS_OS_NAME in
+      linux)
+        find $(rustc --print sysroot) -name Cargo.toml -print0 | xargs -0 sed -i '/"dylib"/d';
+        ;;
+      osx)
+        find $(rustc --print sysroot) -name Cargo.toml -print0 | xargs -0 sed -i '' '/"dylib"/d';
+        ;;
+      esac
 
 script:
   - sh ci/script.sh

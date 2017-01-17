@@ -44,7 +44,7 @@ install:
   # NOTE(sed) work around for #36501
   - source ~/.cargo/env &&
       rustup component add rust-src &&
-      sed -i '/"dylib"/d' $(rustc --print sysroot)/**/Cargo.toml ||
+      find $(rustc --print sysroot) -name Cargo.toml -print0 | xargs -0 sed -i '/"dylib"/d' ||
       true
 
 script:

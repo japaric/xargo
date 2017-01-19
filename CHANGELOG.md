@@ -5,6 +5,43 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.4] - 2017-01-18
+
+### Added
+
+- A `[dependencies.{}.stage]` (or `[target.{}.dependencies.{}.stage]`) entry in
+  Xargo.toml. This lets you build a sysroot in "stages". This is required, for
+  instance, to build the `test` crate whose dependency on the `std` crate is not
+  explicitly listed in its Cargo.toml. Example:
+
+To make `xargo test` work
+
+``` toml
+# Xargo.toml
+[dependencies.std]
+features = ["panic_unwind"]  # `test` depends on this `std` feature
+# stage = 0  # implicit
+
+[dependencies.test]
+stage = 1
+```
+
+- Support for `[dependencies.{}.git]` or `[dependencies.{}.path]` (and their
+  `target.{}.dependencies` variants) in Xargo.toml. With this feature you can
+  inject foreign crates (crates which are not part of the `rust-src` component)
+  into the sysroot. The main use case is replacing the `std` crate with a drop
+  in replacement. Example:
+
+Replace `std` with [`steed`](https://github.com/japaric/steed)
+
+``` toml
+[dependencies.collections]  # `steed` depends on `collections`
+
+[dependencies.std]
+git = "https://github.com/japaric/steed"
+stage = 1
+```
+
 ## [v0.3.3] - 2017-01-09
 
 ### Added
@@ -215,8 +252,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.3...HEAD
-[v0.3.2]: https://github.com/japaric/xargo/compare/v0.3.2...v0.3.3
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.4...HEAD
+[v0.3.4]: https://github.com/japaric/xargo/compare/v0.3.3...v0.3.4
+[v0.3.3]: https://github.com/japaric/xargo/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/japaric/xargo/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/japaric/xargo/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/japaric/xargo/compare/v0.2.3...v0.3.0

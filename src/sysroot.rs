@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use std::process::Command;
 
 use rustc_version::VersionMeta;
@@ -167,7 +168,8 @@ pub fn update(cmode: &CompilationMode,
     let ctoml = cargo::toml(root)?;
     let xtoml = xargo::toml(root)?;
 
-    let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), &src)?;
+    let blueprint =
+        Blueprint::from(xtoml.as_ref(), cmode.triple(), root, &src)?;
 
     let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
@@ -225,6 +227,7 @@ impl Blueprint {
 
     fn from(toml: Option<&xargo::Toml>,
             target: &str,
+            root: &Root,
             src: &Src)
             -> Result<Self> {
         let deps = match (toml.and_then(|t| t.dependencies()),
@@ -284,6 +287,24 @@ impl Blueprint {
                 } else {
                     0
                 };
+
+                if let Some(path) = map.get_mut("path") {
+                    let p = PathBuf::from(path.as_str()
+                        .ok_or_else(|| {
+                            format!("dependencies.{}.path must be a string", k)
+                        })?);
+
+                    if !p.is_absolute() {
+                        *path = Value::String(root.path()
+                            .join(&p)
+                            .canonicalize()
+                            .chain_err(|| {
+                                format!("couldn't canonicalize {}", p.display())
+                            })?
+                            .display()
+                            .to_string());
+                    }
+                }
 
                 if !map.contains_key("path") && !map.contains_key("git") {
                     let path = src.path()

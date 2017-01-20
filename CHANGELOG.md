@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Relative paths in `dependencies.{}.path` were not being correctly handled.
+
 ## [v0.3.4] - 2017-01-18
 
 ### Added

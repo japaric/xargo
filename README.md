@@ -160,6 +160,10 @@ $ xargo build --target msp430-none-elf
     permissions](https://github.com/rust-lang/rust/issues/36488) of the
     `rust/src/jemalloc` directory. `chmod -R +x rust/src/jemalloc` should do the
     trick.
+    
+  - When using compiler plugins (e.g. `serde_derive`) the target triple must
+    be provided even when compiling for the host platform due to the way
+    cargo handles compiler plugins.
 
 ## License
 

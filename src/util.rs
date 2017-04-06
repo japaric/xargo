@@ -10,9 +10,21 @@ use errors::*;
 
 pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
     for e in WalkDir::new(src) {
-        let e = e.unwrap();
+        // This is only an error when there's some sort of intermittent IO error during iteration.
+        // see https://doc.rust-lang.org/std/fs/struct.ReadDir.html
+        let e = e.chain_err(||{
+            format!("intermittent IO error while iterating directory `{}`", src.display()) 
+        })?;
+
         let src_file = e.path();
-        let relative_path = src_file.strip_prefix(src).unwrap();
+        let relative_path = src_file
+            .strip_prefix(src)
+            .chain_err(|| {
+                format!("Could not retrieve relative path of child directory or file `{}` with regards to parent directory `{}`",
+                src_file.display(),
+                src.display())
+            })?;
+
         let dst_file = dst.join(relative_path);
         let metadata = e.metadata()
             .chain_err(|| {

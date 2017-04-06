@@ -11,9 +11,20 @@ pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
     (|| -> io::Result<()> {
             for e in src.read_dir()? {
                 let e = e?;
+                let metadata = e.path().metadata()?;
                 let f = e.file_name();
+                let src = src.join(&f);
+                let dst = dst.join(&f);
 
-                fs::copy(src.join(&f), dst.join(&f))?;
+                if metadata.is_dir() {
+                    fs::create_dir(&dst)?;
+                    cp_r(
+                        src.as_path(),
+                        dst.as_path()
+                    ).map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))?;
+                } else {
+                    fs::copy(src, dst)?;
+                }
             }
 
             Ok(())

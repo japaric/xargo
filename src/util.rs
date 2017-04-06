@@ -1,39 +1,44 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
-use std::{fs, io};
+use std::fs;
 
 use toml::{Parser, Value};
+use walkdir::WalkDir;
 
 use errors::*;
 
 pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
-    (|| -> io::Result<()> {
-            for e in src.read_dir()? {
-                let e = e?;
-                let metadata = e.path().metadata()?;
-                let f = e.file_name();
-                let src = src.join(&f);
-                let dst = dst.join(&f);
+    for e in WalkDir::new(src) {
+        let e = e.unwrap();
+        let src_file = e.path();
+        let relative_path = src_file.strip_prefix(src).unwrap();
+        let dst_file = dst.join(relative_path);
+        let metadata = e.metadata()
+            .chain_err(|| {
+                format!("Could not retrieve metadata of `{}`", 
+                e.path().display())
+            })?;
 
-                if metadata.is_dir() {
-                    fs::create_dir(&dst)?;
-                    cp_r(
-                        src.as_path(),
-                        dst.as_path()
-                    ).map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))?;
-                } else {
-                    fs::copy(src, dst)?;
-                }
-            }
+        if metadata.is_dir() {
+            // ensure the destination directory exists
+            fs::create_dir_all(&dst_file)
+                .chain_err(|| {
+                    format!("Could not create directory `{}`",
+                            dst_file.display())
+                })?;
+        } else {
+            // else copy the file
+            fs::copy(&src_file, &dst_file)
+                .chain_err(|| {
+                    format!("copying files from `{}` to `{}` failed",
+                            src_file.display(),
+                            dst_file.display())
+                })?;
+        };
+    }
 
-            Ok(())
-        })()
-        .chain_err(|| {
-            format!("copying files from `{}` to `{}` failed",
-                    src.display(),
-                    dst.display())
-        })
+    Ok(())
 }
 
 pub fn mkdir(path: &Path) -> Result<()> {

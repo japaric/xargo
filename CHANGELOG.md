@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.6] - 2017-04-07
+
+### Fixed
+
+- Xargo on Windows. The layout of the default / rustc sysroot recently changed
+  on Windows on broke the code that copied the host part of the rustc sysroot
+  into the Xargo sysroot.
+
 ## [v0.3.5] - 2017-01-20
 
 ### Fixed

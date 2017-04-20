@@ -169,6 +169,7 @@ impl Project {
 {
     "arch": "arm",
     "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+    "linker-flavor": "gcc",
     "llvm-target": "thumbv6m-none-eabi",
     "max-atomic-width": 0,
     "os": "none",
@@ -613,6 +614,7 @@ fn specification_changed() {
 {
     "arch": "arm",
     "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+    "linker-flavor": "gcc",
     "llvm-target": "thumbv6m-none-eabi",
     "max-atomic-width": 0,
     "os": "none",
@@ -653,6 +655,7 @@ fn unchanged_specification() {
 {
     "arch": "arm",
     "data-layout": "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64",
+    "linker-flavor": "gcc",
     "llvm-target": "thumbv6m-none-eabi",
     "os": "none",
     "max-atomic-width": 0,

@@ -731,6 +731,7 @@ fn host_twice() {
 // component (cf. #36501) from within the appveyor environment
 #[cfg(feature = "dev")]
 #[cfg(not(windows))]
+#[ignore]
 #[test]
 fn test() {
     fn run() -> Result<()> {

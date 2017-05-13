@@ -70,17 +70,19 @@ impl Sysroot {
             return Ok(Src { path: src.join("rust/src") });
         }
 
-        for e in WalkDir::new(src) {
-            let e = e.chain_err(|| "couldn't walk the sysroot")?;
+        if src.exists() {
+            for e in WalkDir::new(src) {
+                let e = e.chain_err(|| "couldn't walk the sysroot")?;
 
-            // Looking for $SRC/libstd/Cargo.toml
-            if e.file_type().is_file() && e.file_name() == "Cargo.toml" {
-                let toml = e.path();
+                // Looking for $SRC/libstd/Cargo.toml
+                if e.file_type().is_file() && e.file_name() == "Cargo.toml" {
+                    let toml = e.path();
 
-                if let Some(std) = toml.parent() {
-                    if let Some(src) = std.parent() {
-                        if std.file_name() == Some(OsStr::new("libstd")) {
-                            return Ok(Src { path: src.to_owned() });
+                    if let Some(std) = toml.parent() {
+                        if let Some(src) = std.parent() {
+                            if std.file_name() == Some(OsStr::new("libstd")) {
+                                return Ok(Src { path: src.to_owned() });
+                            }
                         }
                     }
                 }

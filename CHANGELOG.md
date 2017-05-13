@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.7] - 2017-05-13
+
+### Changed
+
+- Improved the error message when the `rust-src` component is missing.
+
 ## [v0.3.6] - 2017-04-07
 
 ### Fixed
@@ -266,7 +272,9 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.5...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.7...HEAD
+[v0.3.7]: https://github.com/japaric/xargo/compare/v0.3.6...v0.3.7
+[v0.3.6]: https://github.com/japaric/xargo/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/japaric/xargo/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/japaric/xargo/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/japaric/xargo/compare/v0.3.2...v0.3.3

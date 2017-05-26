@@ -40,6 +40,8 @@ But we also have [binary releases] for the three major OSes.
 
 ## Usage
 
+### `no_std`
+
 `xargo` has the exact same CLI as `cargo`.
 
 ```
@@ -65,6 +67,8 @@ need a bigger subset of the standard crates, specify the dependencies in a
 
 ```
 $ cat Xargo.toml
+# Alternatively you can use [build.dependencies]
+# the syntax is the same as Cargo.toml's; you don't need to specify path or git
 [target.thumbv6m-none-eabi.dependencies]
 collections = {}
 
@@ -77,6 +81,8 @@ $ xargo build --target thumbv6m-none-eabi
    Compiling lib v0.1.0 (file://$PWD)
     Finished debug [unoptimized + debuginfo] target(s) in 0.5 secs
 ```
+
+### `std`
 
 You can compile a customized `std` crate as well, just specify which Cargo
 features to enable.
@@ -133,15 +139,89 @@ $ xargo build --target thumbv6m-none-eabi -v
     Finished debug [unoptimized + debuginfo] target(s) in 0.5 secs
 ```
 
-Oh, and if you want to use `xargo` to compile `std` using a "dev" `rustc`, you
-can use the `XARGO_RUST_SRC` environment variable to tell `xargo` where the Rust
-source is.
+### Dev channel
+
+Oh, and if you want to use `xargo` to compile `std` using a "dev" `rustc`, a
+rust compiled from source, you can use the `XARGO_RUST_SRC` environment variable
+to tell `xargo` where the Rust source is.
 
 ```
 # The source of the `core` crate must be in `$XARGO_RUST_SRC/libcore`
 $ export XARGO_RUST_SRC=/path/to/rust/src
 
 $ xargo build --target msp430-none-elf
+```
+
+**NOTE** This also works with the nightly channel but it's not recommended as
+the Rust source may diverge from what your compiler is able to compile as it may
+make use of newer features that your compiler doesn't understand.
+
+### Compiling the sysroot with custom rustc flags
+
+Xargo uses the same custom rustc flags that apply to the target Cargo project.
+So you can use either the `RUSTFLAGS` env variable or a `.cargo/config`
+configuration file to specify custom rustc flags.
+
+```
+# build the sysroot with debug information
+$ RUSTFLAGS='-g' xargo build --target x86_64-unknown-linux-gnu
+
+# Alternatively
+$ edit .cargo/config && cat $_
+[build]
+rustflags = ["-g"]
+
+# Then you can omit RUSTFLAGS
+$ xargo build --target x86_64-unknown-linux-gnu
+```
+
+### Multi-stage builds
+
+Some standard crates have implicit dependencies between them. For example, the
+`test` crate implicitly depends on the `std`. Implicit here means that the test
+crate Cargo.toml [doesn't list std as its dependency][test]. To compile a
+sysroot that contains such crates you can perform the build in stages by
+specifying which crates belong to each stage in the Xargo.toml file:
+
+[test]: https://github.com/rust-lang/rust/blob/1.17.0/src/libtest/Cargo.toml
+
+``` toml
+[dependencies.std]
+stage = 0
+
+[dependencies.test]
+stage = 1
+```
+
+This will compile an intermediate sysroot, the stage 0 sysroot, containing the
+`std` crate, and then it will compile the `test` crate against that intermediate
+sysroot. The final sysroot, the stage 1 sysroot, will contain both the `std` and
+`test` crates, and their dependencies.
+
+### Creating a sysroot with custom crates
+
+Xargo lets you create a sysroot with custom crates. You can virtually put any
+crate in the sysroot. However, this feature is mainly used to create [alternative
+`std` facades][steed], and to replace the `test` crate with [one that supports
+`no_std` targets][utest]. To specify the contents of the sysroot simply list the
+dependencies in the Xargo.toml file as you would do with Cargo.toml:
+
+[steed]: https://github.com/japaric/steed
+[utest]: https://github.com/japaric/utest
+
+``` toml
+[dependencies]
+collections = {}
+rand = {}
+
+[dependencies.compiler_builtins]
+features = ["mem"]
+git = "https://github.com/rust-lang-nursery/compiler-builtins"
+stage = 1
+
+[dependencies.std]
+git = "https://github.com/japaric/steed"
+stage = 2
 ```
 
 ## Caveats / gotchas

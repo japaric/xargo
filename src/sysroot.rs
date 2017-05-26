@@ -68,7 +68,9 @@ version = "0.0.0"
 
         let cargo = || {
             let mut cmd = Command::new("cargo");
-            cmd.env("RUSTFLAGS", rustflags.for_xargo(home));
+            let mut flags = rustflags.for_xargo(home);
+            flags.push_str(" -Z force-unstable-if-unmarked");
+            cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
             cmd.arg("build");
 

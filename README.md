@@ -161,11 +161,14 @@ $ xargo build --target msp430-none-elf
     `rust/src/jemalloc` directory. `chmod -R +x rust/src/jemalloc` should do the
     trick.
 
-- When using compiler plugins (e.g. `serde_derive`) the target triple must
-  be provided even when compiling for the host platform due to the way
-  cargo handles compiler plugins. i.e. use `xargo build --target
-  x86_64-unknown-linux-gnu` instead of just `xargo build`. (Surprisingly, these
-  commands are NOT the same to Cargo)
+- When using compiler plugins (e.g. `serde_derive`) the target triple must be
+  provided even when compiling for the host platform due to the way cargo
+  handles compiler plugins. I.e., use `xargo build --target
+  x86_64-unknown-linux-gnu` instead of just `xargo
+  build`. (Surprisingly, these commands are NOT the same to Cargo.) You can
+  determine your host's target triple with `rustc -vV`. On *nix, the following
+  rune will extract the triple:
+  `rustc -vV | egrep '^host: ' | sed 's/^host: //'`.
 
 ## License
 

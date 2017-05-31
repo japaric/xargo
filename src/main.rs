@@ -44,7 +44,8 @@ pub enum CompilationMode {
 
 impl CompilationMode {
     fn hash<H>(&self, hasher: &mut H) -> Result<()>
-        where H: Hasher
+    where
+        H: Hasher,
     {
         match *self {
             CompilationMode::Cross(ref target) => target.hash(hasher)?,
@@ -90,8 +91,10 @@ pub fn main() {
                     writeln!(stderr, "{:?}", backtrace).ok();
                 }
             } else {
-                writeln!(stderr,
-                         "note: run with `RUST_BACKTRACE=1` for a backtrace")
+                writeln!(
+                    stderr,
+                    "note: run with `RUST_BACKTRACE=1` for a backtrace"
+                )
                     .ok();
             }
 
@@ -116,9 +119,11 @@ fn run() -> Result<ExitStatus> {
             return cargo::run(&args, verbose);
         }
     } else if args.version() {
-        writeln!(io::stderr(),
-                 concat!("xargo ", env!("CARGO_PKG_VERSION"), "{}"),
-                 include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
+        writeln!(
+            io::stderr(),
+            concat!("xargo ", env!("CARGO_PKG_VERSION"), "{}"),
+            include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
+        )
             .ok();
 
         return cargo::run(&args, verbose);
@@ -150,14 +155,16 @@ fn run() -> Result<ExitStatus> {
             if triple == meta.host {
                 Some(CompilationMode::Native(meta.host.clone()))
             } else {
-                Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)
+                Target::new(triple, &cd, verbose)?.map(
+                    CompilationMode::Cross,
+                )
             }
         } else {
             if let Some(ref config) = config {
                 if let Some(triple) = config.target()? {
-                    Target::new(triple, &cd, verbose)
-                        ?
-                        .map(CompilationMode::Cross)
+                    Target::new(triple, &cd, verbose)?.map(
+                        CompilationMode::Cross,
+                    )
                 } else {
                     Some(CompilationMode::Native(meta.host.clone()))
                 }
@@ -170,21 +177,25 @@ fn run() -> Result<ExitStatus> {
             let home = xargo::home(&cmode)?;
             let rustflags = cargo::rustflags(config.as_ref(), cmode.triple())?;
 
-            sysroot::update(&cmode,
-                            &home,
-                            &root,
-                            &rustflags,
-                            &meta,
-                            &src,
-                            &sysroot,
-                            verbose)?;
-            return xargo::run(&args,
-                              &cmode,
-                              rustflags,
-                              &home,
-                              &meta,
-                              config.as_ref(),
-                              verbose);
+            sysroot::update(
+                &cmode,
+                &home,
+                &root,
+                &rustflags,
+                &meta,
+                &src,
+                &sysroot,
+                verbose,
+            )?;
+            return xargo::run(
+                &args,
+                &cmode,
+                rustflags,
+                &home,
+                &meta,
+                config.as_ref(),
+                verbose,
+            );
         }
     }
 

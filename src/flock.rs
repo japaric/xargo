@@ -57,58 +57,72 @@ impl Filesystem {
     }
 
     pub fn join<T>(&self, other: T) -> Filesystem
-        where T: AsRef<Path>
+    where
+        T: AsRef<Path>,
     {
         Filesystem::new(self.path.join(other))
     }
 
     pub fn open_ro<P>(&self, path: P, msg: &str) -> io::Result<FileLock>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
-        self.open(path.as_ref(),
-                  OpenOptions::new().read(true),
-                  State::Shared,
-                  msg)
+        self.open(
+            path.as_ref(),
+            OpenOptions::new().read(true),
+            State::Shared,
+            msg,
+        )
     }
 
     pub fn open_rw<P>(&self, path: P, msg: &str) -> io::Result<FileLock>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
-        self.open(path.as_ref(),
-                  OpenOptions::new().read(true).write(true).create(true),
-                  State::Exclusive,
-                  msg)
+        self.open(
+            path.as_ref(),
+            OpenOptions::new().read(true).write(true).create(true),
+            State::Exclusive,
+            msg,
+        )
     }
 
-    fn open(&self,
-            path: &Path,
-            opts: &OpenOptions,
-            state: State,
-            msg: &str)
-            -> io::Result<FileLock> {
+    fn open(
+        &self,
+        path: &Path,
+        opts: &OpenOptions,
+        state: State,
+        msg: &str,
+    ) -> io::Result<FileLock> {
         let path = self.path.join(path);
 
-        let f = opts.open(&path)
-            .or_else(|e| if e.kind() == io::ErrorKind::NotFound &&
-                            state == State::Exclusive {
+        let f = opts.open(&path).or_else(
+            |e| if e.kind() == io::ErrorKind::NotFound &&
+                state == State::Exclusive
+            {
                 create_dir_all(path.parent().unwrap())?;
                 opts.open(&path)
             } else {
                 Err(e)
-            })?;
+            },
+        )?;
 
         match state {
             State::Exclusive => {
-                acquire(msg,
-                        &path,
-                        &|| f.try_lock_exclusive(),
-                        &|| f.lock_exclusive())?;
+                acquire(
+                    msg,
+                    &path,
+                    &|| f.try_lock_exclusive(),
+                    &|| f.lock_exclusive(),
+                )?;
             }
             State::Shared => {
-                acquire(msg,
-                        &path,
-                        &|| f.try_lock_shared(),
-                        &|| f.lock_shared())?;
+                acquire(
+                    msg,
+                    &path,
+                    &|| f.try_lock_shared(),
+                    &|| f.lock_shared(),
+                )?;
             }
         }
 
@@ -129,11 +143,12 @@ impl Drop for FileLock {
     }
 }
 
-fn acquire(msg: &str,
-           path: &Path,
-           try: &Fn() -> io::Result<()>,
-           block: &Fn() -> io::Result<()>)
-           -> io::Result<()> {
+fn acquire(
+    msg: &str,
+    path: &Path,
+    try: &Fn() -> io::Result<()>,
+    block: &Fn() -> io::Result<()>,
+) -> io::Result<()> {
     #[cfg(all(target_os = "linux", not(target_env = "musl")))]
     fn is_on_nfs_mount(path: &Path) -> bool {
         use std::ffi::CString;
@@ -175,10 +190,12 @@ fn acquire(msg: &str,
         }
     }
 
-    writeln!(io::stderr(),
-             "{:>12} waiting for file lock on {}",
-             "Blocking",
-             msg)
+    writeln!(
+        io::stderr(),
+        "{:>12} waiting for file lock on {}",
+        "Blocking",
+        msg
+    )
         .ok();
 
     block()

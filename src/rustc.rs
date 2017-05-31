@@ -16,9 +16,9 @@ use extensions::CommandExt;
 use {util, rustc};
 
 fn command() -> Command {
-    env::var_os("RUSTC")
-        .map(Command::new)
-        .unwrap_or_else(|| Command::new("rustc"))
+    env::var_os("RUSTC").map(Command::new).unwrap_or_else(|| {
+            Command::new("rustc")
+        })
 }
 
 /// `rustc --print target-list`
@@ -89,8 +89,10 @@ impl Sysroot {
             }
         }
 
-        Err("`rust-src` component not found. Run `rustup component add \
-             rust-src`.")?
+        Err(
+            "`rust-src` component not found. Run `rustup component add \
+             rust-src`.",
+        )?
     }
 }
 
@@ -101,10 +103,11 @@ pub enum Target {
 }
 
 impl Target {
-    pub fn new(triple: &str,
-               cd: &CurrentDirectory,
-               verbose: bool)
-               -> Result<Option<Target>> {
+    pub fn new(
+        triple: &str,
+        cd: &CurrentDirectory,
+        verbose: bool,
+    ) -> Result<Option<Target>> {
         let triple = triple.to_owned();
 
         if rustc::targets(verbose)?.iter().any(|t| t == &triple) {
@@ -145,7 +148,8 @@ impl Target {
     }
 
     pub fn hash<H>(&self, hasher: &mut H) -> Result<()>
-        where H: Hasher
+    where
+        H: Hasher,
     {
         if let Target::Custom { ref json, .. } = *self {
             // Here we roundtrip to/from JSON to get the same hash when some

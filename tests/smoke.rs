@@ -36,9 +36,13 @@ fn home() -> Result<PathBuf> {
     if let Some(h) = env::var_os("XARGO_HOME") {
         Ok(PathBuf::from(h))
     } else {
-        Ok(env::home_dir()
-            .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
-            .join(".xargo"))
+        Ok(
+            env::home_dir()
+                .ok_or_else(
+                    || "couldn't find your home directory. Is $HOME set?",
+                )?
+                .join(".xargo"),
+        )
     }
 }
 
@@ -46,28 +50,27 @@ fn cleanup(target: &str) -> Result<()> {
     let p = home()?.join("lib/rustlib").join(target);
 
     if p.exists() {
-        fs::remove_dir_all(&p)
-            .chain_err(|| format!("couldn't clean sysroot for {}", target))
+        fs::remove_dir_all(&p).chain_err(|| {
+                format!("couldn't clean sysroot for {}", target)
+            })
     } else {
         Ok(())
     }
 }
 
 fn exists(krate: &str, target: &str) -> Result<bool> {
-    let p = home()
-        ?
-        .join("lib/rustlib")
-        .join(target)
-        .join("lib");
+    let p = home()?.join("lib/rustlib").join(target).join("lib");
 
-    for e in
-        fs::read_dir(&p).chain_err(|| {
-                format!("couldn't read the directory {}", p.display())
-            })? {
+    for e in fs::read_dir(&p).chain_err(|| {
+            format!("couldn't read the directory {}", p.display())
+        })?
+    {
         let e = e.chain_err(|| {
-                format!("error reading the contents of the directory {}",
-                        p.display())
-            })?;
+            format!(
+                "error reading the contents of the directory {}",
+                p.display()
+            )
+        })?;
 
         if e.file_name().to_string_lossy().contains(krate) {
             return Ok(true);
@@ -90,8 +93,8 @@ fn mkdir(path: &Path) -> Result<()> {
 fn sysroot_was_built(stderr: &str, target: &str) -> bool {
     stderr.lines().filter(|l| l.starts_with("+")).any(|l| {
         l.contains("cargo") && l.contains("build") &&
-        l.contains("--target") && l.contains(target) &&
-        l.contains("-p") && l.contains("core")
+            l.contains("--target") && l.contains(target) &&
+            l.contains("-p") && l.contains("core")
     })
 }
 
@@ -114,8 +117,9 @@ fn write(path: &Path, append: bool, contents: &str) -> Result<()> {
 }
 
 fn xargo() -> Result<Command> {
-    let mut p = env::current_exe()
-        .chain_err(|| "couldn't get path to current executable")?;
+    let mut p = env::current_exe().chain_err(
+        || "couldn't get path to current executable",
+    )?;
     p.pop();
     p.pop();
     p.push("xargo");
@@ -129,31 +133,38 @@ trait CommandExt {
 
 impl CommandExt for Command {
     fn run(&mut self) -> Result<()> {
-        let status = self.status()
-            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
+        let status = self.status().chain_err(
+            || format!("couldn't execute `{:?}`", self),
+        )?;
 
         if status.success() {
             Ok(())
         } else {
-            Err(format!("`{:?}` failed with exit code: {:?}",
-                        self,
-                        status.code()))?
+            Err(format!(
+                "`{:?}` failed with exit code: {:?}",
+                self,
+                status.code()
+            ))?
         }
     }
 
     fn run_and_get_stderr(&mut self) -> Result<String> {
-        let out = self.output()
-            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
+        let out = self.output().chain_err(
+            || format!("couldn't execute `{:?}`", self),
+        )?;
 
         if out.status.success() {
-            Ok(String::from_utf8(out.stderr).chain_err(|| {
-                format!("`{:?}` output was not UTF-8",
-                        self)
-            })?)
+            Ok(
+                String::from_utf8(out.stderr).chain_err(|| {
+                        format!("`{:?}` output was not UTF-8", self)
+                    })?,
+            )
         } else {
-            Err(format!("`{:?}` failed with exit code: {:?}",
-                        self,
-                        out.status.code()))?
+            Err(format!(
+                "`{:?}` failed with exit code: {:?}",
+                self,
+                out.status.code()
+            ))?
         }
     }
 }
@@ -178,9 +189,9 @@ impl Project {
 }
 "#;
 
-        let td =
-            TempDir::new("xargo")
-            .chain_err(|| "couldn't create a temporary directory")?;
+        let td = TempDir::new("xargo").chain_err(
+            || "couldn't create a temporary directory",
+        )?;
 
         xargo()?
             .args(&["init", "--lib", "--vcs", "none", "--name", name])
@@ -191,16 +202,12 @@ impl Project {
 
         write(&td.path().join(format!("{}.json", name)), false, JSON)?;
 
-        Ok(Project {
-            name: name,
-            td: td,
-        })
+        Ok(Project { name: name, td: td })
     }
 
     /// Calls `xargo build`
     fn build(&self, target: &str) -> Result<()> {
-        xargo()
-            ?
+        xargo()?
             .args(&["build", "--target", target])
             .current_dir(self.td.path())
             .run()
@@ -234,8 +241,7 @@ impl Project {
 
     /// Calls `xargo doc`
     fn doc(&self, target: &str) -> Result<()> {
-        xargo()
-            ?
+        xargo()?
             .args(&["doc", "--target", target])
             .current_dir(self.td.path())
             .run()
@@ -257,8 +263,9 @@ fn hcleanup(triple: &str) -> Result<()> {
     let p = home()?.join("HOST/lib/rustlib").join(triple);
 
     if p.exists() {
-        fs::remove_dir_all(&p)
-            .chain_err(|| format!("couldn't clean sysroot for {}", triple))
+        fs::remove_dir_all(&p).chain_err(|| {
+                format!("couldn't clean sysroot for {}", triple)
+            })
     } else {
         Ok(())
     }
@@ -277,9 +284,9 @@ impl HProject {
 
         let guard = ONCE.lock();
 
-        let td =
-            TempDir::new("xargo")
-            .chain_err(|| "couldn't create a temporary directory")?;
+        let td = TempDir::new("xargo").chain_err(
+            || "couldn't create a temporary directory",
+        )?;
 
         xargo()?
             .args(&["init", "--lib", "--vcs", "none", "--name", "host"])
@@ -287,9 +294,11 @@ impl HProject {
             .run()?;
 
         if test {
-            write(&td.path().join("src/lib.rs"),
-                  false,
-                  "#![feature(alloc_system)]\nextern crate alloc_system;")?;
+            write(
+                &td.path().join("src/lib.rs"),
+                false,
+                "#![feature(alloc_system)]\nextern crate alloc_system;",
+            )?;
         } else {
             write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
         }
@@ -350,9 +359,11 @@ fn target_dependencies() {
         const TARGET: &'static str = "__target_dependencies";
 
         let project = Project::new(TARGET)?;
-        project.xargo_toml(r#"
+        project.xargo_toml(
+            r#"
 [target.__target_dependencies.dependencies.alloc]
-"#)?;
+"#,
+        )?;
         project.build(TARGET)?;
         assert!(exists("core", TARGET)?);
         assert!(exists("alloc", TARGET)?);
@@ -371,9 +382,11 @@ fn dependencies() {
         const TARGET: &'static str = "__dependencies";
 
         let project = Project::new(TARGET)?;
-        project.xargo_toml(r#"
+        project.xargo_toml(
+            r#"
 [dependencies.alloc]
-"#)?;
+"#,
+        )?;
         project.build(TARGET)?;
         assert!(exists("core", TARGET)?);
         assert!(exists("alloc", TARGET)?);
@@ -432,10 +445,12 @@ fn build_target() {
         const TARGET: &'static str = "__build_target";
 
         let project = Project::new(TARGET)?;
-        project.config(r#"
+        project.config(
+            r#"
 [build]
 target = "__build_target"
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(None)?;
 
@@ -455,10 +470,12 @@ fn override_build_target() {
         const TARGET: &'static str = "__override_build_target";
 
         let project = Project::new(TARGET)?;
-        project.config(r#"
+        project.config(
+            r#"
 [build]
 target = "BAD"
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
@@ -482,10 +499,12 @@ fn lto_changed() {
 
         assert!(sysroot_was_built(&stderr, TARGET));
 
-        project.cargo_toml(r#"
+        project.cargo_toml(
+            r#"
 [profile.release]
 lto = true
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
@@ -509,10 +528,12 @@ fn rustflags_changed() {
 
         assert!(sysroot_was_built(&stderr, TARGET));
 
-        project.config(r#"
+        project.config(
+            r#"
 [build]
 rustflags = ["--cfg", "xargo"]
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
@@ -533,16 +554,19 @@ fn rustflags() {
 
         let project = Project::new(TARGET)?;
 
-        project.config(r#"
+        project.config(
+            r#"
 [build]
 rustflags = ["--cfg", "xargo"]
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-        assert!(stderr.lines()
-            .filter(|l| !l.starts_with("+") && l.contains("rustc"))
-            .all(|l| l.contains("--cfg") && l.contains("xargo")));
+        assert!(stderr
+                .lines()
+                .filter(|l| !l.starts_with("+") && l.contains("rustc"))
+                .all(|l| l.contains("--cfg") && l.contains("xargo")));
 
         Ok(())
     }
@@ -560,16 +584,19 @@ fn panic_abort() {
 
         let project = Project::new(TARGET)?;
 
-        project.cargo_toml(r#"
+        project.cargo_toml(
+            r#"
 [profile.release]
 panic = "abort"
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-        assert!(stderr.lines()
-            .filter(|l| !l.starts_with("+") && l.contains("--release"))
-            .all(|l| l.contains("-C") && l.contains("panic=abort")));
+        assert!(stderr
+                .lines()
+                .filter(|l| !l.starts_with("+") && l.contains("--release"))
+                .all(|l| l.contains("-C") && l.contains("panic=abort")));
 
         Ok(())
     }
@@ -590,10 +617,12 @@ fn link_arg() {
 
         assert!(sysroot_was_built(&stderr, TARGET));
 
-        project.config(r#"
+        project.config(
+            r#"
 [target.__link_arg]
 rustflags = ["-C", "link-arg=-lfoo"]
-"#)?;
+"#,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
@@ -631,9 +660,11 @@ fn specification_changed() {
 
         assert!(sysroot_was_built(&stderr, TARGET));
 
-        write(&project.td.path().join("__specification_changed.json"),
-              false,
-              JSON)?;
+        write(
+            &project.td.path().join("__specification_changed.json"),
+            false,
+            JSON,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
@@ -671,9 +702,11 @@ fn unchanged_specification() {
 
         assert!(sysroot_was_built(&stderr, TARGET));
 
-        write(&project.td.path().join("__unchanged_specification.json"),
-              false,
-              JSON)?;
+        write(
+            &project.td.path().join("__unchanged_specification.json"),
+            false,
+            JSON,
+        )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
@@ -737,13 +770,15 @@ fn test() {
     fn run() -> Result<()> {
         let project = HProject::new(true)?;
 
-        project.xargo_toml("
+        project.xargo_toml(
+            "
 [dependencies.std]
 features = [\"panic_unwind\"]
 
 [dependencies.test]
 stage = 1
-")?;
+",
+        )?;
 
         xargo()?.arg("test").current_dir(project.td.path()).run()?;
 

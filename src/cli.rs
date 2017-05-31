@@ -22,7 +22,9 @@ impl Args {
     }
 
     pub fn verbose(&self) -> bool {
-        self.all.iter().any(|a| a == "--verbose" || a == "-v" || a == "-vv")
+        self.all.iter().any(|a| {
+                a == "--verbose" || a == "-v" || a == "-vv"
+            })
     }
 
     pub fn version(&self) -> bool {

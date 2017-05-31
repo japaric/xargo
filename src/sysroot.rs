@@ -27,14 +27,15 @@ fn profile() -> &'static str {
     "release"
 }
 
-fn build(cmode: &CompilationMode,
-         blueprint: Blueprint,
-         ctoml: &cargo::Toml,
-         home: &Home,
-         rustflags: &Rustflags,
-         hash: u64,
-         verbose: bool)
-         -> Result<()> {
+fn build(
+    cmode: &CompilationMode,
+    blueprint: Blueprint,
+    ctoml: &cargo::Toml,
+    home: &Home,
+    rustflags: &Rustflags,
+    hash: u64,
+    verbose: bool,
+) -> Result<()> {
     const TOML: &'static str = r#"
 [package]
 authors = ["The Rust Project Developers"]
@@ -43,13 +44,15 @@ version = "0.0.0"
 "#;
 
     let rustlib = home.lock_rw(cmode.triple())?;
-    rustlib.remove_siblings()
-        .chain_err(|| format!("couldn't clear {}", rustlib.path().display()))?;
+    rustlib.remove_siblings().chain_err(|| {
+            format!("couldn't clear {}", rustlib.path().display())
+        })?;
     let dst = rustlib.parent().join("lib");
     util::mkdir(&dst)?;
     for (_, stage) in blueprint.stages {
-        let td = TempDir::new("xargo")
-            .chain_err(|| "couldn't create a temporary directory")?;
+        let td = TempDir::new("xargo").chain_err(
+            || "couldn't create a temporary directory",
+        )?;
         let td = td.path();
 
         let mut stoml = TOML.to_owned();
@@ -98,11 +101,13 @@ version = "0.0.0"
         }
 
         // Copy artifacts to Xargo sysroot
-        util::cp_r(&td.join("target")
-                       .join(cmode.triple())
-                       .join(profile())
-                       .join("deps"),
-                   &dst)?;
+        util::cp_r(
+            &td.join("target")
+                .join(cmode.triple())
+                .join(profile())
+                .join("deps"),
+            &dst,
+        )?;
 
     }
 
@@ -133,12 +138,13 @@ fn old_hash(cmode: &CompilationMode, home: &Home) -> Result<Option<u64>> {
 /// - The target specification file, is any
 /// - `[profile.release]` in `Cargo.toml`
 /// - `rustc` commit hash
-fn hash(cmode: &CompilationMode,
-        blueprint: &Blueprint,
-        rustflags: &Rustflags,
-        ctoml: &cargo::Toml,
-        meta: &VersionMeta)
-        -> Result<u64> {
+fn hash(
+    cmode: &CompilationMode,
+    blueprint: &Blueprint,
+    rustflags: &Rustflags,
+    ctoml: &cargo::Toml,
+    meta: &VersionMeta,
+) -> Result<u64> {
     let mut hasher = DefaultHasher::new();
 
     blueprint.hash(&mut hasher);
@@ -158,15 +164,16 @@ fn hash(cmode: &CompilationMode,
     Ok(hasher.finish())
 }
 
-pub fn update(cmode: &CompilationMode,
-              home: &Home,
-              root: &Root,
-              rustflags: &Rustflags,
-              meta: &VersionMeta,
-              src: &Src,
-              sysroot: &Sysroot,
-              verbose: bool)
-              -> Result<()> {
+pub fn update(
+    cmode: &CompilationMode,
+    home: &Home,
+    root: &Root,
+    rustflags: &Rustflags,
+    meta: &VersionMeta,
+    src: &Src,
+    sysroot: &Sysroot,
+    verbose: bool,
+) -> Result<()> {
     let ctoml = cargo::toml(root)?;
     let xtoml = xargo::toml(root)?;
 
@@ -194,15 +201,17 @@ pub fn update(cmode: &CompilationMode,
         }
     }
 
-    lock.remove_siblings()
-        .chain_err(|| format!("couldn't clear {}", lock.path().display()))?;
+    lock.remove_siblings().chain_err(|| {
+            format!("couldn't clear {}", lock.path().display())
+        })?;
     let dst = lock.parent().join("lib");
     util::mkdir(&dst)?;
-    util::cp_r(&sysroot.path()
-                   .join("lib/rustlib")
-                   .join(&meta.host)
-                   .join("lib"),
-               &dst)?;
+    util::cp_r(
+        &sysroot.path().join("lib/rustlib").join(&meta.host).join(
+            "lib",
+        ),
+        &dst,
+    )?;
 
     util::write(&hfile, hash)?;
 
@@ -227,32 +236,36 @@ impl Blueprint {
         Blueprint { stages: BTreeMap::new() }
     }
 
-    fn from(toml: Option<&xargo::Toml>,
-            target: &str,
-            root: &Root,
-            src: &Src)
-            -> Result<Self> {
-        let deps = match (toml.and_then(|t| t.dependencies()),
-                          toml.and_then(|t| t.target_dependencies(target))) {
+    fn from(
+        toml: Option<&xargo::Toml>,
+        target: &str,
+        root: &Root,
+        src: &Src,
+    ) -> Result<Self> {
+        let deps = match (
+            toml.and_then(|t| t.dependencies()),
+            toml.and_then(|t| t.target_dependencies(target)),
+        ) {
             (Some(value), Some(tvalue)) => {
-                let mut deps = value.as_table()
-                    .cloned()
-                    .ok_or_else(|| {
-                        format!("Xargo.toml: `dependencies` must be a table")
-                    })?;
+                let mut deps = value.as_table().cloned().ok_or_else(
+                    || format!("Xargo.toml: `dependencies` must be a table"),
+                )?;
 
-                let more_deps = tvalue.as_table()
-                    .ok_or_else(|| {
-                        format!("Xargo.toml: `target.{}.dependencies` must be \
+                let more_deps = tvalue.as_table().ok_or_else(|| {
+                    format!(
+                        "Xargo.toml: `target.{}.dependencies` must be \
                                  a table",
-                                target)
-                    })?;
+                        target
+                    )
+                })?;
                 for (k, v) in more_deps {
                     if deps.insert(k.to_owned(), v.clone()).is_some() {
-                        Err(format!("found duplicate dependency name {}, \
+                        Err(format!(
+                            "found duplicate dependency name {}, \
                                      but all dependencies must have a \
                                      unique name",
-                                    k))?
+                            k
+                        ))?
                     }
                 }
 
@@ -263,9 +276,11 @@ impl Blueprint {
                 if let Some(table) = value.as_table() {
                     table.clone()
                 } else {
-                    Err(format!("Xargo.toml: target.{}.dependencies must be \
+                    Err(format!(
+                        "Xargo.toml: target.{}.dependencies must be \
                                  a table",
-                                target))?
+                        target
+                    ))?
                 }
             }
             (None, None) => {
@@ -281,30 +296,40 @@ impl Blueprint {
         for (k, v) in deps {
             if let Value::Table(mut map) = v {
                 let stage = if let Some(value) = map.remove("stage") {
-                    value.as_integer()
-                        .ok_or_else(|| {
-                            format!("dependencies.{}.stage must be an integer",
-                                    k)
+                    value.as_integer().ok_or_else(|| {
+                            format!(
+                                "dependencies.{}.stage must be an integer",
+                                k
+                            )
                         })?
                 } else {
                     0
                 };
 
                 if let Some(path) = map.get_mut("path") {
-                    let p = PathBuf::from(path.as_str()
-                        .ok_or_else(|| {
-                            format!("dependencies.{}.path must be a string", k)
-                        })?);
+                    let p = PathBuf::from(
+                        path.as_str().ok_or_else(|| {
+                                format!(
+                                    "dependencies.{}.path must be a string",
+                                    k
+                                )
+                            })?,
+                    );
 
                     if !p.is_absolute() {
-                        *path = Value::String(root.path()
-                            .join(&p)
-                            .canonicalize()
-                            .chain_err(|| {
-                                format!("couldn't canonicalize {}", p.display())
-                            })?
-                            .display()
-                            .to_string());
+                        *path = Value::String(
+                            root.path()
+                                .join(&p)
+                                .canonicalize()
+                                .chain_err(|| {
+                                        format!(
+                                            "couldn't canonicalize {}",
+                                            p.display()
+                                        )
+                                    })?
+                                .display()
+                                .to_string(),
+                        );
                     }
                 }
 
@@ -319,10 +344,12 @@ impl Blueprint {
 
                 blueprint.push(stage, k, map);
             } else {
-                Err(format!("Xargo.toml: target.{}.dependencies.{} must be \
+                Err(format!(
+                    "Xargo.toml: target.{}.dependencies.{} must be \
                              a table",
-                            target,
-                            k))?
+                    target,
+                    k
+                ))?
             }
         }
 
@@ -342,7 +369,8 @@ impl Blueprint {
     }
 
     fn hash<H>(&self, hasher: &mut H)
-        where H: Hasher
+    where
+        H: Hasher,
     {
         for stage in self.stages.values() {
             for (k, v) in stage.toml.iter() {

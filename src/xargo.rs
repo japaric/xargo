@@ -13,20 +13,23 @@ use extensions::CommandExt;
 use flock::{FileLock, Filesystem};
 use {cargo, util};
 
-pub fn run(args: &Args,
-           cmode: &CompilationMode,
-           rustflags: Rustflags,
-           home: &Home,
-           meta: &VersionMeta,
-           config: Option<&Config>,
-           verbose: bool)
-           -> Result<ExitStatus> {
+pub fn run(
+    args: &Args,
+    cmode: &CompilationMode,
+    rustflags: Rustflags,
+    home: &Home,
+    meta: &VersionMeta,
+    config: Option<&Config>,
+    verbose: bool,
+) -> Result<ExitStatus> {
     let mut cmd = Command::new("cargo");
     cmd.args(args.all());
 
     if args.subcommand() == Some(Subcommand::Doc) {
-        cmd.env("RUSTDOCFLAGS",
-                cargo::rustdocflags(config, cmode.triple())?.for_xargo(home));
+        cmd.env(
+            "RUSTDOCFLAGS",
+            cargo::rustdocflags(config, cmode.triple())?.for_xargo(home),
+        );
     }
 
     cmd.env("RUSTFLAGS", rustflags.for_xargo(home));
@@ -50,9 +53,7 @@ impl Home {
     }
 
     fn path(&self, triple: &str) -> Filesystem {
-        self.path
-            .join("lib/rustlib")
-            .join(triple)
+        self.path.join("lib/rustlib").join(triple)
     }
 
     pub fn lock_ro(&self, triple: &str) -> Result<FileLock> {
@@ -102,7 +103,9 @@ impl Toml {
 
     /// Returns the `target.{}.dependencies` part of `Xargo.toml`
     pub fn target_dependencies(&self, target: &str) -> Option<&Value> {
-        self.table.lookup(&format!("target.{}.dependencies", target))
+        self.table.lookup(
+            &format!("target.{}.dependencies", target),
+        )
     }
 }
 

@@ -152,7 +152,12 @@ fn run() -> Result<ExitStatus> {
         };
 
         let cmode = if let Some(triple) = args.target() {
-            if triple == meta.host {
+            if Path::new(triple).is_file() {
+                bail!(
+                    "Xargo doesn't support files as an argument to --target. \
+                     Use `--target foo` instead of `--target foo.json`."
+                )
+            } else if triple == meta.host {
                 Some(CompilationMode::Native(meta.host.clone()))
             } else {
                 Target::new(triple, &cd, verbose)?.map(

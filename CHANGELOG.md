@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.8] - 2017-05-30
+
+### Changed
+
+- Improved the error message when `--target foo.json` is used.
+
 ## [v0.3.7] - 2017-05-13
 
 ### Changed
@@ -272,7 +278,8 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.7...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.8...HEAD
+[v0.3.8]: https://github.com/japaric/xargo/compare/v0.3.7...v0.3.8
 [v0.3.7]: https://github.com/japaric/xargo/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/japaric/xargo/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/japaric/xargo/compare/v0.3.4...v0.3.5

@@ -318,16 +318,8 @@ stage = 2
   because `std` and other standard crates depend on unstable features so it's
   not possible to build the sysroot with stable or beta.
 
-- As of nightly-2016-12-19, `std` can't be compiled from the `rust-src`
-  component *without* patching the source.
-
-  - To build `std` *without* the "jemalloc" feature, apply the patch
-    in [rust-lang/rust#37975](https://github.com/rust-lang/rust/pull/37975).
-
-  - To build `std` *with* the "jemalloc" feature, you'll have to [fix the
-    permissions](https://github.com/rust-lang/rust/issues/36488) of the
-    `rust/src/jemalloc` directory. `chmod -R +x rust/src/jemalloc` should do the
-    trick.
+- To build `std` *without* the "jemalloc" feature, apply the patch
+  in [rust-lang/rust#37975](https://github.com/rust-lang/rust/pull/37975).
 
 - When using compiler plugins (e.g. `serde_derive`) the target triple must be
   provided even when compiling for the host platform due to the way cargo

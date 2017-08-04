@@ -20,6 +20,7 @@ use tempdir::TempDir;
 use errors::*;
 
 mod errors {
+    #![allow(unused_doc_comment)]
     error_chain!();
 }
 

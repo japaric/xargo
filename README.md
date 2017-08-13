@@ -318,8 +318,11 @@ stage = 2
   because `std` and other standard crates depend on unstable features so it's
   not possible to build the sysroot with stable or beta.
 
-- To build `std` *without* the "jemalloc" feature, apply the patch
-  in [rust-lang/rust#37975](https://github.com/rust-lang/rust/pull/37975).
+- `std` is built as rlib *and* dylib. The dylib needs a panic library and an
+  allocator.  If you do not specify the `panic-unwind` feature, you have to set
+  `panic = "abort"` in `Cargo.toml`.  Currently, it is not possible to build
+  without the `jemalloc` feature.  For some further information on this issue,
+  see [rust-lang/rust#43637](https://github.com/rust-lang/rust/issues/43637#issuecomment-320463578).
 
 - When using compiler plugins (e.g. `serde_derive`) the target triple must be
   provided even when compiling for the host platform due to the way cargo

@@ -73,6 +73,7 @@ version = "0.0.0"
             let mut cmd = Command::new("cargo");
             let mut flags = rustflags.for_xargo(home);
             flags.push_str(" -Z force-unstable-if-unmarked");
+            flags.push_str(" -C metadata=xargo");
             cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
             cmd.arg("build");

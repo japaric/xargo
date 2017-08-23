@@ -3,6 +3,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::process::Command;
+use std::io::{self, Write};
 
 use rustc_version::VersionMeta;
 use tempdir::TempDir;
@@ -73,6 +74,9 @@ version = "0.0.0"
             let mut cmd = Command::new("cargo");
             let mut flags = rustflags.for_xargo(home);
             flags.push_str(" -Z force-unstable-if-unmarked");
+            if verbose {
+                writeln!(io::stderr(), "+ RUSTFLAGS={:?}", flags).ok();
+            }
             cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
             cmd.arg("build");

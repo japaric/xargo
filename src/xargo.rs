@@ -1,6 +1,7 @@
 use std::path::{Display, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::{env, mem};
+use std::io::{self, Write};
 
 use toml::Value;
 use rustc_version::VersionMeta;
@@ -32,7 +33,11 @@ pub fn run(
         );
     }
 
-    cmd.env("RUSTFLAGS", rustflags.for_xargo(home));
+    let flags = rustflags.for_xargo(home);
+    if verbose {
+        writeln!(io::stderr(), "+ RUSTFLAGS={:?}", flags).ok();
+    }
+    cmd.env("RUSTFLAGS", flags);
 
     let locks = (home.lock_ro(&meta.host), home.lock_ro(cmode.triple()));
 

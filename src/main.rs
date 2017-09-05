@@ -3,6 +3,8 @@
 #[macro_use]
 extern crate error_chain;
 extern crate fs2;
+#[cfg(any(all(target_os = "linux", not(target_env = "musl")),
+          target_os = "macos"))]
 extern crate libc;
 extern crate rustc_version;
 extern crate serde_json;

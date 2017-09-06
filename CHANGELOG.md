@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.9] - 2017-09-06
+
+### Added
+
+- Use Cargo.lock from the `rust-src` component if available. With this change
+  the Xargo sysroot will be built using the exact same set of dependencies that
+  the official sysroot distributed via rustup uses.
+
+- The `RUSTFLAGS` variable internally used by Xargo is now printed when verbose
+  (`-v`) mode is enabled.
+
+### Changed
+
+- Updated the documentation about building `std` with recent nightlies.
+
 ## [v0.3.8] - 2017-05-30
 
 ### Changed

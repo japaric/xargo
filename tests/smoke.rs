@@ -7,6 +7,8 @@ extern crate error_chain;
 extern crate parking_lot;
 extern crate rustc_version;
 extern crate tempdir;
+#[macro_use]
+extern crate lazy_static;
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -281,7 +283,9 @@ struct HProject {
 impl HProject {
     fn new(test: bool) -> Result<Self> {
         // There can only be one instance of this type at any point in time
-        static ONCE: Mutex<()> = Mutex::new(());
+        lazy_static! {
+            static ref ONCE: Mutex<()> = Mutex::new(());
+        }
 
         let guard = ONCE.lock();
 

@@ -149,6 +149,11 @@ fn run() -> Result<ExitStatus> {
                 }
             }
             Channel::Stable | Channel::Beta => {
+                writeln!(
+                    io::stderr(),
+                    "WARNING: the sysroot can't be built for the {:?} channel. \
+                     Switch to nightly.",
+                    meta.channel).ok();
                 return cargo::run(&args, verbose)
             }
         };

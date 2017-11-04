@@ -27,13 +27,9 @@ matrix:
       rust: nightly
     - env: TARGET=i686-apple-darwin
       os: osx
-      # old nightly to work around rust-lang/cargo#4699
-      rust: nightly-2017-10-10
     - env: TARGET=x86_64-apple-darwin
       os: osx
       rust: nightly
-      # old nightly to work around rust-lang/cargo#4699
-      rust: nightly-2017-10-10
 
 install:
   - bash ci/install.sh

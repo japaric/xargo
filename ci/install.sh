@@ -1,9 +1,6 @@
-set -ex
+set -euxo pipefail
 
 main() {
-    curl https://sh.rustup.rs -sSf | \
-        sh -s -- -y --default-toolchain $TRAVIS_RUST_VERSION
-
     local target=
     if [ $TRAVIS_OS_NAME = linux ]; then
         target=x86_64-unknown-linux-gnu
@@ -13,6 +10,7 @@ main() {
         sort=gsort  # for `sort --sort-version`, from brew's coreutils.
     fi
 
+    # install latest `cross` binary
     local tag=$(git ls-remote --tags --refs --exit-code https://github.com/japaric/cross \
                     | cut -d/ -f3 \
                     | grep -E '^v[0.1.0-9.]+$' \
@@ -24,6 +22,19 @@ main() {
            --git japaric/cross \
            --tag $tag \
            --target $target
+
+    # needed to test Xargo
+    rustup component add rust-src
+
+    # NOTE(sed) work around for rust-lang/rust#36501
+    case $TRAVIS_OS_NAME in
+        linux)
+            find $(rustc --print sysroot) -name Cargo.toml -print0 | xargs -0 sed -i '/"dylib"/d';
+            ;;
+        osx)
+            find $(rustc --print sysroot) -name Cargo.toml -print0 | xargs -0 sed -i '' '/"dylib"/d';
+            ;;
+    esac
 }
 
 if [ ! -z $TRAVIS_TAG ] || [ $TRAVIS_BRANCH != master ] || [ $TRAVIS_EVENT_TYPE = cron ]; then

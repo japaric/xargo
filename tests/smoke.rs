@@ -187,6 +187,7 @@ impl Project {
     "llvm-target": "thumbv6m-none-eabi",
     "max-atomic-width": 0,
     "os": "none",
+    "target-c-int-width": "32",
     "target-endian": "little",
     "target-pointer-width": "32"
 }
@@ -653,6 +654,7 @@ fn specification_changed() {
     "max-atomic-width": 0,
     "os": "none",
     "panic-strategy": "abort",
+    "target-c-int-width": "32",
     "target-endian": "little",
     "target-pointer-width": "32"
 }
@@ -695,6 +697,7 @@ fn unchanged_specification() {
     "llvm-target": "thumbv6m-none-eabi",
     "os": "none",
     "max-atomic-width": 0,
+    "target-c-int-width": "32",
     "target-endian": "little",
     "target-pointer-width": "32"
 }

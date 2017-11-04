@@ -96,16 +96,14 @@ impl Filesystem {
     ) -> io::Result<FileLock> {
         let path = self.path.join(path);
 
-        let f = opts.open(&path).or_else(
-            |e| if e.kind() == io::ErrorKind::NotFound &&
-                state == State::Exclusive
-            {
+        let f = opts.open(&path).or_else(|e| {
+            if e.kind() == io::ErrorKind::NotFound && state == State::Exclusive {
                 create_dir_all(path.parent().unwrap())?;
                 opts.open(&path)
             } else {
                 Err(e)
-            },
-        )?;
+            }
+        })?;
 
         match state {
             State::Exclusive => {
@@ -117,12 +115,7 @@ impl Filesystem {
                 )?;
             }
             State::Shared => {
-                acquire(
-                    msg,
-                    &path,
-                    &|| f.try_lock_shared(),
-                    &|| f.lock_shared(),
-                )?;
+                acquire(msg, &path, &|| f.try_lock_shared(), &|| f.lock_shared())?;
             }
         }
 
@@ -180,14 +173,13 @@ fn acquire(
     match try() {
         Ok(_) => return Ok(()),
         #[cfg(target_os = "macos")]
-        Err(ref e) if e.raw_os_error() == Some(::libc::ENOTSUP) => {
+        Err(ref e) if e.raw_os_error() == Some(::libc::ENOTSUP) =>
+        {
             return Ok(())
         }
-        Err(e) => {
-            if e.raw_os_error() != fs2::lock_contended_error().raw_os_error() {
-                return Err(e);
-            }
-        }
+        Err(e) => if e.raw_os_error() != fs2::lock_contended_error().raw_os_error() {
+            return Err(e);
+        },
     }
 
     writeln!(
@@ -195,8 +187,7 @@ fn acquire(
         "{:>12} waiting for file lock on {}",
         "Blocking",
         msg
-    )
-        .ok();
+    ).ok();
 
     block()
 }

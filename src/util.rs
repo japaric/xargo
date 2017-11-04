@@ -56,18 +56,14 @@ pub fn cp_r(src: &Path, dst: &Path) -> Result<()> {
 }
 
 pub fn mkdir(path: &Path) -> Result<()> {
-    fs::create_dir(path).chain_err(|| {
-            format!("couldn't create directory {}", path.display())
-        })
+    fs::create_dir(path).chain_err(|| format!("couldn't create directory {}", path.display()))
 }
 
 /// Parses `path` as TOML
 pub fn parse(path: &Path) -> Result<Value> {
-    Ok(Value::Table(
-        Parser::new(&read(path)?).parse().ok_or_else(|| {
-                format!("{} is not valid TOML", path.display())
-            })?,
-    ))
+    Ok(Value::Table(Parser::new(&read(path)?)
+        .parse()
+        .ok_or_else(|| format!("{} is not valid TOML", path.display()))?))
 }
 
 pub fn read(path: &Path) -> Result<String> {

@@ -93,7 +93,9 @@ pub fn home(cmode: &CompilationMode) -> Result<Home> {
         p.push("HOST");
     }
 
-    Ok(Home { path: Filesystem::new(p) })
+    Ok(Home {
+        path: Filesystem::new(p),
+    })
 }
 
 pub struct Toml {
@@ -108,9 +110,8 @@ impl Toml {
 
     /// Returns the `target.{}.dependencies` part of `Xargo.toml`
     pub fn target_dependencies(&self, target: &str) -> Option<&Value> {
-        self.table.lookup(
-            &format!("target.{}.dependencies", target),
-        )
+        self.table
+            .lookup(&format!("target.{}.dependencies", target))
     }
 }
 

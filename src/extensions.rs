@@ -32,9 +32,8 @@ impl CommandExt for Command {
             writeln!(io::stderr(), "+ {:?}", self).ok();
         }
 
-        self.status().chain_err(
-            || format!("couldn't execute `{:?}`", self),
-        )
+        self.status()
+            .chain_err(|| format!("couldn't execute `{:?}`", self))
     }
 
     /// Runs the command to completion and returns its stdout
@@ -43,16 +42,12 @@ impl CommandExt for Command {
             writeln!(io::stderr(), "+ {:?}", self).ok();
         }
 
-        let out = self.output().chain_err(
-            || format!("couldn't execute `{:?}`", self),
-        )?;
+        let out = self.output()
+            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
 
         if out.status.success() {
-            Ok(
-                String::from_utf8(out.stdout).chain_err(|| {
-                        format!("`{:?}` output was not UTF-8", self)
-                    })?,
-            )
+            Ok(String::from_utf8(out.stdout)
+                .chain_err(|| format!("`{:?}` output was not UTF-8", self))?)
         } else {
             Err(format!(
                 "`{:?}` failed with exit code: {:?}",

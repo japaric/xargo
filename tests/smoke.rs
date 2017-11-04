@@ -4,11 +4,11 @@
 
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate lazy_static;
 extern crate parking_lot;
 extern crate rustc_version;
 extern crate tempdir;
-#[macro_use]
-extern crate lazy_static;
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -41,9 +41,7 @@ fn home() -> Result<PathBuf> {
     } else {
         Ok(
             env::home_dir()
-                .ok_or_else(
-                    || "couldn't find your home directory. Is $HOME set?",
-                )?
+                .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
                 .join(".xargo"),
         )
     }
@@ -53,9 +51,7 @@ fn cleanup(target: &str) -> Result<()> {
     let p = home()?.join("lib/rustlib").join(target);
 
     if p.exists() {
-        fs::remove_dir_all(&p).chain_err(|| {
-                format!("couldn't clean sysroot for {}", target)
-            })
+        fs::remove_dir_all(&p).chain_err(|| format!("couldn't clean sysroot for {}", target))
     } else {
         Ok(())
     }
@@ -64,9 +60,7 @@ fn cleanup(target: &str) -> Result<()> {
 fn exists(krate: &str, target: &str) -> Result<bool> {
     let p = home()?.join("lib/rustlib").join(target).join("lib");
 
-    for e in fs::read_dir(&p).chain_err(|| {
-            format!("couldn't read the directory {}", p.display())
-        })?
+    for e in fs::read_dir(&p).chain_err(|| format!("couldn't read the directory {}", p.display()))?
     {
         let e = e.chain_err(|| {
             format!(
@@ -95,9 +89,8 @@ fn mkdir(path: &Path) -> Result<()> {
 
 fn sysroot_was_built(stderr: &str, target: &str) -> bool {
     stderr.lines().filter(|l| l.starts_with("+")).any(|l| {
-        l.contains("cargo") && l.contains("build") &&
-            l.contains("--target") && l.contains(target) &&
-            l.contains("-p") && l.contains("core")
+        l.contains("cargo") && l.contains("build") && l.contains("--target") && l.contains(target)
+            && l.contains("-p") && l.contains("core")
     })
 }
 
@@ -120,9 +113,7 @@ fn write(path: &Path, append: bool, contents: &str) -> Result<()> {
 }
 
 fn xargo() -> Result<Command> {
-    let mut p = env::current_exe().chain_err(
-        || "couldn't get path to current executable",
-    )?;
+    let mut p = env::current_exe().chain_err(|| "couldn't get path to current executable")?;
     p.pop();
     p.pop();
     p.push("xargo");
@@ -136,9 +127,8 @@ trait CommandExt {
 
 impl CommandExt for Command {
     fn run(&mut self) -> Result<()> {
-        let status = self.status().chain_err(
-            || format!("couldn't execute `{:?}`", self),
-        )?;
+        let status = self.status()
+            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
 
         if status.success() {
             Ok(())
@@ -152,16 +142,12 @@ impl CommandExt for Command {
     }
 
     fn run_and_get_stderr(&mut self) -> Result<String> {
-        let out = self.output().chain_err(
-            || format!("couldn't execute `{:?}`", self),
-        )?;
+        let out = self.output()
+            .chain_err(|| format!("couldn't execute `{:?}`", self))?;
 
         if out.status.success() {
-            Ok(
-                String::from_utf8(out.stderr).chain_err(|| {
-                        format!("`{:?}` output was not UTF-8", self)
-                    })?,
-            )
+            Ok(String::from_utf8(out.stderr)
+                .chain_err(|| format!("`{:?}` output was not UTF-8", self))?)
         } else {
             Err(format!(
                 "`{:?}` failed with exit code: {:?}",
@@ -193,9 +179,7 @@ impl Project {
 }
 "#;
 
-        let td = TempDir::new("xargo").chain_err(
-            || "couldn't create a temporary directory",
-        )?;
+        let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
             .args(&["init", "--lib", "--vcs", "none", "--name", name])
@@ -267,9 +251,7 @@ fn hcleanup(triple: &str) -> Result<()> {
     let p = home()?.join("HOST/lib/rustlib").join(triple);
 
     if p.exists() {
-        fs::remove_dir_all(&p).chain_err(|| {
-                format!("couldn't clean sysroot for {}", triple)
-            })
+        fs::remove_dir_all(&p).chain_err(|| format!("couldn't clean sysroot for {}", triple))
     } else {
         Ok(())
     }
@@ -290,9 +272,7 @@ impl HProject {
 
         let guard = ONCE.lock();
 
-        let td = TempDir::new("xargo").chain_err(
-            || "couldn't create a temporary directory",
-        )?;
+        let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
             .args(&["init", "--lib", "--vcs", "none", "--name", "host"])
@@ -569,10 +549,12 @@ rustflags = ["--cfg", "xargo"]
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-        assert!(stderr
+        assert!(
+            stderr
                 .lines()
                 .filter(|l| !l.starts_with("+") && l.contains("rustc"))
-                .all(|l| l.contains("--cfg") && l.contains("xargo")));
+                .all(|l| l.contains("--cfg") && l.contains("xargo"))
+        );
 
         Ok(())
     }
@@ -599,10 +581,12 @@ panic = "abort"
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
-        assert!(stderr
+        assert!(
+            stderr
                 .lines()
                 .filter(|l| !l.starts_with("+") && l.contains("--release"))
-                .all(|l| l.contains("-C") && l.contains("panic=abort")));
+                .all(|l| l.contains("-C") && l.contains("panic=abort"))
+        );
 
         Ok(())
     }

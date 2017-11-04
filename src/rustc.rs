@@ -13,12 +13,12 @@ use walkdir::WalkDir;
 use CurrentDirectory;
 use errors::*;
 use extensions::CommandExt;
-use {util, rustc};
+use {rustc, util};
 
 fn command() -> Command {
-    env::var_os("RUSTC").map(Command::new).unwrap_or_else(|| {
-            Command::new("rustc")
-        })
+    env::var_os("RUSTC")
+        .map(Command::new)
+        .unwrap_or_else(|| Command::new("rustc"))
 }
 
 /// `rustc --print target-list`
@@ -34,7 +34,11 @@ pub fn sysroot(verbose: bool) -> Result<Sysroot> {
     command()
         .args(&["--print", "sysroot"])
         .run_and_get_stdout(verbose)
-        .map(|l| Sysroot { path: PathBuf::from(l.trim()) })
+        .map(|l| {
+            Sysroot {
+                path: PathBuf::from(l.trim()),
+            }
+        })
 }
 /// Path to Rust source
 pub struct Src {
@@ -43,7 +47,11 @@ pub struct Src {
 
 impl Src {
     pub fn from_env() -> Option<Self> {
-        env::var_os("XARGO_RUST_SRC").map(|s| Src { path: PathBuf::from(s) })
+        env::var_os("XARGO_RUST_SRC").map(|s| {
+            Src {
+                path: PathBuf::from(s),
+            }
+        })
     }
 
     pub fn path(&self) -> &Path {
@@ -67,7 +75,9 @@ impl Sysroot {
         let src = self.path().join("lib/rustlib/src");
 
         if src.join("rust/src/libstd/Cargo.toml").is_file() {
-            return Ok(Src { path: src.join("rust/src") });
+            return Ok(Src {
+                path: src.join("rust/src"),
+            });
         }
 
         if src.exists() {
@@ -81,7 +91,9 @@ impl Sysroot {
                     if let Some(std) = toml.parent() {
                         if let Some(src) = std.parent() {
                             if std.file_name() == Some(OsStr::new("libstd")) {
-                                return Ok(Src { path: src.to_owned() });
+                                return Ok(Src {
+                                    path: src.to_owned(),
+                                });
                             }
                         }
                     }
@@ -103,11 +115,7 @@ pub enum Target {
 }
 
 impl Target {
-    pub fn new(
-        triple: &str,
-        cd: &CurrentDirectory,
-        verbose: bool,
-    ) -> Result<Option<Target>> {
+    pub fn new(triple: &str, cd: &CurrentDirectory, verbose: bool) -> Result<Option<Target>> {
         let triple = triple.to_owned();
 
         if rustc::targets(verbose)?.iter().any(|t| t == &triple) {

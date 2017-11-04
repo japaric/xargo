@@ -1,4 +1,4 @@
-set -ex
+set -euxo pipefail
 
 main() {
     local src=$(pwd) \

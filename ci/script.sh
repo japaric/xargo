@@ -1,4 +1,4 @@
-set -ex
+set -euxo pipefail
 
 main() {
     cross build --target $TARGET

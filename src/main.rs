@@ -3,8 +3,7 @@
 #[macro_use]
 extern crate error_chain;
 extern crate fs2;
-#[cfg(any(all(target_os = "linux", not(target_env = "musl")),
-          target_os = "macos"))]
+#[cfg(any(all(target_os = "linux", not(target_env = "musl")), target_os = "macos"))]
 extern crate libc;
 extern crate rustc_version;
 extern crate serde_json;
@@ -93,20 +92,14 @@ pub fn main() {
                     writeln!(stderr, "{:?}", backtrace).ok();
                 }
             } else {
-                writeln!(
-                    stderr,
-                    "note: run with `RUST_BACKTRACE=1` for a backtrace"
-                )
-                    .ok();
+                writeln!(stderr, "note: run with `RUST_BACKTRACE=1` for a backtrace").ok();
             }
 
             process::exit(1)
         }
-        Ok(status) => {
-            if !status.success() {
-                process::exit(status.code().unwrap_or(1))
-            }
-        }
+        Ok(status) => if !status.success() {
+            process::exit(status.code().unwrap_or(1))
+        },
     }
 }
 
@@ -125,8 +118,7 @@ fn run() -> Result<ExitStatus> {
             io::stderr(),
             concat!("xargo ", env!("CARGO_PKG_VERSION"), "{}"),
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
-        )
-            .ok();
+        ).ok();
 
         return cargo::run(&args, verbose);
     }
@@ -140,21 +132,21 @@ fn run() -> Result<ExitStatus> {
         let src = match meta.channel {
             Channel::Dev => rustc::Src::from_env().ok_or(
                 "The XARGO_RUST_SRC env variable must be set and point to the \
-                 Rust source directory when working with the 'dev' channel")?,
-            Channel::Nightly => {
-                if let Some(src) = rustc::Src::from_env() {
-                    src
-                } else {
-                    sysroot.src()?
-                }
-            }
+                 Rust source directory when working with the 'dev' channel",
+            )?,
+            Channel::Nightly => if let Some(src) = rustc::Src::from_env() {
+                src
+            } else {
+                sysroot.src()?
+            },
             Channel::Stable | Channel::Beta => {
                 writeln!(
                     io::stderr(),
                     "WARNING: the sysroot can't be built for the {:?} channel. \
                      Switch to nightly.",
-                    meta.channel).ok();
-                return cargo::run(&args, verbose)
+                    meta.channel
+                ).ok();
+                return cargo::run(&args, verbose);
             }
         };
 
@@ -167,16 +159,12 @@ fn run() -> Result<ExitStatus> {
             } else if triple == meta.host {
                 Some(CompilationMode::Native(meta.host.clone()))
             } else {
-                Target::new(triple, &cd, verbose)?.map(
-                    CompilationMode::Cross,
-                )
+                Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)
             }
         } else {
             if let Some(ref config) = config {
                 if let Some(triple) = config.target()? {
-                    Target::new(triple, &cd, verbose)?.map(
-                        CompilationMode::Cross,
-                    )
+                    Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)
                 } else {
                     Some(CompilationMode::Native(meta.host.clone()))
                 }

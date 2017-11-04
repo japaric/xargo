@@ -26,9 +26,7 @@ impl Rustflags {
         while let Some(flag) = flags.next() {
             if flag == "-C" {
                 if let Some(next) = flags.next() {
-                    if next.starts_with("link-arg=") ||
-                        next.starts_with("link-args=")
-                    {
+                    if next.starts_with("link-arg=") || next.starts_with("link-args=") {
                         // don't hash linker arguments
                     } else {
                         flag.hash(hasher);
@@ -55,7 +53,6 @@ impl Rustflags {
 impl fmt::Display for Rustflags {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.flags.join(" "), f)
-
     }
 }
 
@@ -76,10 +73,7 @@ impl Rustdocflags {
     }
 }
 
-pub fn rustdocflags(
-    config: Option<&Config>,
-    target: &str,
-) -> Result<Rustdocflags> {
+pub fn rustdocflags(config: Option<&Config>, target: &str) -> Result<Rustdocflags> {
     flags(config, target, "rustdocflags").map(|fs| Rustdocflags { flags: fs })
 }
 
@@ -87,11 +81,7 @@ pub fn rustdocflags(
 /// Returns the flags for `tool` (e.g. rustflags)
 ///
 /// This looks into the environment and into `.cargo/config`
-fn flags(
-    config: Option<&Config>,
-    target: &str,
-    tool: &str,
-) -> Result<Vec<String>> {
+fn flags(config: Option<&Config>, target: &str, tool: &str) -> Result<Vec<String>> {
     if let Some(t) = env::var_os(tool.to_uppercase()) {
         return Ok(
             t.to_string_lossy()
@@ -109,8 +99,7 @@ fn flags(
             .or_else(|| {
                 build = true;
                 config.table.lookup(&format!("build.{}", tool))
-            })
-        {
+            }) {
             let mut flags = vec![];
 
             let mut error = false;
@@ -131,13 +120,13 @@ fn flags(
                 if build {
                     Err(format!(
                         ".cargo/config: build.{} must be an array \
-                                 of strings",
+                         of strings",
                         tool
                     ))?
                 } else {
                     Err(format!(
                         ".cargo/config: target.{}.{} must be an \
-                                 array of strings",
+                         array of strings",
                         target,
                         tool
                     ))?
@@ -154,9 +143,9 @@ fn flags(
 }
 
 pub fn run(args: &Args, verbose: bool) -> Result<ExitStatus> {
-    Command::new("cargo").args(args.all()).run_and_get_status(
-        verbose,
-    )
+    Command::new("cargo")
+        .args(args.all())
+        .run_and_get_status(verbose)
 }
 
 pub struct Config {
@@ -166,11 +155,8 @@ pub struct Config {
 impl Config {
     pub fn target(&self) -> Result<Option<&str>> {
         if let Some(v) = self.table.lookup("build.target") {
-            Ok(Some(
-                v.as_str().ok_or_else(
-                    || format!(".cargo/config: build.target must be a string"),
-                )?,
-            ))
+            Ok(Some(v.as_str()
+                .ok_or_else(|| format!(".cargo/config: build.target must be a string"))?))
         } else {
             Ok(None)
         }
@@ -178,14 +164,12 @@ impl Config {
 }
 
 pub fn config() -> Result<Option<Config>> {
-    let cd = env::current_dir().chain_err(
-        || "couldn't get the current directory",
-    )?;
+    let cd = env::current_dir().chain_err(|| "couldn't get the current directory")?;
 
     if let Some(p) = util::search(&cd, ".cargo/config") {
-        Ok(Some(
-            Config { table: util::parse(&p.join(".cargo/config"))? },
-        ))
+        Ok(Some(Config {
+            table: util::parse(&p.join(".cargo/config"))?,
+        }))
     } else {
         Ok(None)
     }
@@ -237,9 +221,9 @@ pub struct Toml {
 impl Toml {
     /// `profile.release` part of `Cargo.toml`
     pub fn profile(&self) -> Option<Profile> {
-        self.table.lookup("profile.release").map(
-            |t| Profile { table: t },
-        )
+        self.table
+            .lookup("profile.release")
+            .map(|t| Profile { table: t })
     }
 }
 
@@ -258,13 +242,9 @@ impl Root {
 }
 
 pub fn root() -> Result<Option<Root>> {
-    let cd = env::current_dir().chain_err(
-        || "couldn't get the current directory",
-    )?;
+    let cd = env::current_dir().chain_err(|| "couldn't get the current directory")?;
 
-    Ok(
-        util::search(&cd, "Cargo.toml").map(|p| Root { path: p.to_owned() }),
-    )
+    Ok(util::search(&cd, "Cargo.toml").map(|p| Root { path: p.to_owned() }))
 }
 
 #[derive(Clone, Copy, PartialEq)]

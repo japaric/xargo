@@ -47,15 +47,13 @@ version = "0.0.0"
 "#;
 
     let rustlib = home.lock_rw(cmode.triple())?;
-    rustlib.remove_siblings().chain_err(|| {
-            format!("couldn't clear {}", rustlib.path().display())
-        })?;
+    rustlib
+        .remove_siblings()
+        .chain_err(|| format!("couldn't clear {}", rustlib.path().display()))?;
     let dst = rustlib.parent().join("lib");
     util::mkdir(&dst)?;
     for (_, stage) in blueprint.stages {
-        let td = TempDir::new("xargo").chain_err(
-            || "couldn't create a temporary directory",
-        )?;
+        let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
         let td = td.path();
 
         let mut stoml = TOML.to_owned();
@@ -72,9 +70,7 @@ version = "0.0.0"
             // Recent rust-src comes with a lockfile for libstd. Use it.
             let lockfile = src.path().join("Cargo.lock");
             if lockfile.exists() {
-                fs::copy(lockfile, &td.join("Cargo.lock")).chain_err(
-                    || "couldn't copy lock file",
-                )?;
+                fs::copy(lockfile, &td.join("Cargo.lock")).chain_err(|| "couldn't copy lock file")?;
             }
         }
         util::write(&td.join("Cargo.toml"), &stoml)?;
@@ -123,7 +119,6 @@ version = "0.0.0"
                 .join("deps"),
             &dst,
         )?;
-
     }
 
     // Create hash file
@@ -192,13 +187,21 @@ pub fn update(
     let ctoml = cargo::toml(root)?;
     let xtoml = xargo::toml(root)?;
 
-    let blueprint =
-        Blueprint::from(xtoml.as_ref(), cmode.triple(), root, &src)?;
+    let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), root, &src)?;
 
     let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
     if old_hash(cmode, home)? != Some(hash) {
-        build(cmode, blueprint, &ctoml, home, rustflags, src, hash, verbose)?;
+        build(
+            cmode,
+            blueprint,
+            &ctoml,
+            home,
+            rustflags,
+            src,
+            hash,
+            verbose,
+        )?;
     }
 
     // copy host artifacts into the sysroot, if necessary
@@ -216,15 +219,16 @@ pub fn update(
         }
     }
 
-    lock.remove_siblings().chain_err(|| {
-            format!("couldn't clear {}", lock.path().display())
-        })?;
+    lock.remove_siblings()
+        .chain_err(|| format!("couldn't clear {}", lock.path().display()))?;
     let dst = lock.parent().join("lib");
     util::mkdir(&dst)?;
     util::cp_r(
-        &sysroot.path().join("lib/rustlib").join(&meta.host).join(
-            "lib",
-        ),
+        &sysroot
+            .path()
+            .join("lib/rustlib")
+            .join(&meta.host)
+            .join("lib"),
         &dst,
     )?;
 
@@ -248,28 +252,26 @@ pub struct Blueprint {
 
 impl Blueprint {
     fn new() -> Self {
-        Blueprint { stages: BTreeMap::new() }
+        Blueprint {
+            stages: BTreeMap::new(),
+        }
     }
 
-    fn from(
-        toml: Option<&xargo::Toml>,
-        target: &str,
-        root: &Root,
-        src: &Src,
-    ) -> Result<Self> {
+    fn from(toml: Option<&xargo::Toml>, target: &str, root: &Root, src: &Src) -> Result<Self> {
         let deps = match (
             toml.and_then(|t| t.dependencies()),
             toml.and_then(|t| t.target_dependencies(target)),
         ) {
             (Some(value), Some(tvalue)) => {
-                let mut deps = value.as_table().cloned().ok_or_else(
-                    || format!("Xargo.toml: `dependencies` must be a table"),
-                )?;
+                let mut deps = value
+                    .as_table()
+                    .cloned()
+                    .ok_or_else(|| format!("Xargo.toml: `dependencies` must be a table"))?;
 
                 let more_deps = tvalue.as_table().ok_or_else(|| {
                     format!(
                         "Xargo.toml: `target.{}.dependencies` must be \
-                                 a table",
+                         a table",
                         target
                     )
                 })?;
@@ -277,8 +279,8 @@ impl Blueprint {
                     if deps.insert(k.to_owned(), v.clone()).is_some() {
                         Err(format!(
                             "found duplicate dependency name {}, \
-                                     but all dependencies must have a \
-                                     unique name",
+                             but all dependencies must have a \
+                             unique name",
                             k
                         ))?
                     }
@@ -286,18 +288,15 @@ impl Blueprint {
 
                 deps
             }
-            (Some(value), None) |
-            (None, Some(value)) => {
-                if let Some(table) = value.as_table() {
-                    table.clone()
-                } else {
-                    Err(format!(
-                        "Xargo.toml: target.{}.dependencies must be \
-                                 a table",
-                        target
-                    ))?
-                }
-            }
+            (Some(value), None) | (None, Some(value)) => if let Some(table) = value.as_table() {
+                table.clone()
+            } else {
+                Err(format!(
+                    "Xargo.toml: target.{}.dependencies must be \
+                     a table",
+                    target
+                ))?
+            },
             (None, None) => {
                 // If no dependencies were listed, we assume `core` as the
                 // only dependency
@@ -311,37 +310,23 @@ impl Blueprint {
         for (k, v) in deps {
             if let Value::Table(mut map) = v {
                 let stage = if let Some(value) = map.remove("stage") {
-                    value.as_integer().ok_or_else(|| {
-                            format!(
-                                "dependencies.{}.stage must be an integer",
-                                k
-                            )
-                        })?
+                    value
+                        .as_integer()
+                        .ok_or_else(|| format!("dependencies.{}.stage must be an integer", k))?
                 } else {
                     0
                 };
 
                 if let Some(path) = map.get_mut("path") {
-                    let p = PathBuf::from(
-                        path.as_str().ok_or_else(|| {
-                                format!(
-                                    "dependencies.{}.path must be a string",
-                                    k
-                                )
-                            })?,
-                    );
+                    let p = PathBuf::from(path.as_str()
+                        .ok_or_else(|| format!("dependencies.{}.path must be a string", k))?);
 
                     if !p.is_absolute() {
                         *path = Value::String(
                             root.path()
                                 .join(&p)
                                 .canonicalize()
-                                .chain_err(|| {
-                                        format!(
-                                            "couldn't canonicalize {}",
-                                            p.display()
-                                        )
-                                    })?
+                                .chain_err(|| format!("couldn't canonicalize {}", p.display()))?
                                 .display()
                                 .to_string(),
                         );
@@ -349,10 +334,7 @@ impl Blueprint {
                 }
 
                 if !map.contains_key("path") && !map.contains_key("git") {
-                    let path = src.path()
-                        .join(format!("lib{}", k))
-                        .display()
-                        .to_string();
+                    let path = src.path().join(format!("lib{}", k)).display().to_string();
 
                     map.insert("path".to_owned(), Value::String(path));
                 }
@@ -361,7 +343,7 @@ impl Blueprint {
             } else {
                 Err(format!(
                     "Xargo.toml: target.{}.dependencies.{} must be \
-                             a table",
+                     a table",
                     target,
                     k
                 ))?

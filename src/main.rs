@@ -184,6 +184,7 @@ fn run() -> Result<ExitStatus> {
                 &root,
                 &rustflags,
                 &meta,
+                config.as_ref(),
                 &src,
                 &sysroot,
                 verbose,

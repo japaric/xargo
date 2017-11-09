@@ -155,14 +155,31 @@ pub fn run(args: &Args, verbose: bool) -> Result<ExitStatus> {
 }
 
 pub struct Config {
+    root: PathBuf,
     table: Value,
 }
 
 impl Config {
+    pub fn root(&self) -> &PathBuf {
+        &self.root
+    }
+
     pub fn target(&self) -> Result<Option<&str>> {
         if let Some(v) = self.table.lookup("build.target") {
             Ok(Some(v.as_str()
                 .ok_or_else(|| format!(".cargo/config: build.target must be a string"))?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn target_dir(&self) -> Result<Option<&str>> {
+        if let Some(v) = self.table.lookup("build.target-dir") {
+            Ok(Some(
+                v.as_str().ok_or_else(
+                    || format!(".cargo/config: build.target-dir must be a string"),
+                )?,
+            ))
         } else {
             Ok(None)
         }
@@ -174,6 +191,7 @@ pub fn config() -> Result<Option<Config>> {
 
     if let Some(p) = util::search(&cd, ".cargo/config") {
         Ok(Some(Config {
+            root: p.to_path_buf(),
             table: util::parse(&p.join(".cargo/config"))?,
         }))
     } else {

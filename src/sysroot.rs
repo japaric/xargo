@@ -36,6 +36,7 @@ fn build(
     home: &Home,
     rustflags: &Rustflags,
     src: &Src,
+    sysroot: &Sysroot,
     hash: u64,
     verbose: bool,
 ) -> Result<()> {
@@ -52,6 +53,23 @@ version = "0.0.0"
         .chain_err(|| format!("couldn't clear {}", rustlib.path().display()))?;
     let dst = rustlib.parent().join("lib");
     util::mkdir(&dst)?;
+
+    if cmode.triple().contains("pc-windows-gnu") {
+        let src = &sysroot.path()
+            .join("lib")
+            .join("rustlib")
+            .join(cmode.triple())
+            .join("lib");
+
+        // These are required for linking executables/dlls
+        for file in ["rsbegin.o", "rsend.o", "crt2.o", "dllcrt2.o"].iter() {
+            let file_src = src.join(file);
+            let file_dst = dst.join(file);
+            fs::copy(&file_src, &file_dst)
+                .chain_err(|| format!("couldn't copy {} to {}", file_src.display(), file_dst.display()))?;
+        }
+    }
+
     for (_, stage) in blueprint.stages {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
         let td = td.path();
@@ -199,6 +217,7 @@ pub fn update(
             home,
             rustflags,
             src,
+            sysroot,
             hash,
             verbose,
         )?;

@@ -332,7 +332,6 @@ stage = 2
   rune will extract the triple:
   `rustc -vV | egrep '^host: ' | sed 's/^host: //'`.
 
-
 ## License
 
 Licensed under either of

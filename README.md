@@ -324,12 +324,11 @@ stage = 2
   without the `jemalloc` feature.  For some further information on this issue,
   see [rust-lang/rust#43637](https://github.com/rust-lang/rust/issues/43637#issuecomment-320463578).
 
-- When using compiler plugins (e.g. `serde_derive`) the target triple must be
-  provided even when compiling for the host platform due to the way cargo
-  handles compiler plugins. I.e., use `xargo build --target
-  x86_64-unknown-linux-gnu` instead of just `xargo
-  build`. (Surprisingly, these commands are NOT the same to Cargo.) You can
-  determine your host's target triple with `rustc -vV`. On *nix, the following
+- It's recommended that the `--target` option is always used for `xargo`. This is because it must
+  be provided even when compiling for the host platform due to the way cargo
+  handles compiler plugins (e.g. `serde_derive`) and build scripts (`build.rs`). This also applies to how
+  all of the dependant crates get compiled that use compiler plugins or build scripts.
+  You can determine your host's target triple with `rustc -vV`. On *nix, the following
   rune will extract the triple:
   `rustc -vV | egrep '^host: ' | sed 's/^host: //'`.
 

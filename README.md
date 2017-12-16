@@ -304,7 +304,6 @@ rand = {}
 
 [dependencies.compiler_builtins]
 features = ["mem"]
-git = "https://github.com/rust-lang-nursery/compiler-builtins"
 stage = 1
 
 [dependencies.std]
@@ -321,7 +320,7 @@ stage = 2
 - `std` is built as rlib *and* dylib. The dylib needs a panic library and an
   allocator.  If you do not specify the `panic-unwind` feature, you have to set
   `panic = "abort"` in `Cargo.toml`.
-  
+
 - To build without the `jemalloc` feature include the following in `Xargo.toml`:
 
   ``` toml
@@ -330,7 +329,7 @@ stage = 2
   ```
 
   What this flag means is that every program compiled with this libstd can only use the system allocator.
-  If your program tries to set its own allocator, compilation will fail because now two allocators are set 
+  If your program tries to set its own allocator, compilation will fail because now two allocators are set
   (one by libstd, one by your program).
   For some further information on this issue,
   see [rust-lang/rust#43637](https://github.com/rust-lang/rust/issues/43637#issuecomment-320463578).

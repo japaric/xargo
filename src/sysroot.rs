@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::process::Command;
 use std::io::{self, Write};
-use std::fs;
+use std::{fs, env};
 
 use rustc_version::VersionMeta;
 use tempdir::TempDir;
@@ -14,7 +14,7 @@ use CompilationMode;
 use cargo::{Root, Rustflags};
 use errors::*;
 use extensions::CommandExt;
-use rustc::{Src, Sysroot};
+use rustc::{Src, Sysroot, Target};
 use util;
 use xargo::Home;
 use {cargo, xargo};
@@ -104,6 +104,22 @@ version = "0.0.0"
             }
             cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
+
+            // As of rust-lang/cargo#4788 Cargo invokes rustc with a changed "current directory" so
+            // we can't assume that such directory will be the same as the directory from which
+            // Xargo was invoked. This is specially true when compiling the sysroot as the std
+            // source is provided as a workspace and Cargo will change the current directory to the
+            // root of the workspace when building one. To ensure rustc finds a target specification
+            // file stored in the current directory we'll set `RUST_TARGET_PATH`  to the current
+            // directory.
+            if env::var_os("RUST_TARGET_PATH").is_none() {
+                if let CompilationMode::Cross(ref target) = *cmode {
+                    if let Target::Custom { ref json, .. } = *target {
+                        cmd.env("RUST_TARGET_PATH", json.parent().unwrap());
+                    }
+                }
+            }
+
             cmd.arg("build");
 
             match () {

@@ -307,7 +307,6 @@ impl HProject {
     }
 
     /// Adds a `Xargo.toml` to the project
-    #[cfg(not(windows))]
     fn xargo_toml(&self, toml: &str) -> Result<()> {
         write(&self.td.path().join("Xargo.toml"), false, toml)
     }

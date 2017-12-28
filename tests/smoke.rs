@@ -307,7 +307,6 @@ impl HProject {
     }
 
     /// Adds a `Xargo.toml` to the project
-    #[cfg(not(windows))]
     fn xargo_toml(&self, toml: &str) -> Result<()> {
         write(&self.td.path().join("Xargo.toml"), false, toml)
     }
@@ -773,6 +772,31 @@ stage = 1
         )?;
 
         xargo()?.arg("test").current_dir(project.td.path()).run()?;
+
+        Ok(())
+    }
+
+    run!()
+}
+
+/// Check multi stage sysroot builds with `xargo test`
+#[cfg(feature = "dev")]
+#[test]
+fn compiler_builtins() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+
+        project.xargo_toml(
+            "
+[dependencies.core]
+stage = 0
+
+[dependencies.compiler_builtins]
+stage = 1
+",
+        )?;
+
+        xargo()?.arg("build").current_dir(project.td.path()).run()?;
 
         Ok(())
     }

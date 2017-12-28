@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.10] - 2017-12-28
+
+### Added
+
+- Print a warning when the stable or beta toolchain, which are not supported, is used.
+
+### Changed
+
+- Set RUST_TARGET_PATH when building the sysroot. This fixes builds when using custom targets with a
+  recent toolchain.
+
+### Removed
+
+- The lock file included in the rust-src component is no longer used when building the sysroot. This
+  fixes building a sysroot that contains the compiler-builtins crate.
+
 ## [v0.3.9] - 2017-09-06
 
 ### Added
@@ -293,7 +309,9 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.8...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.10...HEAD
+[v0.3.10]: https://github.com/japaric/xargo/compare/v0.3.9...v0.3.10
+[v0.3.9]: https://github.com/japaric/xargo/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/japaric/xargo/compare/v0.3.7...v0.3.8
 [v0.3.7]: https://github.com/japaric/xargo/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/japaric/xargo/compare/v0.3.5...v0.3.6

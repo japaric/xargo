@@ -1,3 +1,5 @@
+# [PSA: Xargo is in maintenance mode](https://github.com/japaric/xargo/issues/193)
+
 [![crates.io](https://img.shields.io/crates/v/xargo.svg)](https://crates.io/crates/xargo)
 [![crates.io](https://img.shields.io/crates/d/xargo.svg)](https://crates.io/crates/xargo)
 

@@ -249,6 +249,17 @@ pub fn update(
         &dst,
     )?;
 
+    let bin_dst = lock.parent().join("bin");
+    util::mkdir(&bin_dst)?;
+    util::cp_r(
+        &sysroot
+            .path()
+            .join("lib/rustlib")
+            .join(&meta.host)
+            .join("bin"),
+        &bin_dst,
+    )?;
+
     util::write(&hfile, hash)?;
 
     Ok(())

@@ -58,9 +58,8 @@ before_cache:
 branches:
   only:
     - /^v\d+\.\d+\.\d+.*$/
-    - auto
-    - master
-    - try
+    - staging
+    - trying
 
 notifications:
   email:

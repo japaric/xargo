@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.11] - 2018-03-09
+
+### Added
+
+- Xargo now copies the `bin` directory from the original sysroot, the host sysroot, into its own.
+  This lets you use binaries shipped with the Rust toolchain, like LLD.
+
 ## [v0.3.10] - 2017-12-28
 
 ### Added

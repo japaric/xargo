@@ -116,6 +116,7 @@ version = "0.0.0"
             }
             cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
+            cmd.env("__CARGO_DEFAULT_LIB_METADATA", "XARGO");
 
             // As of rust-lang/cargo#4788 Cargo invokes rustc with a changed "current directory" so
             // we can't assume that such directory will be the same as the directory from which

@@ -140,13 +140,21 @@ fn run() -> Result<ExitStatus> {
                 sysroot.src()?
             },
             Channel::Stable | Channel::Beta => {
-                writeln!(
-                    io::stderr(),
-                    "WARNING: the sysroot can't be built for the {:?} channel. \
-                     Switch to nightly.",
-                    meta.channel
-                ).ok();
-                return cargo::run(&args, verbose);
+                if env::var("RUSTC_BOOTSTRAP").is_ok() {
+                    if let Some(src) = rustc::Src::from_env() {
+                        src
+                    } else {
+                        sysroot.src()?
+                    }
+                } else {
+                    writeln!(
+                        io::stderr(),
+                        "WARNING: the sysroot can't be built for the {:?} channel. \
+                        Switch to nightly.",
+                        meta.channel
+                    ).ok();
+                    return cargo::run(&args, verbose);
+                }
             }
         };
 

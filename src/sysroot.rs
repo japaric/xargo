@@ -124,7 +124,7 @@ version = "0.0.0"
             }
             cmd.arg("--manifest-path");
             cmd.arg(td.join("Cargo.toml"));
-            cmd.args(&["--target", cmode.triple()]);
+            cmd.args(&["--target", cmode.orig_triple()]);
 
             if verbose {
                 cmd.arg("-v");

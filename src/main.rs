@@ -56,9 +56,18 @@ impl CompilationMode {
         Ok(())
     }
 
+    /// Returns the condensed target triple (removes any `.json` extension and path components).
     fn triple(&self) -> &str {
         match *self {
             CompilationMode::Cross(ref target) => target.triple(),
+            CompilationMode::Native(ref triple) => triple,
+        }
+    }
+
+    /// Returns the original target triple passed to xargo (perhaps with `.json` extension).
+    fn orig_triple(&self) -> &str {
+        match *self {
+            CompilationMode::Cross(ref target) => target.orig_triple(),
             CompilationMode::Native(ref triple) => triple,
         }
     }
@@ -151,12 +160,7 @@ fn run() -> Result<ExitStatus> {
         };
 
         let cmode = if let Some(triple) = args.target() {
-            if Path::new(triple).is_file() {
-                bail!(
-                    "Xargo doesn't support files as an argument to --target. \
-                     Use `--target foo` instead of `--target foo.json`."
-                )
-            } else if triple == meta.host {
+            if triple == meta.host {
                 Some(CompilationMode::Native(meta.host.clone()))
             } else {
                 Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)

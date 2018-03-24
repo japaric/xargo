@@ -111,7 +111,7 @@ impl Sysroot {
 #[derive(Debug)]
 pub enum Target {
     Builtin { triple: String },
-    Custom { json: PathBuf, triple: String },
+    Custom { json: PathBuf, triple: String, orig_triple: String },
 }
 
 impl Target {
@@ -121,13 +121,24 @@ impl Target {
         if rustc::targets(verbose)?.iter().any(|t| t == &triple) {
             Ok(Some(Target::Builtin { triple: triple }))
         } else {
+            let json = PathBuf::from(&triple);
+            if json.exists() {
+                let file_stem = match json.file_stem().and_then(|stem| stem.to_str()) {
+                    Some(stem) => stem.into(),
+                    None => {
+                        bail!("target file name {:?} is empty or contains invalid unicode", json)
+                    }
+                };
+                return Ok(Some(Target::Custom { json, triple: file_stem, orig_triple: triple }))
+            }
             let mut json = cd.path().join(&triple);
             json.set_extension("json");
 
             if json.exists() {
                 return Ok(Some(Target::Custom {
                     json: json,
-                    triple: triple,
+                    triple: triple.clone(),
+                    orig_triple: triple,
                 }));
             } else {
                 if let Some(p) = env::var_os("RUST_TARGET_PATH") {
@@ -138,7 +149,8 @@ impl Target {
                     if json.exists() {
                         return Ok(Some(Target::Custom {
                             json: json,
-                            triple: triple,
+                            triple: triple.clone(),
+                            orig_triple: triple,
                         }));
                     }
                 }
@@ -148,10 +160,19 @@ impl Target {
         }
     }
 
+    /// Returns the condensed target triple (removes any `.json` extension and path components).
     pub fn triple(&self) -> &str {
         match *self {
             Target::Builtin { ref triple } => triple,
             Target::Custom { ref triple, .. } => triple,
+        }
+    }
+
+    /// Returns the original target triple passed to xargo (perhaps with `.json` extension).
+    pub fn orig_triple(&self) -> &str {
+        match *self {
+            Target::Builtin { ref triple } => triple,
+            Target::Custom { ref orig_triple, .. } => orig_triple,
         }
     }
 

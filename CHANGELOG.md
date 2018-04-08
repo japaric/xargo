@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.12] - 2018-04-08
+
+### Changed
+
+- The `core` and `compiler_builtins` crates are built when no Xargo.toml is present.
+
 ## [v0.3.11] - 2018-03-09
 
 ### Added
@@ -316,7 +322,9 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.10...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.12...HEAD
+[v0.3.12]: https://github.com/japaric/xargo/compare/v0.3.11...v0.3.12
+[v0.3.11]: https://github.com/japaric/xargo/compare/v0.3.10...v0.3.11
 [v0.3.10]: https://github.com/japaric/xargo/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/japaric/xargo/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/japaric/xargo/compare/v0.3.7...v0.3.8

@@ -323,7 +323,7 @@ impl Drop for HProject {
 #[test]
 fn simple() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__simple";
+        const TARGET: &'static str = "thumbv6m-simple-eabi";
 
         let project = Project::new(TARGET)?;
         project.build(TARGET)?;
@@ -341,12 +341,13 @@ fn simple() {
 #[test]
 fn target_dependencies() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__target_dependencies";
+        // need this exact target name to get the right gcc flags
+        const TARGET: &'static str = "thumbv7m-none-eabi";
 
         let project = Project::new(TARGET)?;
         project.xargo_toml(
             r#"
-[target.__target_dependencies.dependencies.alloc]
+[target.thumbv7m-none-eabi.dependencies.alloc]
 "#,
         )?;
         project.build(TARGET)?;
@@ -364,7 +365,8 @@ fn target_dependencies() {
 #[test]
 fn dependencies() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__dependencies";
+        // need this exact target name to get the right gcc flags
+        const TARGET: &'static str = "thumbv6m-none-eabi";
 
         let project = Project::new(TARGET)?;
         project.xargo_toml(
@@ -387,7 +389,7 @@ fn dependencies() {
 #[test]
 fn doc() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__doc";
+        const TARGET: &'static str = "thumbv6m-doc-eabi";
 
         let project = Project::new(TARGET)?;
         project.doc(TARGET)?;
@@ -404,7 +406,7 @@ fn doc() {
 #[test]
 fn twice() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__twice";
+        const TARGET: &'static str = "thumbv6m-twice-eabi";
 
         let project = Project::new(TARGET)?;
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
@@ -427,13 +429,13 @@ fn twice() {
 #[test]
 fn build_target() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__build_target";
+        const TARGET: &'static str = "thumbv6m-build_target-eabi";
 
         let project = Project::new(TARGET)?;
         project.config(
             r#"
 [build]
-target = "__build_target"
+target = "thumbv6m-build_target-eabi"
 "#,
         )?;
 
@@ -452,7 +454,7 @@ target = "__build_target"
 #[test]
 fn override_build_target() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__override_build_target";
+        const TARGET: &'static str = "thumbv6m-override_build_target-eabi";
 
         let project = Project::new(TARGET)?;
         project.config(
@@ -477,7 +479,7 @@ target = "BAD"
 #[test]
 fn lto_changed() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__lto_changed";
+        const TARGET: &'static str = "thumbv6m-lto_changed-eabi";
 
         let project = Project::new(TARGET)?;
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
@@ -506,7 +508,7 @@ lto = true
 #[test]
 fn rustflags_changed() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__rustflags_changed";
+        const TARGET: &'static str = "thumbv6m-rustflags_changed-eabi";
 
         let project = Project::new(TARGET)?;
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
@@ -535,7 +537,7 @@ rustflags = ["--cfg", "xargo"]
 #[test]
 fn rustflags() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__rustflags";
+        const TARGET: &'static str = "thumbv6m-rustflags-eabi";
 
         let project = Project::new(TARGET)?;
 
@@ -567,7 +569,7 @@ rustflags = ["--cfg", "xargo"]
 #[test]
 fn panic_abort() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__panic_abort";
+        const TARGET: &'static str = "thumbv6m-panic_abort-eabi";
 
         let project = Project::new(TARGET)?;
 
@@ -598,7 +600,7 @@ panic = "abort"
 #[test]
 fn link_arg() {
     fn run() -> Result<()> {
-        const TARGET: &'static str = "__link_arg";
+        const TARGET: &'static str = "thumbv6m-link_arg-eabi";
 
         let project = Project::new(TARGET)?;
 
@@ -642,7 +644,7 @@ fn specification_changed() {
     "target-pointer-width": "32"
 }
 "#;
-        const TARGET: &'static str = "__specification_changed";
+        const TARGET: &'static str = "thumbv6m-specification_changed-eabi";
 
         let project = Project::new(TARGET)?;
 
@@ -651,7 +653,7 @@ fn specification_changed() {
         assert!(sysroot_was_built(&stderr, TARGET));
 
         write(
-            &project.td.path().join("__specification_changed.json"),
+            &project.td.path().join("thumbv6m-specification_changed-eabi.json"),
             false,
             JSON,
         )?;
@@ -685,7 +687,7 @@ fn unchanged_specification() {
     "target-pointer-width": "32"
 }
 "#;
-        const TARGET: &'static str = "__unchanged_specification";
+        const TARGET: &'static str = "thumbv6m-unchanged_specification-eabi";
 
         let project = Project::new(TARGET)?;
 
@@ -694,7 +696,7 @@ fn unchanged_specification() {
         assert!(sysroot_was_built(&stderr, TARGET));
 
         write(
-            &project.td.path().join("__unchanged_specification.json"),
+            &project.td.path().join("thumbv6m-unchanged_specification-eabi.json"),
             false,
             JSON,
         )?;

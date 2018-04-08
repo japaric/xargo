@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
-use std::io::{self, Write};
 use std::{env, fs};
 
 use rustc_version::VersionMeta;
@@ -54,7 +54,8 @@ version = "0.0.0"
     util::mkdir(&dst)?;
 
     if cmode.triple().contains("pc-windows-gnu") {
-        let src = &sysroot.path()
+        let src = &sysroot
+            .path()
             .join("lib")
             .join("rustlib")
             .join(cmode.triple())
@@ -64,8 +65,13 @@ version = "0.0.0"
         for file in ["rsbegin.o", "rsend.o", "crt2.o", "dllcrt2.o"].iter() {
             let file_src = src.join(file);
             let file_dst = dst.join(file);
-            fs::copy(&file_src, &file_dst)
-                .chain_err(|| format!("couldn't copy {} to {}", file_src.display(), file_dst.display()))?;
+            fs::copy(&file_src, &file_dst).chain_err(|| {
+                format!(
+                    "couldn't copy {} to {}",
+                    file_src.display(),
+                    file_dst.display()
+                )
+            })?;
         }
     }
 
@@ -218,7 +224,16 @@ pub fn update(
     let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
     if old_hash(cmode, home)? != Some(hash) {
-        build(cmode, blueprint, &ctoml, home, rustflags, sysroot, hash, verbose)?;
+        build(
+            cmode,
+            blueprint,
+            &ctoml,
+            home,
+            rustflags,
+            sysroot,
+            hash,
+            verbose,
+        )?;
     }
 
     // copy host artifacts into the sysroot, if necessary
@@ -326,10 +341,22 @@ impl Blueprint {
                 ))?
             },
             (None, None) => {
-                // If no dependencies were listed, we assume `core` as the
-                // only dependency
+                // If no dependencies were listed, we assume `core` and `compiler_builtins` as the
+                // dependencies
                 let mut t = BTreeMap::new();
-                t.insert("core".to_owned(), Value::Table(BTreeMap::new()));
+                let mut core = BTreeMap::new();
+                core.insert("stage".to_owned(), Value::Integer(0));
+                t.insert("core".to_owned(), Value::Table(core));
+                let mut cb = BTreeMap::new();
+                cb.insert(
+                    "features".to_owned(),
+                    Value::Array(vec![Value::String("mem".to_owned())]),
+                );
+                cb.insert("stage".to_owned(), Value::Integer(1));
+                t.insert(
+                    "compiler_builtins".to_owned(),
+                    Value::Table(cb),
+                );
                 t
             }
         };
@@ -372,8 +399,7 @@ impl Blueprint {
                 Err(format!(
                     "Xargo.toml: target.{}.dependencies.{} must be \
                      a table",
-                    target,
-                    k
+                    target, k
                 ))?
             }
         }
@@ -382,11 +408,9 @@ impl Blueprint {
     }
 
     fn push(&mut self, stage: i64, krate: String, toml: Table) {
-        let stage = self.stages.entry(stage).or_insert_with(|| {
-            Stage {
-                crates: vec![],
-                toml: Table::new(),
-            }
+        let stage = self.stages.entry(stage).or_insert_with(|| Stage {
+            crates: vec![],
+            toml: Table::new(),
         });
 
         stage.toml.insert(krate.clone(), Value::Table(toml));

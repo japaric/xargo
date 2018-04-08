@@ -5,8 +5,8 @@ main() {
     cross run --target $TARGET -- -V
 
     if [ $TRAVIS_RUST_VERSION = nightly ]; then
-        cross test --features dev --target $TARGET
-        cross test --target $TARGET
+        cargo test --features dev --target $TARGET
+        cargo test --target $TARGET
     fi
 }
 

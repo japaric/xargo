@@ -100,3 +100,13 @@ pub fn write(path: &Path, contents: &str) -> Result<()> {
         .write_all(contents.as_bytes())
         .chain_err(|| format!("couldn't write to {}", p))
 }
+
+pub fn escape_argument_spaces<S: Into<String>>(arg: S) -> String {
+    #[cfg(target_os = "windows")]
+    let escaped = arg.into().replace(" ", "%20");
+
+    #[cfg(not(target_os = "windows"))]
+    let escaped = arg.into().replace(" ", "\\ ");
+
+    escaped
+}

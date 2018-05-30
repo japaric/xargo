@@ -129,7 +129,7 @@ version = "0.0.0"
                 }
             }
             cmd.arg("--manifest-path");
-            cmd.arg(td.join("Cargo.toml"));
+            cmd.arg(util::escape_argument_spaces(td.join("Cargo.toml").to_str().expect("This path doesn't contain valid UTF-8 characters")));
             cmd.args(&["--target", cmode.triple()]);
 
             if verbose {

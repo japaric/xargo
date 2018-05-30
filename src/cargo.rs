@@ -45,7 +45,7 @@ impl Rustflags {
     pub fn for_xargo(&self, home: &Home) -> String {
         let mut flags = self.flags.clone();
         flags.push("--sysroot".to_owned());
-        flags.push(home.display().to_string());
+        flags.push(util::escape_argument_spaces(format!("{}", home.display())));
         flags.join(" ")
     }
 }
@@ -68,7 +68,7 @@ impl Rustdocflags {
     /// Stringifies these flags for Xargo consumption
     pub fn for_xargo(mut self, home: &Home) -> String {
         self.flags.push("--sysroot".to_owned());
-        self.flags.push(home.display().to_string());
+        self.flags.push(util::escape_argument_spaces(format!("{}", home.display())));
         self.flags.join(" ")
     }
 }

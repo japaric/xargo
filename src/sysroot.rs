@@ -38,6 +38,7 @@ fn build(
     sysroot: &Sysroot,
     hash: u64,
     verbose: bool,
+    message_format: Option<&str>
 ) -> Result<()> {
     const TOML: &'static str = r#"
 [package]
@@ -145,6 +146,9 @@ version = "0.0.0"
             cmd.arg("--manifest-path");
             cmd.arg(td.join("Cargo.toml"));
             cmd.args(&["--target", cmode.triple()]);
+            if let Some(format) = message_format {
+                cmd.args(&["--message-format", format]);
+            }
 
             if verbose {
                 cmd.arg("-v");
@@ -229,6 +233,7 @@ pub fn update(
     src: &Src,
     sysroot: &Sysroot,
     verbose: bool,
+    message_format: Option<&str>
 ) -> Result<()> {
     let ctoml = cargo::toml(root)?;
     let xtoml = xargo::toml(root)?;
@@ -248,6 +253,7 @@ pub fn update(
             sysroot,
             hash,
             verbose,
+            message_format,
         )?;
     }
 

@@ -187,6 +187,7 @@ fn run() -> Result<ExitStatus> {
                 &src,
                 &sysroot,
                 verbose,
+                args.message_format()
             )?;
             return xargo::run(
                 &args,

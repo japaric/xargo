@@ -4,6 +4,7 @@
 
 #[macro_use]
 extern crate error_chain;
+extern crate dirs;
 #[macro_use]
 extern crate lazy_static;
 extern crate parking_lot;
@@ -22,7 +23,7 @@ use tempdir::TempDir;
 use errors::*;
 
 mod errors {
-    #![allow(unused_doc_comment)]
+    #![allow(unused_doc_comments)]
     error_chain!();
 }
 
@@ -40,7 +41,7 @@ fn home() -> Result<PathBuf> {
         Ok(PathBuf::from(h))
     } else {
         Ok(
-            env::home_dir()
+            dirs::home_dir()
                 .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
                 .join(".xargo"),
         )

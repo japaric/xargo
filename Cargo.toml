@@ -12,6 +12,7 @@ version = "0.3.12"
 
 [dependencies]
 error-chain = "0.7.2"
+dirs = "1.0.4"
 fs2 = "0.4.1"
 libc = "0.2.18"
 rustc_version = "0.1.7"

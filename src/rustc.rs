@@ -1,5 +1,5 @@
 use std::env;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -122,7 +122,10 @@ impl Target {
             Ok(Some(Target::Builtin { triple: triple }))
         } else {
             let mut json = cd.path().join(&triple);
-            json.set_extension("json");
+            let mut newfn = OsString::new();
+            newfn.push(json.file_name().unwrap_or(OsStr::new("")));
+            newfn.push(".json");
+            json.set_file_name(newfn);
 
             if json.exists() {
                 return Ok(Some(Target::Custom {

@@ -9,6 +9,7 @@ use rustc_version::VersionMeta;
 use CompilationMode;
 use cargo::{Config, Root, Rustflags, Subcommand};
 use cli::Args;
+use dirs;
 use errors::*;
 use extensions::CommandExt;
 use flock::{FileLock, Filesystem};
@@ -84,7 +85,7 @@ pub fn home(cmode: &CompilationMode) -> Result<Home> {
     let mut p = if let Some(h) = env::var_os("XARGO_HOME") {
         PathBuf::from(h)
     } else {
-        env::home_dir()
+        dirs::home_dir()
             .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
             .join(".xargo")
     };

@@ -80,10 +80,14 @@ version = "0.0.0"
         let td = td.path();
 
         let mut stoml = TOML.to_owned();
+        {
+            let mut map = Table::new();
 
-        let mut map = Table::new();
-        map.insert("dependencies".to_owned(), Value::Table(stage.toml));
-        stoml.push_str(&Value::Table(map).to_string());
+            map.insert("dependencies".to_owned(), Value::Table(stage.dependencies));
+            map.insert("patch".to_owned(), Value::Table(stage.patch));
+
+            stoml.push_str(&Value::Table(map).to_string());
+        }
 
         if let Some(profile) = ctoml.profile() {
             stoml.push_str(&profile.to_string())
@@ -284,7 +288,8 @@ pub fn update(
 #[derive(Debug)]
 pub struct Stage {
     crates: Vec<String>,
-    toml: Table,
+    dependencies: Table,
+    patch: Table,
 }
 
 /// A sysroot that will be built in "stages"
@@ -394,7 +399,7 @@ impl Blueprint {
                     map.insert("path".to_owned(), Value::String(path));
                 }
 
-                blueprint.push(stage, k, map);
+                blueprint.push(stage, k, map, src);
             } else {
                 Err(format!(
                     "Xargo.toml: target.{}.dependencies.{} must be \
@@ -407,13 +412,29 @@ impl Blueprint {
         Ok(blueprint)
     }
 
-    fn push(&mut self, stage: i64, krate: String, toml: Table) {
+    fn push(&mut self, stage: i64, krate: String, toml: Table, src: &Src) {
         let stage = self.stages.entry(stage).or_insert_with(|| Stage {
             crates: vec![],
-            toml: Table::new(),
+            dependencies: Table::new(),
+            patch: {
+                // For a new stage, we also need to compute the patch section of the toml
+                fn make_singleton_map(key: &str, val: Value) -> Table {
+                    let mut map = Table::new();
+                    map.insert(key.to_owned(), val);
+                    map
+                }
+                make_singleton_map("crates-io", Value::Table(
+                    make_singleton_map("rustc-std-workspace-core", Value::Table(
+                        make_singleton_map("path", Value::String(
+                            src.path().join("tools/rustc-std-workspace-core")
+                                .display().to_string()
+                        ))
+                    ))
+                ))
+            }
         });
 
-        stage.toml.insert(krate.clone(), Value::Table(toml));
+        stage.dependencies.insert(krate.clone(), Value::Table(toml));
         stage.crates.push(krate);
     }
 
@@ -422,7 +443,7 @@ impl Blueprint {
         H: Hasher,
     {
         for stage in self.stages.values() {
-            for (k, v) in stage.toml.iter() {
+            for (k, v) in stage.dependencies.iter() {
                 k.hash(hasher);
                 v.to_string().hash(hasher);
             }

@@ -84,7 +84,9 @@ version = "0.0.0"
             let mut map = Table::new();
 
             map.insert("dependencies".to_owned(), Value::Table(stage.dependencies));
-            map.insert("patch".to_owned(), Value::Table(stage.patch));
+            if let Some(patch) = stage.patch {
+                map.insert("patch".to_owned(), Value::Table(patch));
+            }
 
             stoml.push_str(&Value::Table(map).to_string());
         }
@@ -289,7 +291,7 @@ pub fn update(
 pub struct Stage {
     crates: Vec<String>,
     dependencies: Table,
-    patch: Table,
+    patch: Option<Table>,
 }
 
 /// A sysroot that will be built in "stages"
@@ -417,20 +419,25 @@ impl Blueprint {
             crates: vec![],
             dependencies: Table::new(),
             patch: {
-                // For a new stage, we also need to compute the patch section of the toml
-                fn make_singleton_map(key: &str, val: Value) -> Table {
-                    let mut map = Table::new();
-                    map.insert(key.to_owned(), val);
-                    map
-                }
-                make_singleton_map("crates-io", Value::Table(
-                    make_singleton_map("rustc-std-workspace-core", Value::Table(
-                        make_singleton_map("path", Value::String(
-                            src.path().join("tools/rustc-std-workspace-core")
-                                .display().to_string()
+                let rustc_std_workspace_core = src.path().join("tools/rustc-std-workspace-core");
+                if rustc_std_workspace_core.exists() {
+                    // For a new stage, we also need to compute the patch section of the toml
+                    fn make_singleton_map(key: &str, val: Value) -> Table {
+                        let mut map = Table::new();
+                        map.insert(key.to_owned(), val);
+                        map
+                    }
+                    Some(make_singleton_map("crates-io", Value::Table(
+                        make_singleton_map("rustc-std-workspace-core", Value::Table(
+                            make_singleton_map("path", Value::String(
+                                rustc_std_workspace_core.display().to_string()
+                            ))
                         ))
-                    ))
-                ))
+                    )))
+                } else {
+                    // an old rustc, doesn't need a rustc_std_workspace_core
+                    None
+                }
             }
         });
 

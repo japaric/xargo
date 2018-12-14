@@ -394,7 +394,7 @@ impl Blueprint {
                     }
                 }
 
-                if !map.contains_key("path") && !map.contains_key("git") {
+                if !map.contains_key("path") && !map.contains_key("git") && !map.contains_key("version") {
                     let path = src.path().join(format!("lib{}", k)).display().to_string();
 
                     map.insert("path".to_owned(), Value::String(path));

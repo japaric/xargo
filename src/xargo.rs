@@ -80,6 +80,7 @@ impl Home {
     }
 }
 
+#[allow(deprecated)]
 pub fn home(cmode: &CompilationMode) -> Result<Home> {
     let mut p = if let Some(h) = env::var_os("XARGO_HOME") {
         PathBuf::from(h)

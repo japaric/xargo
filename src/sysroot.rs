@@ -87,9 +87,24 @@ version = "0.0.0"
 
         let mut stoml = TOML.to_owned();
 
-        let mut map = Table::new();
-        map.insert("dependencies".to_owned(), Value::Table(stage.toml));
-        stoml.push_str(&Value::Table(map).to_string());
+        let toml_table = |name: &str, value| {
+            let mut t = Table::new();
+            t.insert(name.to_owned(), value);
+            Value::Table(t)
+        };
+
+        let mut deps_toml = toml_table("dependencies", Value::Table(stage.toml));
+
+        // Insert [patch.crates-io.rustc-std-workspace-core]
+        let path = toml_table("path", Value::String(blueprint.rustc_std_workspace_core_src.clone()));
+        let rustc_std_workspace_core = toml_table("rustc-std-workspace-core", path);
+        let crates_io = toml_table("crates-io", rustc_std_workspace_core);
+        match deps_toml {
+            Value::Table(ref mut t) => t.insert("patch".to_owned(), crates_io),
+            _ => unreachable!()
+        };
+
+        stoml.push_str(&deps_toml.to_string());
 
         if let Some(profile) = ctoml.profile() {
             stoml.push_str(&profile.to_string())
@@ -297,12 +312,14 @@ pub struct Stage {
 #[derive(Debug)]
 pub struct Blueprint {
     stages: BTreeMap<i64, Stage>,
+    rustc_std_workspace_core_src: String,
 }
 
 impl Blueprint {
-    fn new() -> Self {
+    fn new(src: &Src) -> Self {
         Blueprint {
             stages: BTreeMap::new(),
+            rustc_std_workspace_core_src: src.path().join("tools/rustc-std-workspace-core").display().to_string(),
         }
     }
 
@@ -359,6 +376,7 @@ impl Blueprint {
                     Value::Array(vec![Value::String("mem".to_owned())]),
                 );
                 cb.insert("stage".to_owned(), Value::Integer(1));
+                cb.insert("version".to_owned(), Value::String("*".to_owned()));
                 t.insert(
                     "compiler_builtins".to_owned(),
                     Value::Table(cb),
@@ -367,7 +385,7 @@ impl Blueprint {
             }
         };
 
-        let mut blueprint = Blueprint::new();
+        let mut blueprint = Blueprint::new(src);
         for (k, v) in deps {
             if let Value::Table(mut map) = v {
                 let stage = if let Some(value) = map.remove("stage") {

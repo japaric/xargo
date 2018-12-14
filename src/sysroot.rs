@@ -77,7 +77,13 @@ version = "0.0.0"
 
     for (_, stage) in blueprint.stages {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
-        let td = td.path();
+        let tdp;
+        let td = if env::var_os("XARGO_KEEP_TEMP").is_some() {
+            tdp = td.into_path();
+            &tdp
+        } else {
+            td.path()
+        };
 
         let mut stoml = TOML.to_owned();
         {

@@ -396,9 +396,11 @@ impl Blueprint {
                 }
 
                 if !map.contains_key("path") && !map.contains_key("git") {
-                    let path = src.path().join(format!("lib{}", k)).display().to_string();
-
-                    map.insert("path".to_owned(), Value::String(path));
+                    // No path and no git given.  This might be in the sysroot, but if we don't find it there we assume it comes from crates.io.
+                    let path = src.path().join(format!("lib{}", k));
+                    if path.exists() {
+                        map.insert("path".to_owned(), Value::String(path.display().to_string()));
+                    }
                 }
 
                 blueprint.push(stage, k, map, src);

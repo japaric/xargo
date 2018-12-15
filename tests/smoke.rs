@@ -785,7 +785,7 @@ stage = 1
 /// Check multi stage sysroot builds with `xargo test`
 #[cfg(feature = "dev")]
 #[test]
-fn compiler_builtins() {
+fn alloc() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
 
@@ -794,7 +794,7 @@ fn compiler_builtins() {
 [dependencies.core]
 stage = 0
 
-[dependencies.compiler_builtins]
+[dependencies.alloc]
 stage = 1
 ",
         )?;

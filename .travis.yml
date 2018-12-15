@@ -5,21 +5,23 @@ sudo: required
 
 matrix:
   include:
-    # Linux
+    # Tests
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly-2018-12-01
+
+    # Linux (build only)
     - env: TARGET=i686-unknown-linux-gnu
     - env: TARGET=i686-unknown-linux-musl
     - env: TARGET=x86_64-unknown-linux-gnu
     - env: TARGET=x86_64-unknown-linux-musl
 
-    # OSX
+    # OSX (build only)
     - env: TARGET=i686-apple-darwin
       os: osx
     - env: TARGET=x86_64-apple-darwin
       os: osx
-
-    # Tests
-    - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly
 
 install:
   - bash ci/install.sh

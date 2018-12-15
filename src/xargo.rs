@@ -84,7 +84,7 @@ pub fn home(cmode: &CompilationMode) -> Result<Home> {
     let mut p = if let Some(h) = env::var_os("XARGO_HOME") {
         PathBuf::from(h)
     } else {
-        env::home_dir()
+        dirs::home_dir()
             .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
             .join(".xargo")
     };

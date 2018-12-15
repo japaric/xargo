@@ -6,6 +6,7 @@ main() {
         target=x86_64-unknown-linux-gnu
         sort=sort
 
+        sudo apt-get update
         sudo apt-get install gcc-arm-none-eabi
     else
         target=x86_64-apple-darwin

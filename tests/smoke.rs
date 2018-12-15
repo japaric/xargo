@@ -9,6 +9,7 @@ extern crate lazy_static;
 extern crate parking_lot;
 extern crate rustc_version;
 extern crate tempdir;
+extern crate dirs;
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -22,7 +23,7 @@ use tempdir::TempDir;
 use errors::*;
 
 mod errors {
-    #![allow(unused_doc_comment)]
+    #![allow(unused_doc_comments)]
     error_chain!();
 }
 
@@ -40,7 +41,7 @@ fn home() -> Result<PathBuf> {
         Ok(PathBuf::from(h))
     } else {
         Ok(
-            env::home_dir()
+            dirs::home_dir()
                 .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
                 .join(".xargo"),
         )
@@ -784,7 +785,7 @@ stage = 1
 /// Check multi stage sysroot builds with `xargo test`
 #[cfg(feature = "dev")]
 #[test]
-fn compiler_builtins() {
+fn alloc() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
 
@@ -793,7 +794,7 @@ fn compiler_builtins() {
 [dependencies.core]
 stage = 0
 
-[dependencies.compiler_builtins]
+[dependencies.alloc]
 stage = 1
 ",
         )?;

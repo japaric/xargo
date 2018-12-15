@@ -80,10 +80,16 @@ version = "0.0.0"
         let td = td.path();
 
         let mut stoml = TOML.to_owned();
+        {
+            let mut map = Table::new();
 
-        let mut map = Table::new();
-        map.insert("dependencies".to_owned(), Value::Table(stage.toml));
-        stoml.push_str(&Value::Table(map).to_string());
+            map.insert("dependencies".to_owned(), Value::Table(stage.dependencies));
+            if let Some(patch) = stage.patch {
+                map.insert("patch".to_owned(), Value::Table(patch));
+            }
+
+            stoml.push_str(&Value::Table(map).to_string());
+        }
 
         if let Some(profile) = ctoml.profile() {
             stoml.push_str(&profile.to_string())
@@ -284,7 +290,8 @@ pub fn update(
 #[derive(Debug)]
 pub struct Stage {
     crates: Vec<String>,
-    toml: Table,
+    dependencies: Table,
+    patch: Option<Table>,
 }
 
 /// A sysroot that will be built in "stages"
@@ -389,12 +396,14 @@ impl Blueprint {
                 }
 
                 if !map.contains_key("path") && !map.contains_key("git") {
-                    let path = src.path().join(format!("lib{}", k)).display().to_string();
-
-                    map.insert("path".to_owned(), Value::String(path));
+                    // No path and no git given.  This might be in the sysroot, but if we don't find it there we assume it comes from crates.io.
+                    let path = src.path().join(format!("lib{}", k));
+                    if path.exists() {
+                        map.insert("path".to_owned(), Value::String(path.display().to_string()));
+                    }
                 }
 
-                blueprint.push(stage, k, map);
+                blueprint.push(stage, k, map, src);
             } else {
                 Err(format!(
                     "Xargo.toml: target.{}.dependencies.{} must be \
@@ -407,13 +416,34 @@ impl Blueprint {
         Ok(blueprint)
     }
 
-    fn push(&mut self, stage: i64, krate: String, toml: Table) {
+    fn push(&mut self, stage: i64, krate: String, toml: Table, src: &Src) {
         let stage = self.stages.entry(stage).or_insert_with(|| Stage {
             crates: vec![],
-            toml: Table::new(),
+            dependencies: Table::new(),
+            patch: {
+                let rustc_std_workspace_core = src.path().join("tools/rustc-std-workspace-core");
+                if rustc_std_workspace_core.exists() {
+                    // For a new stage, we also need to compute the patch section of the toml
+                    fn make_singleton_map(key: &str, val: Value) -> Table {
+                        let mut map = Table::new();
+                        map.insert(key.to_owned(), val);
+                        map
+                    }
+                    Some(make_singleton_map("crates-io", Value::Table(
+                        make_singleton_map("rustc-std-workspace-core", Value::Table(
+                            make_singleton_map("path", Value::String(
+                                rustc_std_workspace_core.display().to_string()
+                            ))
+                        ))
+                    )))
+                } else {
+                    // an old rustc, doesn't need a rustc_std_workspace_core
+                    None
+                }
+            }
         });
 
-        stage.toml.insert(krate.clone(), Value::Table(toml));
+        stage.dependencies.insert(krate.clone(), Value::Table(toml));
         stage.crates.push(krate);
     }
 
@@ -422,7 +452,7 @@ impl Blueprint {
         H: Hasher,
     {
         for stage in self.stages.values() {
-            for (k, v) in stage.toml.iter() {
+            for (k, v) in stage.dependencies.iter() {
                 k.hash(hasher);
                 v.to_string().hash(hasher);
             }

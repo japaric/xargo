@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.13] - 2018-12-18
+
+### Fixed
+
+- Xargo now works again with recent nightlies.
+
+### Added
+
+- When the `XARGO_KEEP_TEMP` env variable is set Xargo will keep the temporary
+  directory used to build the sysroot. This is useful for debugging problems in
+  Xargo.
+
 ## [v0.3.12] - 2018-04-08
 
 ### Changed
@@ -322,7 +334,8 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.12...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.13...HEAD
+[v0.3.13]: https://github.com/japaric/xargo/compare/v0.3.12...v0.3.13
 [v0.3.12]: https://github.com/japaric/xargo/compare/v0.3.11...v0.3.12
 [v0.3.11]: https://github.com/japaric/xargo/compare/v0.3.10...v0.3.11
 [v0.3.10]: https://github.com/japaric/xargo/compare/v0.3.9...v0.3.10

@@ -805,3 +805,31 @@ stage = 1
 
     run!()
 }
+
+/// Test having a `[patch]` section
+#[cfg(feature = "dev")]
+#[test]
+fn host_patch() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        project.xargo_toml(
+            r#"
+[dependencies.std]
+features = ["panic_unwind"]
+
+[patch.crates-io.cc]
+git = "https://github.com/alexcrichton/cc-rs"
+"#,
+        )?;
+        let stderr = project.build_and_get_stderr()?;
+
+        assert!(stderr
+            .lines()
+            .any(|line| line.contains("Compiling cc ")
+                && line.contains("https://github.com/alexcrichton/cc-rs")));
+
+        Ok(())
+    }
+
+    run!()
+}

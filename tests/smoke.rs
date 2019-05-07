@@ -146,10 +146,16 @@ impl CommandExt for Command {
         let out = self.output()
             .chain_err(|| format!("couldn't execute `{:?}`", self))?;
 
+        let stderr = String::from_utf8(out.stderr)
+            .chain_err(|| format!("`{:?}` output was not UTF-8", self));
+
         if out.status.success() {
-            Ok(String::from_utf8(out.stderr)
-                .chain_err(|| format!("`{:?}` output was not UTF-8", self))?)
+            stderr
         } else {
+            match stderr {
+                Ok(e) => print!("{}", e),
+                Err(e) => print!("{}", e),
+            }
             Err(format!(
                 "`{:?}` failed with exit code: {:?}",
                 self,

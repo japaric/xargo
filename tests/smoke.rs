@@ -284,7 +284,7 @@ impl HProject {
             write(
                 &td.path().join("src/lib.rs"),
                 false,
-                "#![feature(alloc_system)]\nextern crate alloc_system;",
+                "fn _f(_: Vec<std::fs::File>) {}",
             )?;
         } else {
             write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
@@ -758,7 +758,6 @@ fn host_twice() {
 // component (cf. #36501) from within the appveyor environment
 #[cfg(feature = "dev")]
 #[cfg(not(windows))]
-#[ignore]
 #[test]
 fn test() {
     fn run() -> Result<()> {

@@ -52,6 +52,7 @@ branches:
     - /^v\d+\.\d+\.\d+.*$/
     - staging
     - trying
+    - master
 
 notifications:
   email:

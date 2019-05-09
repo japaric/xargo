@@ -560,8 +560,9 @@ rustflags = ["--cfg", "xargo"]
         assert!(
             stderr
                 .lines()
-                .filter(|l| !l.starts_with("+") && l.contains("rustc"))
-                .all(|l| l.contains("--cfg") && l.contains("xargo"))
+                .filter(|l| !l.starts_with("+") && l.contains("rustc") && !l.contains("rustc-std-workspace"))
+                .all(|l| l.contains("--cfg") && l.contains("xargo")),
+            "unexpected stderr:\n{}", stderr
         );
 
         Ok(())

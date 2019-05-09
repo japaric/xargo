@@ -332,6 +332,27 @@ impl Blueprint {
         }
     }
 
+    /// Add $CRATE to `patch` section, as needed to build libstd.
+    fn add_patch(patch: &mut Table, mut path: PathBuf, crate_: &str) -> Result<()> {
+        path.push(crate_);
+        if path.exists() {
+            // add crate to patch section (if not specified)
+            fn table_entry<'a>(table: &'a mut Table, key: &str) -> Result<&'a mut Table> {
+                table
+                    .entry(key.into())
+                    .or_insert_with(|| Value::Table(Table::new()))
+                    .as_table_mut(|| key)
+            }
+
+            let crates_io = table_entry(patch, "crates-io")?;
+            if !crates_io.contains_key(crate_) {
+                table_entry(crates_io, crate_)?
+                    .insert("path".into(), Value::String(path.display().to_string()));
+            }
+        }
+        Ok(())
+    }
+
     fn from(toml: Option<&xargo::Toml>, target: &str, root: &Root, src: &Src) -> Result<Self> {
         fn make_path_absolute<F, R>(
             crate_spec: &mut toml::Table,
@@ -362,6 +383,7 @@ impl Blueprint {
             Ok(())
         }
 
+        // Compose patch section
         let mut patch = match toml.and_then(xargo::Toml::patch) {
             Some(value) => value
                 .as_table()
@@ -378,25 +400,10 @@ impl Blueprint {
             }
         }
 
-        let rustc_std_workspace_core = src.path().join("tools/rustc-std-workspace-core");
-        if rustc_std_workspace_core.exists() {
-            // add rustc_std_workspace_core to patch section (if not specified)
-            fn table_entry<'a>(table: &'a mut Table, key: &str) -> Result<&'a mut Table> {
-                table
-                    .entry(key.into())
-                    .or_insert_with(|| Value::Table(Table::new()))
-                    .as_table_mut(|| key)
-            }
+        Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-core")?;
+        Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-alloc")?;
 
-            let mut crates_io = table_entry(&mut patch, "crates-io")?;
-            if !crates_io.contains_key("rustc-std-workspace-core") {
-                table_entry(&mut crates_io, "rustc-std-workspace-core")?.insert(
-                    "path".into(),
-                    Value::String(rustc_std_workspace_core.display().to_string()),
-                );
-            }
-        }
-
+        // Compose dependency sections
         let deps = match (
             toml.and_then(|t| t.dependencies()),
             toml.and_then(|t| t.target_dependencies(target)),

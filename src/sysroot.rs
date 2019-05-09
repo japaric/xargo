@@ -90,9 +90,7 @@ version = "0.0.0"
             let mut map = Table::new();
 
             map.insert("dependencies".to_owned(), Value::Table(stage.dependencies));
-            if let Some(patch) = stage.patch {
-                map.insert("patch".to_owned(), Value::Table(patch));
-            }
+            map.insert("patch".to_owned(), Value::Table(stage.patch));
 
             stoml.push_str(&Value::Table(map).to_string());
         }
@@ -294,13 +292,37 @@ pub fn update(
 pub struct Stage {
     crates: Vec<String>,
     dependencies: Table,
-    patch: Option<Table>,
+    patch: Table,
 }
 
 /// A sysroot that will be built in "stages"
 #[derive(Debug)]
 pub struct Blueprint {
     stages: BTreeMap<i64, Stage>,
+}
+
+trait AsTableMut {
+    fn as_table_mut<F, R>(&mut self, on_error_path: F) -> Result<&mut Table>
+    where
+        F: FnOnce() -> R,
+        R: ::std::fmt::Display;
+}
+
+impl AsTableMut for Value {
+    /// If the `self` is a Value::Table, return `Ok` with mutable reference to
+    /// the contained table. If it's not return `Err` with an error message.
+    /// The result of `on_error_path` will be inserted in the error message and
+    /// should indicate the TOML path of `self`.
+    fn as_table_mut<F, R>(&mut self, on_error_path: F) -> Result<&mut Table>
+    where
+        F: FnOnce() -> R,
+        R: ::std::fmt::Display,
+    {
+        match self {
+            Value::Table(table) => Ok(table),
+            _ => Err(format!("Xargo.toml: `{}` must be a table", on_error_path()).into()),
+        }
+    }
 }
 
 impl Blueprint {
@@ -311,6 +333,70 @@ impl Blueprint {
     }
 
     fn from(toml: Option<&xargo::Toml>, target: &str, root: &Root, src: &Src) -> Result<Self> {
+        fn make_path_absolute<F, R>(
+            crate_spec: &mut toml::Table,
+            root: &Root,
+            on_error_path: F,
+        ) -> Result<()>
+        where
+            F: FnOnce() -> R,
+            R: ::std::fmt::Display,
+        {
+            if let Some(path) = crate_spec.get_mut("path") {
+                let p = PathBuf::from(
+                    path.as_str()
+                        .ok_or_else(|| format!("`{}.path` must be a string", on_error_path()))?,
+                );
+
+                if !p.is_absolute() {
+                    *path = Value::String(
+                        root.path()
+                            .join(&p)
+                            .canonicalize()
+                            .chain_err(|| format!("couldn't canonicalize {}", p.display()))?
+                            .display()
+                            .to_string(),
+                    );
+                }
+            }
+            Ok(())
+        }
+
+        let mut patch = match toml.and_then(xargo::Toml::patch) {
+            Some(value) => value
+                .as_table()
+                .cloned()
+                .ok_or_else(|| format!("Xargo.toml: `patch` must be a table"))?,
+            None => Table::new()
+        };
+
+        for (k1, v) in patch.iter_mut() {
+            for (k2, v) in v.as_table_mut(|| format!("patch.{}", k1))?.iter_mut() {
+                let krate = v.as_table_mut(|| format!("patch.{}.{}", k1, k2))?;
+
+                make_path_absolute(krate, root, || format!("patch.{}.{}", k1, k2))?;
+            }
+        }
+
+        let rustc_std_workspace_core = src.path().join("tools/rustc-std-workspace-core");
+        if rustc_std_workspace_core.exists() {
+            // add rustc_std_workspace_core to patch section (if not specified)
+            fn table_entry<'a>(table: &'a mut Table, key: &str) -> Result<&'a mut Table> {
+                table
+                    .entry(key.into())
+                    .or_insert_with(|| Value::Table(Table::new()))
+                    .as_table_mut(|| key)
+            }
+
+            let mut crates_io = table_entry(&mut patch, "crates-io")?;
+            if !crates_io.contains_key("rustc-std-workspace-core") {
+                table_entry(&mut crates_io, "rustc-std-workspace-core")?.insert(
+                    "path".into(),
+                    Value::String(rustc_std_workspace_core.display().to_string()),
+                );
+            }
+        }
+
         let deps = match (
             toml.and_then(|t| t.dependencies()),
             toml.and_then(|t| t.target_dependencies(target)),
@@ -382,21 +468,7 @@ impl Blueprint {
                     0
                 };
 
-                if let Some(path) = map.get_mut("path") {
-                    let p = PathBuf::from(path.as_str()
-                        .ok_or_else(|| format!("dependencies.{}.path must be a string", k))?);
-
-                    if !p.is_absolute() {
-                        *path = Value::String(
-                            root.path()
-                                .join(&p)
-                                .canonicalize()
-                                .chain_err(|| format!("couldn't canonicalize {}", p.display()))?
-                                .display()
-                                .to_string(),
-                        );
-                    }
-                }
+                make_path_absolute(&mut map, root, || format!("dependencies.{}", k))?;
 
                 if !map.contains_key("path") && !map.contains_key("git") {
                     // No path and no git given.  This might be in the sysroot, but if we don't find it there we assume it comes from crates.io.
@@ -406,7 +478,7 @@ impl Blueprint {
                     }
                 }
 
-                blueprint.push(stage, k, map, src);
+                blueprint.push(stage, k, map, &patch);
             } else {
                 Err(format!(
                     "Xargo.toml: target.{}.dependencies.{} must be \
@@ -419,31 +491,11 @@ impl Blueprint {
         Ok(blueprint)
     }
 
-    fn push(&mut self, stage: i64, krate: String, toml: Table, src: &Src) {
+    fn push(&mut self, stage: i64, krate: String, toml: Table, patch: &Table) {
         let stage = self.stages.entry(stage).or_insert_with(|| Stage {
             crates: vec![],
             dependencies: Table::new(),
-            patch: {
-                let rustc_std_workspace_core = src.path().join("tools/rustc-std-workspace-core");
-                if rustc_std_workspace_core.exists() {
-                    // For a new stage, we also need to compute the patch section of the toml
-                    fn make_singleton_map(key: &str, val: Value) -> Table {
-                        let mut map = Table::new();
-                        map.insert(key.to_owned(), val);
-                        map
-                    }
-                    Some(make_singleton_map("crates-io", Value::Table(
-                        make_singleton_map("rustc-std-workspace-core", Value::Table(
-                            make_singleton_map("path", Value::String(
-                                rustc_std_workspace_core.display().to_string()
-                            ))
-                        ))
-                    )))
-                } else {
-                    // an old rustc, doesn't need a rustc_std_workspace_core
-                    None
-                }
-            }
+            patch: patch.clone(),
         });
 
         stage.dependencies.insert(krate.clone(), Value::Table(toml));

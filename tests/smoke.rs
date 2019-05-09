@@ -146,10 +146,16 @@ impl CommandExt for Command {
         let out = self.output()
             .chain_err(|| format!("couldn't execute `{:?}`", self))?;
 
+        let stderr = String::from_utf8(out.stderr)
+            .chain_err(|| format!("`{:?}` output was not UTF-8", self));
+
         if out.status.success() {
-            Ok(String::from_utf8(out.stderr)
-                .chain_err(|| format!("`{:?}` output was not UTF-8", self))?)
+            stderr
         } else {
+            match stderr {
+                Ok(e) => print!("{}", e),
+                Err(e) => print!("{}", e),
+            }
             Err(format!(
                 "`{:?}` failed with exit code: {:?}",
                 self,
@@ -284,7 +290,7 @@ impl HProject {
             write(
                 &td.path().join("src/lib.rs"),
                 false,
-                "#![feature(alloc_system)]\nextern crate alloc_system;",
+                "fn _f(_: Vec<std::fs::File>) {}",
             )?;
         } else {
             write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
@@ -758,7 +764,6 @@ fn host_twice() {
 // component (cf. #36501) from within the appveyor environment
 #[cfg(feature = "dev")]
 #[cfg(not(windows))]
-#[ignore]
 #[test]
 fn test() {
     fn run() -> Result<()> {
@@ -800,6 +805,34 @@ stage = 1
         )?;
 
         xargo()?.arg("build").current_dir(project.td.path()).run()?;
+
+        Ok(())
+    }
+
+    run!()
+}
+
+/// Test having a `[patch]` section
+#[cfg(feature = "dev")]
+#[test]
+fn host_patch() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        project.xargo_toml(
+            r#"
+[dependencies.std]
+features = ["panic_unwind"]
+
+[patch.crates-io.cc]
+git = "https://github.com/alexcrichton/cc-rs"
+"#,
+        )?;
+        let stderr = project.build_and_get_stderr()?;
+
+        assert!(stderr
+            .lines()
+            .any(|line| line.contains("Compiling cc ")
+                && line.contains("https://github.com/alexcrichton/cc-rs")));
 
         Ok(())
     }

@@ -113,6 +113,11 @@ impl Toml {
         self.table
             .lookup(&format!("target.{}.dependencies", target))
     }
+
+    /// Returns the `patch` part of `Xargo.toml`
+    pub fn patch(&self) -> Option<&Value> {
+        self.table.lookup("patch")
+    }
 }
 
 pub fn toml(root: &Root) -> Result<Option<Toml>> {

@@ -139,8 +139,8 @@ impl Drop for FileLock {
 fn acquire(
     msg: &str,
     path: &Path,
-    try: &Fn() -> io::Result<()>,
-    block: &Fn() -> io::Result<()>,
+    try: &dyn Fn() -> io::Result<()>,
+    block: &dyn Fn() -> io::Result<()>,
 ) -> io::Result<()> {
     #[cfg(all(target_os = "linux", not(target_env = "musl")))]
     fn is_on_nfs_mount(path: &Path) -> bool {

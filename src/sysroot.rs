@@ -3,7 +3,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process::Command;
 use std::{env, fs};
 
 use rustc_version::VersionMeta;
@@ -104,7 +103,7 @@ version = "0.0.0"
         util::write(&td.join("src/lib.rs"), "")?;
 
         let cargo = || {
-            let mut cmd = Command::new("cargo");
+            let mut cmd = cargo::command();
             let mut flags = rustflags.for_xargo(home);
             flags.push_str(" -Z force-unstable-if-unmarked");
             if verbose {

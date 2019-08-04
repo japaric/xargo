@@ -142,8 +142,14 @@ fn flags(config: Option<&Config>, target: &str, tool: &str) -> Result<Vec<String
     }
 }
 
+pub fn command() -> Command {
+    env::var_os("CARGO")
+        .map(Command::new)
+        .unwrap_or_else(|| Command::new("cargo"))
+}
+
 pub fn run(args: &Args, verbose: bool) -> Result<ExitStatus> {
-    Command::new("cargo")
+    command()
         .args(args.all())
         .run_and_get_status(verbose)
 }

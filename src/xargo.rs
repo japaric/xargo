@@ -1,5 +1,5 @@
 use std::path::{Display, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::process::ExitStatus;
 use std::{env, mem};
 use std::io::{self, Write};
 
@@ -23,7 +23,7 @@ pub fn run(
     config: Option<&Config>,
     verbose: bool,
 ) -> Result<ExitStatus> {
-    let mut cmd = Command::new("cargo");
+    let mut cmd = cargo::command();
     cmd.args(args.all());
 
     if args.subcommand() == Some(Subcommand::Doc) {

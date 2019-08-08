@@ -352,7 +352,9 @@ stage = 1
 
 - Initial release
 
-[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.13...HEAD
+[Unreleased]: https://github.com/japaric/xargo/compare/v0.3.15...HEAD
+[v0.3.15]: https://github.com/japaric/xargo/compare/v0.3.14...v0.3.15
+[v0.3.14]: https://github.com/japaric/xargo/compare/v0.3.13...v0.3.14
 [v0.3.13]: https://github.com/japaric/xargo/compare/v0.3.12...v0.3.13
 [v0.3.12]: https://github.com/japaric/xargo/compare/v0.3.11...v0.3.12
 [v0.3.11]: https://github.com/japaric/xargo/compare/v0.3.10...v0.3.11

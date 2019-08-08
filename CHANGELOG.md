@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.3.15] - 2019-08-??
+
+### Added
+
+- The cargo binary used by Xargo can be overwritten using the `CARGO` environment variable.
+  (The same was already possible for rustc before, using `RUSTC`.)
+
+## [v0.3.14] - 2019-05-09
+
+### Fixed
+
+- Xargo now works again with recent nightlies.
+- Fixed Xargo for targets that do not have a `bin` directory in their rustlib folder.
+
+### Added
+
+- Allow specifying `[patch]` section in `Xargo.toml`.
+
 ## [v0.3.13] - 2018-12-18
 
 ### Fixed

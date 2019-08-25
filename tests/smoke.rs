@@ -761,16 +761,17 @@ fn host_twice() {
 }
 
 /// Check multi stage sysroot builds with `xargo test`
-// We avoid Windows here just because it would be tricky to modify the rust-src
-// component (cf. #36501) from within the appveyor environment
 #[cfg(feature = "dev")]
-#[cfg(not(windows))]
 #[test]
 fn test() {
     fn run() -> Result<()> {
         let project = HProject::new(true)?;
 
-        project.xargo_toml(
+        if std::env::var("TRAVIS_RUST_VERSION").ok().map_or(false,
+            |var| var.starts_with("nightly-2018"))
+        {
+            // Testing an old version on CI, we need a different Xargo.toml.
+            project.xargo_toml(
             "
 [dependencies.std]
 features = [\"panic_unwind\"]
@@ -778,7 +779,17 @@ features = [\"panic_unwind\"]
 [dependencies.test]
 stage = 1
 ",
-        )?;
+            )?;
+        } else {
+            project.xargo_toml(
+                "
+[dependencies.std]
+features = [\"panic_unwind\"]
+
+[dependencies.test]
+",
+            )?;
+        }
 
         xargo()?.arg("test").current_dir(project.td.path()).run()?;
 
@@ -788,7 +799,7 @@ stage = 1
     run!()
 }
 
-/// Check multi stage sysroot builds with `xargo test`
+/// Check multi stage sysroot builds with `xargo build`
 #[cfg(feature = "dev")]
 #[test]
 fn alloc() {

@@ -401,6 +401,7 @@ impl Blueprint {
 
         Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-core")?;
         Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-alloc")?;
+        Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-std")?;
 
         // Compose dependency sections
         let deps = match (

@@ -10,7 +10,7 @@ matrix:
       rust: nightly
       if: branch = staging OR branch = trying OR type = pull_request
     - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly-2018-12-01
+      rust: nightly-2018-12-01 # old version without rustc-std-workspace-core
       if: branch = staging OR branch = trying
 
     # Linux (build only)

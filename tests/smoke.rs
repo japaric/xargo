@@ -272,7 +272,8 @@ struct HProject {
 
 impl HProject {
     fn new(test: bool) -> Result<Self> {
-        // There can only be one instance of this type at any point in time
+        // There can only be one instance of this type at any point in time.
+        // Needed to make sure we don't try to build multiple HOST libstds in parallel.
         lazy_static! {
             static ref ONCE: Mutex<()> = Mutex::new(());
         }
@@ -763,7 +764,7 @@ fn host_twice() {
 /// Check multi stage sysroot builds with `xargo test`
 #[cfg(feature = "dev")]
 #[test]
-fn test() {
+fn host_libtest() {
     fn run() -> Result<()> {
         let project = HProject::new(true)?;
 
@@ -802,7 +803,7 @@ features = [\"panic_unwind\"]
 /// Check multi stage sysroot builds with `xargo build`
 #[cfg(feature = "dev")]
 #[test]
-fn alloc() {
+fn host_liballoc() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
 

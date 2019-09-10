@@ -189,7 +189,7 @@ impl Project {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
-            .args(&["init", "--lib", "--vcs", "none", "--name", name])
+            .args(&["init", "-q", "--lib", "--vcs", "none", "--name", name])
             .current_dir(td.path())
             .run()?;
 
@@ -202,10 +202,9 @@ impl Project {
 
     /// Calls `xargo build`
     fn build(&self, target: &str) -> Result<()> {
-        xargo()?
-            .args(&["build", "--target", target])
-            .current_dir(self.td.path())
-            .run()
+        // Be less verbose
+        self.build_and_get_stderr(Some(target))?;
+        Ok(())
     }
 
     /// Calls `xargo build` and collects STDERR
@@ -239,7 +238,8 @@ impl Project {
         xargo()?
             .args(&["doc", "--target", target])
             .current_dir(self.td.path())
-            .run()
+            .run_and_get_stderr()?;
+        Ok(())
     }
 
     /// Adds a `Xargo.toml` to the project
@@ -283,7 +283,7 @@ impl HProject {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
-            .args(&["init", "--lib", "--vcs", "none", "--name", "host"])
+            .args(&["init", "-q", "--lib", "--vcs", "none", "--name", "host"])
             .current_dir(td.path())
             .run()?;
 
@@ -302,6 +302,12 @@ impl HProject {
             host: host(),
             td: td,
         })
+    }
+
+    fn build(&self, verb: &str) -> Result<()> {
+        // Calling "run_and_get_stderr" to be less verbose
+        xargo()?.arg(verb).current_dir(self.td.path()).run_and_get_stderr()?;
+        Ok(())
     }
 
     /// Calls `xargo build` and collects STDERR
@@ -792,9 +798,7 @@ features = [\"panic_unwind\"]
             )?;
         }
 
-        xargo()?.arg("test").current_dir(project.td.path()).run()?;
-
-        Ok(())
+        project.build("test")
     }
 
     run!()
@@ -817,9 +821,7 @@ stage = 1
 ",
         )?;
 
-        xargo()?.arg("build").current_dir(project.td.path()).run()?;
-
-        Ok(())
+        project.build("build")
     }
 
     run!()
@@ -845,7 +847,9 @@ git = "https://github.com/alexcrichton/cc-rs"
         assert!(stderr
             .lines()
             .any(|line| line.contains("Compiling cc ")
-                && line.contains("https://github.com/alexcrichton/cc-rs")));
+                && line.contains("https://github.com/alexcrichton/cc-rs")),
+            "Looks like patching did not work. stderr:\n{}", stderr
+        );
 
         Ok(())
     }

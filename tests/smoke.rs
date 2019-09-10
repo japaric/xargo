@@ -827,7 +827,9 @@ stage = 1
     run!()
 }
 
-/// Test having a `[patch]` section
+/// Test having a `[patch]` section.
+/// The tag in the toml file needs to be updated any time the version of
+/// cc used by rustc is updated.
 #[cfg(feature = "dev")]
 #[test]
 fn host_patch() {
@@ -840,6 +842,7 @@ features = ["panic_unwind"]
 
 [patch.crates-io.cc]
 git = "https://github.com/alexcrichton/cc-rs"
+tag = "1.0.35"
 "#,
         )?;
         let stderr = project.build_and_get_stderr()?;

@@ -36,8 +36,6 @@ panic=abort`, for your target.
 $ cargo install xargo
 ```
 
-[binary releases]: https://github.com/japaric/xargo/releases
-
 ## Usage
 
 ### `no_std`

@@ -101,7 +101,7 @@ version = "0.0.0"
 
         // rust-src comes with a lockfile for libstd. Use it.
         let lockfile = src.path().join("..").join("Cargo.lock");
-        fs::copy(lockfile, &td.join("Cargo.lock")).chain_err(|| "couldn't copy lock file")?;
+        fs::copy(lockfile, &td.join("Cargo.lock")).chain_err(|| "Cargo.lock file is missing from source dir")?;
 
         util::write(&td.join("Cargo.toml"), &stoml)?;
         util::mkdir(&td.join("src"))?;

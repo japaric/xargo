@@ -34,6 +34,7 @@ fn build(
     ctoml: &cargo::Toml,
     home: &Home,
     rustflags: &Rustflags,
+    src: &Src,
     sysroot: &Sysroot,
     hash: u64,
     verbose: bool,
@@ -97,6 +98,10 @@ version = "0.0.0"
         if let Some(profile) = ctoml.profile() {
             stoml.push_str(&profile.to_string())
         }
+
+        // rust-src comes with a lockfile for libstd. Use it.
+        let lockfile = src.path().join("..").join("Cargo.lock");
+        fs::copy(lockfile, &td.join("Cargo.lock")).chain_err(|| "Cargo.lock file is missing from source dir")?;
 
         util::write(&td.join("Cargo.toml"), &stoml)?;
         util::mkdir(&td.join("src"))?;
@@ -239,6 +244,7 @@ pub fn update(
             &ctoml,
             home,
             rustflags,
+            src,
             sysroot,
             hash,
             verbose,

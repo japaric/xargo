@@ -189,7 +189,7 @@ impl Project {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
-            .args(&["init", "--lib", "--vcs", "none", "--name", name])
+            .args(&["init", "-q", "--lib", "--vcs", "none", "--name", name])
             .current_dir(td.path())
             .run()?;
 
@@ -202,10 +202,9 @@ impl Project {
 
     /// Calls `xargo build`
     fn build(&self, target: &str) -> Result<()> {
-        xargo()?
-            .args(&["build", "--target", target])
-            .current_dir(self.td.path())
-            .run()
+        // Be less verbose
+        self.build_and_get_stderr(Some(target))?;
+        Ok(())
     }
 
     /// Calls `xargo build` and collects STDERR
@@ -239,7 +238,8 @@ impl Project {
         xargo()?
             .args(&["doc", "--target", target])
             .current_dir(self.td.path())
-            .run()
+            .run_and_get_stderr()?;
+        Ok(())
     }
 
     /// Adds a `Xargo.toml` to the project
@@ -272,7 +272,8 @@ struct HProject {
 
 impl HProject {
     fn new(test: bool) -> Result<Self> {
-        // There can only be one instance of this type at any point in time
+        // There can only be one instance of this type at any point in time.
+        // Needed to make sure we don't try to build multiple HOST libstds in parallel.
         lazy_static! {
             static ref ONCE: Mutex<()> = Mutex::new(());
         }
@@ -282,7 +283,7 @@ impl HProject {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
-            .args(&["init", "--lib", "--vcs", "none", "--name", "host"])
+            .args(&["init", "-q", "--lib", "--vcs", "none", "--name", "host"])
             .current_dir(td.path())
             .run()?;
 
@@ -301,6 +302,12 @@ impl HProject {
             host: host(),
             td: td,
         })
+    }
+
+    fn build(&self, verb: &str) -> Result<()> {
+        // Calling "run_and_get_stderr" to be less verbose
+        xargo()?.arg(verb).current_dir(self.td.path()).run_and_get_stderr()?;
+        Ok(())
     }
 
     /// Calls `xargo build` and collects STDERR
@@ -763,12 +770,12 @@ fn host_twice() {
 /// Check multi stage sysroot builds with `xargo test`
 #[cfg(feature = "dev")]
 #[test]
-fn test() {
+fn host_libtest() {
     fn run() -> Result<()> {
         let project = HProject::new(true)?;
 
         if std::env::var("TRAVIS_RUST_VERSION").ok().map_or(false,
-            |var| var.starts_with("nightly-2018"))
+            |var| var.starts_with("nightly-"))
         {
             // Testing an old version on CI, we need a different Xargo.toml.
             project.xargo_toml(
@@ -791,9 +798,7 @@ features = [\"panic_unwind\"]
             )?;
         }
 
-        xargo()?.arg("test").current_dir(project.td.path()).run()?;
-
-        Ok(())
+        project.build("test")
     }
 
     run!()
@@ -802,7 +807,7 @@ features = [\"panic_unwind\"]
 /// Check multi stage sysroot builds with `xargo build`
 #[cfg(feature = "dev")]
 #[test]
-fn alloc() {
+fn host_liballoc() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
 
@@ -816,15 +821,15 @@ stage = 1
 ",
         )?;
 
-        xargo()?.arg("build").current_dir(project.td.path()).run()?;
-
-        Ok(())
+        project.build("build")
     }
 
     run!()
 }
 
-/// Test having a `[patch]` section
+/// Test having a `[patch]` section.
+/// The tag in the toml file needs to be updated any time the version of
+/// cc used by rustc is updated.
 #[cfg(feature = "dev")]
 #[test]
 fn host_patch() {
@@ -837,6 +842,7 @@ features = ["panic_unwind"]
 
 [patch.crates-io.cc]
 git = "https://github.com/alexcrichton/cc-rs"
+tag = "1.0.25"
 "#,
         )?;
         let stderr = project.build_and_get_stderr()?;
@@ -844,10 +850,17 @@ git = "https://github.com/alexcrichton/cc-rs"
         assert!(stderr
             .lines()
             .any(|line| line.contains("Compiling cc ")
-                && line.contains("https://github.com/alexcrichton/cc-rs")));
+                && line.contains("https://github.com/alexcrichton/cc-rs")),
+            "Looks like patching did not work. stderr:\n{}", stderr
+        );
 
         Ok(())
     }
 
-    run!()
+    // Only run this on pinned nightlies, to avoid having to update the version number all the time.
+    let is_pinned = std::env::var("TRAVIS_RUST_VERSION").ok().map_or(false,
+            |var| var.starts_with("nightly-"));
+    if is_pinned {
+        run!()
+    }
 }

@@ -775,7 +775,7 @@ fn host_libtest() {
         let project = HProject::new(true)?;
 
         if std::env::var("TRAVIS_RUST_VERSION").ok().map_or(false,
-            |var| var.starts_with("nightly-2018"))
+            |var| var.starts_with("nightly-"))
         {
             // Testing an old version on CI, we need a different Xargo.toml.
             project.xargo_toml(
@@ -842,7 +842,7 @@ features = ["panic_unwind"]
 
 [patch.crates-io.cc]
 git = "https://github.com/alexcrichton/cc-rs"
-tag = "1.0.35"
+tag = "1.0.25"
 "#,
         )?;
         let stderr = project.build_and_get_stderr()?;
@@ -857,5 +857,10 @@ tag = "1.0.35"
         Ok(())
     }
 
-    run!()
+    // Only run this on pinned nightlies, to avoid having to update the version number all the time.
+    let is_pinned = std::env::var("TRAVIS_RUST_VERSION").ok().map_or(false,
+            |var| var.starts_with("nightly-"));
+    if is_pinned {
+        run!()
+    }
 }

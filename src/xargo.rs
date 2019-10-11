@@ -120,11 +120,11 @@ impl Toml {
     }
 }
 
-pub fn toml(root: &Root) -> Result<Option<Toml>> {
+pub fn toml(root: &Root) -> Result<(Option<PathBuf>, Option<Toml>)> {
     if let Some(p) = util::search(root.path(), "Xargo.toml") {
-        util::parse(&p.join("Xargo.toml")).map(|t| Some(Toml { table: t }))
+        Ok((Some(p.to_path_buf()), util::parse(&p.join("Xargo.toml")).map(|t| Some(Toml { table: t }))?))
     }
     else {
-        Ok(None)
+        Ok((None, None))
     }
 }

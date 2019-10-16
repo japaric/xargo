@@ -1,4 +1,4 @@
-use std::path::{Display, PathBuf};
+use std::path::{Display, Path, PathBuf};
 use std::process::ExitStatus;
 use std::{env, mem};
 use std::io::{self, Write};
@@ -120,9 +120,9 @@ impl Toml {
     }
 }
 
-pub fn toml(root: &Root) -> Result<(Option<PathBuf>, Option<Toml>)> {
+pub fn toml(root: &Root) -> Result<(Option<&Path>, Option<Toml>)> {
     if let Some(p) = util::search(root.path(), "Xargo.toml") {
-        Ok((Some(p.to_path_buf()), util::parse(&p.join("Xargo.toml")).map(|t| Some(Toml { table: t }))?))
+        Ok((Some(p), util::parse(&p.join("Xargo.toml")).map(|t| Some(Toml { table: t }))?))
     }
     else {
         Ok((None, None))

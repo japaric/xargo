@@ -233,7 +233,7 @@ pub fn update(
     let ctoml = cargo::toml(root)?;
     let (xtoml_parent, xtoml) = xargo::toml(root)?;
 
-    let base_path = xtoml_parent.unwrap_or_else(|| root.path().to_path_buf());
+    let base_path: &Path = xtoml_parent.unwrap_or_else(|| root.path());
 
     let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), &base_path, &src)?;
 

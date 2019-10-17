@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use rustc_version::VersionMeta;
@@ -236,9 +236,15 @@ pub fn update(
     message_format: Option<&str>
 ) -> Result<()> {
     let ctoml = cargo::toml(root)?;
-    let xtoml = xargo::toml(root)?;
+    let (xtoml_parent, xtoml) = xargo::toml(root)?;
 
-    let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), root, &src)?;
+    // As paths in the 'Xargo.toml' can be relative to the directory containing
+    // the 'Xargo.toml', we need to pass the path containing it to the
+    // Blueprint. Otherwise, if no 'Xargo.toml' is found, we use the regular
+    // root path.
+    let base_path: &Path = xtoml_parent.unwrap_or_else(|| root.path());
+
+    let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), &base_path, &src)?;
 
     let hash = hash(cmode, &blueprint, rustflags, &ctoml, meta)?;
 
@@ -364,10 +370,10 @@ impl Blueprint {
         Ok(())
     }
 
-    fn from(toml: Option<&xargo::Toml>, target: &str, root: &Root, src: &Src) -> Result<Self> {
+    fn from(toml: Option<&xargo::Toml>, target: &str, base_path: &Path, src: &Src) -> Result<Self> {
         fn make_path_absolute<F, R>(
             crate_spec: &mut toml::Table,
-            root: &Root,
+            base_path: &Path,
             on_error_path: F,
         ) -> Result<()>
         where
@@ -382,7 +388,7 @@ impl Blueprint {
 
                 if !p.is_absolute() {
                     *path = Value::String(
-                        root.path()
+                        base_path
                             .join(&p)
                             .canonicalize()
                             .chain_err(|| format!("couldn't canonicalize {}", p.display()))?
@@ -407,7 +413,7 @@ impl Blueprint {
             for (k2, v) in v.as_table_mut(|| format!("patch.{}", k1))?.iter_mut() {
                 let krate = v.as_table_mut(|| format!("patch.{}.{}", k1, k2))?;
 
-                make_path_absolute(krate, root, || format!("patch.{}.{}", k1, k2))?;
+                make_path_absolute(krate, base_path, || format!("patch.{}.{}", k1, k2))?;
             }
         }
 
@@ -487,7 +493,7 @@ impl Blueprint {
                     0
                 };
 
-                make_path_absolute(&mut map, root, || format!("dependencies.{}", k))?;
+                make_path_absolute(&mut map, base_path, || format!("dependencies.{}", k))?;
 
                 if !map.contains_key("path") && !map.contains_key("git") {
                     // No path and no git given.  This might be in the sysroot, but if we don't find it there we assume it comes from crates.io.

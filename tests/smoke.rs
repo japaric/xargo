@@ -170,6 +170,18 @@ struct Project {
     td: TempDir,
 }
 
+/// Create a simple project
+fn create_simple_project(project_path: &Path, name: &'static str, library_source: &'static str) -> Result<()> {
+    xargo()?
+        .args(&["init", "-q", "--lib", "--vcs", "none", "--name", name])
+        .current_dir(project_path)
+        .run()?;
+
+   write(&project_path.join("src/lib.rs"), false, library_source)?;
+
+   Ok(())
+}
+
 impl Project {
     /// Creates a new project with given name in a temporary directory.
     fn new(name: &'static str) -> Result<Self> {
@@ -194,13 +206,7 @@ impl Project {
 
         let td = TempDir::new_in(dir, "xargo").chain_err(|| "couldn't create a temporary directory")?;
 
-        xargo()?
-            .args(&["init", "-q", "--lib", "--vcs", "none", "--name", name])
-            .current_dir(td.path())
-            .run()?;
-
-        write(&td.path().join("src/lib.rs"), false, "#![no_std]")?;
-
+        create_simple_project(td.path(), name, "#![no_std]")?;
         write(&td.path().join(format!("{}.json", name)), false, JSON)?;
 
         Ok(Project { name: name, td: td })
@@ -363,18 +369,28 @@ fn target_dependencies() {
     fn run() -> Result<()> {
         // need this exact target name to get the right gcc flags
         const TARGET: &'static str = "thumbv7m-none-eabi";
+        const STAGE1: &'static str = "stage1";
 
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
         let project = Project::new_in(td.path().to_path_buf(), TARGET)?;
+
+        let stage1_path = td.path().join(STAGE1);
+
+        mkdir(stage1_path.as_path())?;
+        create_simple_project(stage1_path.as_path(), STAGE1, "#![no_std]")?;
         write(&td.path().join("Xargo.toml"), false,
             r#"
 [target.thumbv7m-none-eabi.dependencies.alloc]
+
+[target.thumbv7m-none-eabi.dependencies.stage1]
+stage = 1
+path = "stage1"
 "#,
         )?;
         project.build(TARGET)?;
         assert!(exists("core", TARGET)?);
         assert!(exists("alloc", TARGET)?);
-
+        assert!(exists("stage1", TARGET)?);
         Ok(())
     }
 

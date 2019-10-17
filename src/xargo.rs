@@ -120,6 +120,8 @@ impl Toml {
     }
 }
 
+/// Returns the closest directory containing a 'Xargo.toml' and the parsed
+/// content of this 'Xargo.toml'
 pub fn toml(root: &Root) -> Result<(Option<&Path>, Option<Toml>)> {
     if let Some(p) = util::search(root.path(), "Xargo.toml") {
         Ok((Some(p), util::parse(&p.join("Xargo.toml")).map(|t| Some(Toml { table: t }))?))

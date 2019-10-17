@@ -233,6 +233,10 @@ pub fn update(
     let ctoml = cargo::toml(root)?;
     let (xtoml_parent, xtoml) = xargo::toml(root)?;
 
+    // As paths in the 'Xargo.toml' can be relative to the directory containing
+    // the 'Xargo.toml', we need to pass the path containing it to the
+    // Blueprint. Otherwise, if no 'Xargo.toml' is found, we use the regular
+    // root path.
     let base_path: &Path = xtoml_parent.unwrap_or_else(|| root.path());
 
     let blueprint = Blueprint::from(xtoml.as_ref(), cmode.triple(), &base_path, &src)?;

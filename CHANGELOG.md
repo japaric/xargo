@@ -3,7 +3,26 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [v0.3.17] - 2019-11-??
+
+### Added
+
+- Xargo now honors the `Cargo.lock` file shipped in the `rust-src` component, to
+  make builds reproducible even when new versions of libraries are released on
+  `crates.io`.
+- Xargo now searches for the `Xargo.toml` file in parent directories as well,
+  not just in the current directory (thanks to @Nils-TUD and @Thog).
+
+### Fixed
+
+- The `--message-format` was only forwarded to the project build, not the
+  sysroot build (thanks to @roblabla).
+
+## [v0.3.16] - 2019-08-26
+
+### Fixed
+
+- Xargo now works again with recent nightlies.
 
 ## [v0.3.15] - 2019-08-08
 
@@ -11,6 +30,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - The cargo binary used by Xargo can be overwritten using the `CARGO` environment variable.
   (The same was already possible for rustc before, using `RUSTC`.)
+
+### Fixed
+
+- Xargo now works again with recent nightlies.
 
 ## [v0.3.14] - 2019-05-09
 

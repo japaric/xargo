@@ -309,6 +309,21 @@ git = "https://github.com/japaric/steed"
 stage = 2
 ```
 
+## Cargo mode
+
+Xaro supports configuring the mode in which `cargo` is invoked.
+The current options are `build` (the default), and `check`. This
+is used to determine which `cargo` subcommand will be invoked - either
+`build` or `check`.
+
+This is set via the `cargo_mode` entry in `Xargo.toml`:
+
+``` toml
+cargo_mode = "check"
+```
+
+`build` is almost always what you want.
+
 ## Caveats / gotchas
 
 - Xargo won't build a sysroot when used with stable or beta Rust. This is

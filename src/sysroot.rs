@@ -76,6 +76,9 @@ version = "0.0.0"
         }
     }
 
+    // Copy `cargo_mode` so that we can access it after
+    // moving out of `blueprint`
+    let cargo_mode = blueprint.cargo_mode;
     for (_, stage) in blueprint.stages {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
         let tdp;
@@ -165,7 +168,10 @@ version = "0.0.0"
                 }
             }
 
-            cmd.arg("build");
+            match cargo_mode {
+                CargoMode::Build => cmd.arg("build"),
+                CargoMode::Check => cmd.arg("check")
+            };
 
             match () {
                 #[cfg(feature = "dev")]
@@ -344,10 +350,19 @@ pub struct Stage {
     patch: Table,
 }
 
+/// Which mode to invoke `cargo` in when building the sysroot
+/// Can be either `cargo build` or `cargo check`
+#[derive(Copy, Clone, Debug)]
+enum CargoMode {
+    Build,
+    Check
+}
+
 /// A sysroot that will be built in "stages"
 #[derive(Debug)]
 pub struct Blueprint {
     stages: BTreeMap<i64, Stage>,
+    cargo_mode: CargoMode
 }
 
 trait AsTableMut {
@@ -378,6 +393,7 @@ impl Blueprint {
     fn new() -> Self {
         Blueprint {
             stages: BTreeMap::new(),
+            cargo_mode: CargoMode::Build
         }
     }
 
@@ -430,6 +446,21 @@ impl Blueprint {
                 }
             }
             Ok(())
+        }
+
+        let mut blueprint = Blueprint::new();
+
+        // Get `cargo_mode` from `Xargo.toml`
+        if let Some(value) = toml.and_then(xargo::Toml::cargo_mode) {
+            let val = value.as_str()
+                .ok_or_else(|| format!("`cargo_mode` must be a string"))?;
+
+            let mode = match val {
+                "check" => CargoMode::Check,
+                "build" => CargoMode::Build,
+                _ => Err(format!("`cargo_mode` must be either `check` or `build`"))?
+            };
+            blueprint.cargo_mode = mode;
         }
 
         // Compose patch section
@@ -514,7 +545,6 @@ impl Blueprint {
             }
         };
 
-        let mut blueprint = Blueprint::new();
         for (k, v) in deps {
             if let Value::Table(mut map) = v {
                 let stage = if let Some(value) = map.remove("stage") {

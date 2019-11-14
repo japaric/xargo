@@ -102,7 +102,15 @@ version = "0.0.0"
 
         // rust-src comes with a lockfile for libstd. Use it.
         let lockfile = src.path().join("..").join("Cargo.lock");
-        fs::copy(lockfile, &td.join("Cargo.lock")).chain_err(|| "Cargo.lock file is missing from source dir")?;
+        let target_lockfile = td.join("Cargo.lock");
+        fs::copy(lockfile, &target_lockfile).chain_err(|| "Cargo.lock file is missing from source dir")?;
+
+        let mut perms = fs::metadata(&target_lockfile)
+            .chain_err(|| "Cargo.lock file is missing from target dir")?
+            .permissions();
+        perms.set_readonly(false);
+        fs::set_permissions(&target_lockfile, perms)
+            .chain_err(|| "Cargo.lock file is missing from target dir")?;
 
         util::write(&td.join("Cargo.toml"), &stoml)?;
         util::mkdir(&td.join("src"))?;

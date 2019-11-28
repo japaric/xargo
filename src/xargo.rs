@@ -118,11 +118,6 @@ impl Toml {
     pub fn patch(&self) -> Option<&Value> {
         self.table.lookup("patch")
     }
-
-    /// Returns the `cargo_mode` part of `Xargo.toml`
-    pub fn cargo_mode(&self) -> Option<&Value> {
-        self.table.lookup("cargo_mode")
-    }
 }
 
 /// Returns the closest directory containing a 'Xargo.toml' and the parsed

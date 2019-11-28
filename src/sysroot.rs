@@ -38,7 +38,8 @@ fn build(
     sysroot: &Sysroot,
     hash: u64,
     verbose: bool,
-    message_format: Option<&str>
+    message_format: Option<&str>,
+    cargo_mode: CargoMode
 ) -> Result<()> {
     const TOML: &'static str = r#"
 [package]
@@ -76,9 +77,6 @@ version = "0.0.0"
         }
     }
 
-    // Copy `cargo_mode` so that we can access it after
-    // moving out of `blueprint`
-    let cargo_mode = blueprint.cargo_mode;
     for (_, stage) in blueprint.stages {
         let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
         let tdp;
@@ -271,7 +269,8 @@ pub fn update(
     src: &Src,
     sysroot: &Sysroot,
     verbose: bool,
-    message_format: Option<&str>
+    message_format: Option<&str>,
+    cargo_mode: CargoMode
 ) -> Result<()> {
     let ctoml = cargo::toml(root)?;
     let (xtoml_parent, xtoml) = xargo::toml(root)?;
@@ -298,6 +297,7 @@ pub fn update(
             hash,
             verbose,
             message_format,
+            cargo_mode
         )?;
     }
 
@@ -353,7 +353,7 @@ pub struct Stage {
 /// Which mode to invoke `cargo` in when building the sysroot
 /// Can be either `cargo build` or `cargo check`
 #[derive(Copy, Clone, Debug)]
-enum CargoMode {
+pub enum CargoMode {
     Build,
     Check
 }
@@ -362,7 +362,6 @@ enum CargoMode {
 #[derive(Debug)]
 pub struct Blueprint {
     stages: BTreeMap<i64, Stage>,
-    cargo_mode: CargoMode
 }
 
 trait AsTableMut {
@@ -393,7 +392,6 @@ impl Blueprint {
     fn new() -> Self {
         Blueprint {
             stages: BTreeMap::new(),
-            cargo_mode: CargoMode::Build
         }
     }
 
@@ -449,19 +447,6 @@ impl Blueprint {
         }
 
         let mut blueprint = Blueprint::new();
-
-        // Get `cargo_mode` from `Xargo.toml`
-        if let Some(value) = toml.and_then(xargo::Toml::cargo_mode) {
-            let val = value.as_str()
-                .ok_or_else(|| format!("`cargo_mode` must be a string"))?;
-
-            let mode = match val {
-                "check" => CargoMode::Check,
-                "build" => CargoMode::Build,
-                _ => Err(format!("`cargo_mode` must be either `check` or `build`"))?
-            };
-            blueprint.cargo_mode = mode;
-        }
 
         // Compose patch section
         let mut patch = match toml.and_then(xargo::Toml::patch) {

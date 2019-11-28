@@ -446,8 +446,6 @@ impl Blueprint {
             Ok(())
         }
 
-        let mut blueprint = Blueprint::new();
-
         // Compose patch section
         let mut patch = match toml.and_then(xargo::Toml::patch) {
             Some(value) => value
@@ -530,6 +528,7 @@ impl Blueprint {
             }
         };
 
+        let mut blueprint = Blueprint::new();
         for (k, v) in deps {
             if let Value::Table(mut map) = v {
                 let stage = if let Some(value) = map.remove("stage") {

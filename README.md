@@ -309,20 +309,17 @@ git = "https://github.com/japaric/steed"
 stage = 2
 ```
 
-## Cargo mode
+## Cargo subcommand
 
-Xaro supports configuring the mode in which `cargo` is invoked.
-The current options are `build` (the default), and `check`. This
-is used to determine which `cargo` subcommand will be invoked - either
-`build` or `check`.
+Xargo supports performing a 'check build' of the syroot
+via the `xargo-check` command. This command is invoked exactly
+like `xargo`, but will invoke `cargo check` instead of `cargo build`
+when building the sysroot.
 
-This is set via the `cargo_mode` entry in `Xargo.toml`:
-
-``` toml
-cargo_mode = "check"
-```
-
-`build` is almost always what you want.
+This is only useful for very specialized applicationsm like Miri.
+The resulting libstd will *not* be useable in a normal build, since codegen
+will not be performed. You should almost always run `xargo check` (note the space),
+which will perform a normal sysroot build, followed by a 'check' build of *your application*
 
 ## Caveats / gotchas
 

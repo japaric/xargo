@@ -121,6 +121,14 @@ fn xargo() -> Result<Command> {
     Ok(Command::new(p))
 }
 
+fn xargo_check() -> Result<Command> {
+    let mut p = env::current_exe().chain_err(|| "couldn't get path to current executable")?;
+    p.pop();
+    p.pop();
+    p.push("xargo-check");
+    Ok(Command::new(p))
+}
+
 trait CommandExt {
     fn run(&mut self) -> Result<()>;
     fn run_and_get_stderr(&mut self) -> Result<String>;
@@ -254,6 +262,7 @@ impl Project {
         Ok(())
     }
 
+
     /// Adds a `Xargo.toml` to the project
     fn xargo_toml(&self, toml: &str) -> Result<()> {
         write(&self.td.path().join("Xargo.toml"), false, toml)
@@ -336,6 +345,15 @@ impl HProject {
     fn xargo_toml(&self, toml: &str) -> Result<()> {
         write(&self.td.path().join("Xargo.toml"), false, toml)
     }
+
+    fn check(&self) -> Result<()> {
+        xargo_check()?
+            .args(&["check"])
+            .current_dir(self.td.path())
+            .run_and_get_stderr()?;
+        Ok(())
+    }
+
 }
 
 impl Drop for HProject {
@@ -886,4 +904,17 @@ tag = "1.0.25"
     if is_pinned {
         run!()
     }
+}
+
+#[cfg(feature = "dev")]
+#[test]
+fn cargo_check() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        project.check()?;
+
+        Ok(())
+    }
+
+    run!()
 }

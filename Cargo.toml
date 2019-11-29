@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 name = "xargo"
 repository = "https://github.com/japaric/xargo"
 version = "0.3.18"
+default-run = "xargo"
 
 [dependencies]
 error-chain = "0.7.2"

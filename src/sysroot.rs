@@ -126,6 +126,30 @@ version = "0.0.0"
             cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
 
+            // Workaround #261.
+            //
+            // If a crate is shared between the sysroot and a binary, we might
+            // end up with conflicting symbols. This is because both versions
+            // of the crate would get linked, and their metadata hash would be
+            // exactly the same.
+            //
+            // To avoid this, we need to inject some data that modifies the
+            // metadata hash. Fortunately, cargo already has a mechanism for
+            // this, the __CARGO_DEFAULT_LIB_METADATA environment variable.
+            // Unsurprisingly, rust's bootstrap (which has basically the same
+            // role as xargo of building the libstd) makes use of this
+            // environment variable to avoid exactly this problem. See here:
+            // https://github.com/rust-lang/rust/blob/73369f32621f6a844a80a8513ae3ded901e4a406/src/bootstrap/builder.rs#L876
+            //
+            // This relies on an **unstable cargo feature** that isn't meant to
+            // be used outside the bootstrap. This is explicitly stated in
+            // cargo's source:
+            // https://github.com/rust-lang/cargo/blob/14654f38d0819c47d7a605d6f1797ffbcdc65000/src/cargo/core/compiler/context/compilation_files.rs#L496
+            // Unfortunately, I don't see any other way out. We need to have a
+            // way to modify the crate's hash, and from the outside this is the
+            // only way to do so.
+            cmd.env("__CARGO_DEFAULT_LIB_METADATA", "xargo");
+
             // As of rust-lang/cargo#4788 Cargo invokes rustc with a changed "current directory" so
             // we can't assume that such directory will be the same as the directory from which
             // Xargo was invoked. This is specially true when compiling the sysroot as the std

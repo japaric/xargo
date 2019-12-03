@@ -346,10 +346,13 @@ impl HProject {
         write(&self.td.path().join("Xargo.toml"), false, toml)
     }
 
-    /// Runs `xargo-check check`
-    fn xargo_check_check(&self) -> Result<()> {
-        xargo_check()?
-            .args(&["check"])
+    /// Runs `xargo-check` with the specified subcommand
+    fn xargo_check_subcommand(&self, subcommand: Option<&str>) -> Result<()> {
+        let mut cmd = xargo_check()?;
+        if let Some(subcommand) = subcommand {
+            cmd.args(&[subcommand]);
+        }
+        cmd
             .current_dir(self.td.path())
             .run_and_get_stderr()?;
         Ok(())
@@ -909,13 +912,24 @@ tag = "1.0.25"
 
 #[cfg(feature = "dev")]
 #[test]
-fn cargo_check() {
+fn cargo_check_plain() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
-        project.xargo_check_check()?;
+        project.xargo_check_subcommand(None)?;
 
         Ok(())
     }
+    run!()
+}
 
+#[cfg(feature = "dev")]
+#[test]
+fn cargo_check_check() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        project.xargo_check_subcommand(Some("check"))?;
+
+        Ok(())
+    }
     run!()
 }

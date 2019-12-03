@@ -309,7 +309,7 @@ git = "https://github.com/japaric/steed"
 stage = 2
 ```
 
-## Cargo subcommand
+## Check-only sysroot build
 
 Xargo supports performing a 'check build' of the syroot
 via the `xargo-check` command. This command is invoked exactly

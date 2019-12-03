@@ -346,7 +346,8 @@ impl HProject {
         write(&self.td.path().join("Xargo.toml"), false, toml)
     }
 
-    fn check(&self) -> Result<()> {
+    /// Runs `xargo-check check`
+    fn xargo_check_check(&self) -> Result<()> {
         xargo_check()?
             .args(&["check"])
             .current_dir(self.td.path())
@@ -911,7 +912,7 @@ tag = "1.0.25"
 fn cargo_check() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
-        project.check()?;
+        project.xargo_check_check()?;
 
         Ok(())
     }

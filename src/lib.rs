@@ -190,7 +190,7 @@ fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
                 &sysroot,
                 verbose,
                 args.message_format(),
-                cargo_mode
+                cargo_mode,
             )?;
             return xargo::run(
                 &args,

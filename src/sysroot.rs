@@ -39,7 +39,7 @@ fn build(
     hash: u64,
     verbose: bool,
     message_format: Option<&str>,
-    cargo_mode: CargoMode
+    cargo_mode: CargoMode,
 ) -> Result<()> {
     const TOML: &'static str = r#"
 [package]
@@ -270,7 +270,7 @@ pub fn update(
     sysroot: &Sysroot,
     verbose: bool,
     message_format: Option<&str>,
-    cargo_mode: CargoMode
+    cargo_mode: CargoMode,
 ) -> Result<()> {
     let ctoml = cargo::toml(root)?;
     let (xtoml_parent, xtoml) = xargo::toml(root)?;
@@ -297,7 +297,7 @@ pub fn update(
             hash,
             verbose,
             message_format,
-            cargo_mode
+            cargo_mode,
         )?;
     }
 
@@ -355,7 +355,7 @@ pub struct Stage {
 #[derive(Copy, Clone, Debug)]
 pub enum CargoMode {
     Build,
-    Check
+    Check,
 }
 
 /// A sysroot that will be built in "stages"

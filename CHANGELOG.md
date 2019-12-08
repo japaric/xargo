@@ -3,7 +3,20 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [v0.3.17] - 2019-11-??
+## [v0.3.18] - 2019-12-??
+
+### Added
+
+- Xargo now forces metadata for sysroot crates to be different from "normal"
+  crates to avoid issues with custom sysroots that share crates with the
+  project (thanks to @roblabla).
+
+### Fixed
+
+- Build could fail when the rust-src directory was read-only
+  (thanks to @leo60228).
+
+## [v0.3.17] - 2019-11-08
 
 ### Added
 

@@ -31,7 +31,7 @@ fn profile() -> &'static str {
 fn build(
     cmode: &CompilationMode,
     blueprint: Blueprint,
-    ctoml: &cargo::Toml,
+    ctoml: &Option<cargo::Toml>,
     home: &Home,
     rustflags: &Rustflags,
     src: &Src,
@@ -97,8 +97,10 @@ version = "0.0.0"
             stoml.push_str(&Value::Table(map).to_string());
         }
 
-        if let Some(profile) = ctoml.profile() {
-            stoml.push_str(&profile.to_string())
+        if let Some(ctoml) = ctoml {
+            if let Some(profile) = ctoml.profile() {
+                stoml.push_str(&profile.to_string())
+            }
         }
 
         // rust-src comes with a lockfile for libstd. Use it.
@@ -238,7 +240,7 @@ fn hash(
     cmode: &CompilationMode,
     blueprint: &Blueprint,
     rustflags: &Rustflags,
-    ctoml: &cargo::Toml,
+    ctoml: &Option<cargo::Toml>,
     meta: &VersionMeta,
 ) -> Result<u64> {
     let mut hasher = DefaultHasher::new();
@@ -249,8 +251,10 @@ fn hash(
 
     cmode.hash(&mut hasher)?;
 
-    if let Some(profile) = ctoml.profile() {
-        profile.hash(&mut hasher);
+    if let Some(ctoml) = ctoml {
+        if let Some(profile) = ctoml.profile() {
+            profile.hash(&mut hasher);
+        }
     }
 
     if let Some(ref hash) = meta.commit_hash {
@@ -272,7 +276,17 @@ pub fn update(
     message_format: Option<&str>,
     cargo_mode: CargoMode,
 ) -> Result<()> {
-    let ctoml = cargo::toml(root)?;
+    let ctoml = match cargo_mode {
+        CargoMode::Build => Some(cargo::toml(root)?),
+        CargoMode::Check => {
+            if root.path().join("Cargo.toml").exists() {
+                Some(cargo::toml(root)?)
+            } else {
+                None
+            }
+        }
+    };
+
     let (xtoml_parent, xtoml) = xargo::toml(root)?;
 
     // As paths in the 'Xargo.toml' can be relative to the directory containing

@@ -129,7 +129,7 @@ fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
     let cd = CurrentDirectory::get()?;
 
     let config = cargo::config()?;
-    if let Some(root) = cargo::root()? {
+    if let Some(root) = cargo::root(cargo_mode)? {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {

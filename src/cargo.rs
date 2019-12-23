@@ -10,6 +10,7 @@ use cli::Args;
 use errors::*;
 use extensions::CommandExt;
 use util;
+use sysroot::CargoMode;
 use xargo::Home;
 
 pub struct Rustflags {
@@ -247,10 +248,15 @@ impl Root {
     }
 }
 
-pub fn root() -> Result<Option<Root>> {
+pub fn root(mode: CargoMode) -> Result<Option<Root>> {
+    // Don't require a 'Cargo.toml' to exist when 'xargo-check' is used
+    let name = match mode {
+        CargoMode::Build => "Cargo.toml",
+        CargoMode::Check => "Xargo.toml"
+    };
     let cd = env::current_dir().chain_err(|| "couldn't get the current directory")?;
 
-    Ok(util::search(&cd, "Cargo.toml").map(|p| Root { path: p.to_owned() }))
+    Ok(util::search(&cd, name).map(|p| Root { path: p.to_owned() }))
 }
 
 #[derive(Clone, Copy, PartialEq)]

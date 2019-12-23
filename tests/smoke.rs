@@ -347,15 +347,14 @@ impl HProject {
     }
 
     /// Runs `xargo-check` with the specified subcommand
-    fn xargo_check_subcommand(&self, subcommand: Option<&str>) -> Result<()> {
+    fn xargo_check_subcommand(&self, subcommand: Option<&str>) -> Result<String> {
         let mut cmd = xargo_check()?;
         if let Some(subcommand) = subcommand {
             cmd.args(&[subcommand]);
         }
         cmd
             .current_dir(self.td.path())
-            .run_and_get_stderr()?;
-        Ok(())
+            .run_and_get_stderr()
     }
 
 }
@@ -928,6 +927,23 @@ fn cargo_check_check() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
         project.xargo_check_subcommand(Some("check"))?;
+
+        Ok(())
+    }
+    run!()
+}
+
+#[cfg(feature = "dev")]
+#[test]
+fn cargo_check_check_no_ctoml() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        project.xargo_toml("")?;
+        std::fs::remove_file(project.td.path().join("Cargo.toml"))
+            .chain_err(|| format!("Could not remove Cargo.toml"))?;
+
+        let stderr = project.xargo_check_subcommand(None)?;
+        assert!(stderr.contains("Checking core"));
 
         Ok(())
     }

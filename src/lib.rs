@@ -100,13 +100,14 @@ pub fn main_inner(cargo_mode: CargoMode) {
 
             process::exit(1)
         }
-        Ok(status) => if !status.success() {
+        Ok(Some(status)) => if !status.success() {
             process::exit(status.code().unwrap_or(1))
         },
+        Ok(None) => {}
     }
 }
 
-fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
+fn run(cargo_mode: CargoMode) -> Result<Option<ExitStatus>> {
     let args = cli::args();
     let verbose = args.verbose();
 
@@ -114,7 +115,7 @@ fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
 
     if let Some(sc) = args.subcommand() {
         if !sc.needs_sysroot() {
-            return cargo::run(&args, verbose);
+            return cargo::run(&args, verbose).map(Some);
         }
     } else if args.version() {
         writeln!(
@@ -123,7 +124,7 @@ fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
         ).ok();
 
-        return cargo::run(&args, verbose);
+        return cargo::run(&args, verbose).map(Some);
     }
 
     let cd = CurrentDirectory::get()?;
@@ -149,7 +150,7 @@ fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
                      Switch to nightly.",
                     meta.channel
                 ).ok();
-                return cargo::run(&args, verbose);
+                return cargo::run(&args, verbose).map(Some);
             }
         };
 
@@ -192,19 +193,24 @@ fn run(cargo_mode: CargoMode) -> Result<ExitStatus> {
                 args.message_format(),
                 cargo_mode,
             )?;
-            return xargo::run(
-                &args,
-                &cmode,
-                rustflags,
-                &home,
-                &meta,
-                config.as_ref(),
-                verbose,
-            );
+
+            if args.subcommand().is_some() || cargo_mode == CargoMode::Build {
+                return xargo::run(
+                    &args,
+                    &cmode,
+                    rustflags,
+                    &home,
+                    &meta,
+                    config.as_ref(),
+                    verbose,
+                ).map(Some);
+            } else {
+                return Ok(None)
+            }
         }
     }
 
-    cargo::run(&args, verbose)
+    cargo::run(&args, verbose).map(Some)
 }
 
 pub struct CurrentDirectory {

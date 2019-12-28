@@ -366,7 +366,7 @@ pub struct Stage {
 
 /// Which mode to invoke `cargo` in when building the sysroot
 /// Can be either `cargo build` or `cargo check`
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CargoMode {
     Build,
     Check,

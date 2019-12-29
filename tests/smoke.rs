@@ -911,18 +911,6 @@ tag = "1.0.25"
 
 #[cfg(feature = "dev")]
 #[test]
-fn cargo_check_plain() {
-    fn run() -> Result<()> {
-        let project = HProject::new(false)?;
-        project.xargo_check_subcommand(None)?;
-
-        Ok(())
-    }
-    run!()
-}
-
-#[cfg(feature = "dev")]
-#[test]
 fn cargo_check_check() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
@@ -938,6 +926,7 @@ fn cargo_check_check() {
 fn cargo_check_check_no_ctoml() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
+        // Make sure that 'Xargo.toml` exists
         project.xargo_toml("")?;
         std::fs::remove_file(project.td.path().join("Cargo.toml"))
             .chain_err(|| format!("Could not remove Cargo.toml"))?;

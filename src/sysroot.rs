@@ -39,7 +39,7 @@ fn build(
     hash: u64,
     verbose: bool,
     message_format: Option<&str>,
-    cargo_mode: CargoMode,
+    cargo_mode: XargoMode,
 ) -> Result<()> {
     const TOML: &'static str = r#"
 [package]
@@ -169,8 +169,8 @@ version = "0.0.0"
             }
 
             match cargo_mode {
-                CargoMode::Build => cmd.arg("build"),
-                CargoMode::Check => cmd.arg("check")
+                XargoMode::Build => cmd.arg("build"),
+                XargoMode::Check => cmd.arg("check")
             };
 
             match () {
@@ -274,11 +274,11 @@ pub fn update(
     sysroot: &Sysroot,
     verbose: bool,
     message_format: Option<&str>,
-    cargo_mode: CargoMode,
+    cargo_mode: XargoMode,
 ) -> Result<()> {
     let ctoml = match cargo_mode {
-        CargoMode::Build => Some(cargo::toml(root)?),
-        CargoMode::Check => {
+        XargoMode::Build => Some(cargo::toml(root)?),
+        XargoMode::Check => {
             if root.path().join("Cargo.toml").exists() {
                 Some(cargo::toml(root)?)
             } else {
@@ -367,7 +367,7 @@ pub struct Stage {
 /// Which mode to invoke `cargo` in when building the sysroot
 /// Can be either `cargo build` or `cargo check`
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum CargoMode {
+pub enum XargoMode {
     Build,
     Check,
 }

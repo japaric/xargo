@@ -33,7 +33,7 @@ mod sysroot;
 mod util;
 mod xargo;
 
-pub use sysroot::CargoMode;
+pub use sysroot::XargoMode;
 
 // We use a different sysroot for Native compilation to avoid file locking
 //
@@ -74,12 +74,12 @@ impl CompilationMode {
     }
 }
 
-pub fn main_inner(cargo_mode: CargoMode) {
+pub fn main_inner(xargo_mode: XargoMode) {
     fn show_backtrace() -> bool {
         env::var("RUST_BACKTRACE").as_ref().map(|s| &s[..]) == Ok("1")
     }
 
-    match run(cargo_mode) {
+    match run(xargo_mode) {
         Err(e) => {
             let stderr = io::stderr();
             let mut stderr = stderr.lock();
@@ -107,7 +107,7 @@ pub fn main_inner(cargo_mode: CargoMode) {
     }
 }
 
-fn run(cargo_mode: CargoMode) -> Result<Option<ExitStatus>> {
+fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
     let args = cli::args();
     let verbose = args.verbose();
 
@@ -194,7 +194,7 @@ fn run(cargo_mode: CargoMode) -> Result<Option<ExitStatus>> {
                 cargo_mode,
             )?;
 
-            if args.subcommand().is_some() || cargo_mode == CargoMode::Build {
+            if args.subcommand().is_some() || cargo_mode == XargoMode::Build {
                 return xargo::run(
                     &args,
                     &cmode,

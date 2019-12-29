@@ -1,3 +1,3 @@
 fn main() {
-    xargo::main_inner(xargo::CargoMode::Check);
+    xargo::main_inner(xargo::XargoMode::Check);
 }

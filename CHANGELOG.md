@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.19] - ??
+
+### Added
+
+- Added a `xargo-check` binary that can be used for check-only builds of libstd
+  (thanks to @Aaron1011).
+
 ## [v0.3.18] - 2019-12-08
 
 ### Added

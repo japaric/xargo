@@ -33,6 +33,8 @@ mod sysroot;
 mod util;
 mod xargo;
 
+pub use sysroot::XargoMode;
+
 // We use a different sysroot for Native compilation to avoid file locking
 //
 // Cross compilation requires `lib/rustlib/$HOST` to match `rustc`'s sysroot,
@@ -72,12 +74,12 @@ impl CompilationMode {
     }
 }
 
-pub fn main() {
+pub fn main_inner(xargo_mode: XargoMode) {
     fn show_backtrace() -> bool {
         env::var("RUST_BACKTRACE").as_ref().map(|s| &s[..]) == Ok("1")
     }
 
-    match run() {
+    match run(xargo_mode) {
         Err(e) => {
             let stderr = io::stderr();
             let mut stderr = stderr.lock();
@@ -98,13 +100,14 @@ pub fn main() {
 
             process::exit(1)
         }
-        Ok(status) => if !status.success() {
+        Ok(Some(status)) => if !status.success() {
             process::exit(status.code().unwrap_or(1))
         },
+        Ok(None) => {}
     }
 }
 
-fn run() -> Result<ExitStatus> {
+fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
     let args = cli::args();
     let verbose = args.verbose();
 
@@ -112,7 +115,7 @@ fn run() -> Result<ExitStatus> {
 
     if let Some(sc) = args.subcommand() {
         if !sc.needs_sysroot() {
-            return cargo::run(&args, verbose);
+            return cargo::run(&args, verbose).map(Some);
         }
     } else if args.version() {
         writeln!(
@@ -121,13 +124,13 @@ fn run() -> Result<ExitStatus> {
             include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
         ).ok();
 
-        return cargo::run(&args, verbose);
+        return cargo::run(&args, verbose).map(Some);
     }
 
     let cd = CurrentDirectory::get()?;
 
     let config = cargo::config()?;
-    if let Some(root) = cargo::root()? {
+    if let Some(root) = cargo::root(cargo_mode)? {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {
@@ -147,7 +150,7 @@ fn run() -> Result<ExitStatus> {
                      Switch to nightly.",
                     meta.channel
                 ).ok();
-                return cargo::run(&args, verbose);
+                return cargo::run(&args, verbose).map(Some);
             }
         };
 
@@ -187,21 +190,27 @@ fn run() -> Result<ExitStatus> {
                 &src,
                 &sysroot,
                 verbose,
-                args.message_format()
+                args.message_format(),
+                cargo_mode,
             )?;
-            return xargo::run(
-                &args,
-                &cmode,
-                rustflags,
-                &home,
-                &meta,
-                config.as_ref(),
-                verbose,
-            );
+
+            if args.subcommand().is_some() || cargo_mode == XargoMode::Build {
+                return xargo::run(
+                    &args,
+                    &cmode,
+                    rustflags,
+                    &home,
+                    &meta,
+                    config.as_ref(),
+                    verbose,
+                ).map(Some);
+            } else {
+                return Ok(None)
+            }
         }
     }
 
-    cargo::run(&args, verbose)
+    cargo::run(&args, verbose).map(Some)
 }
 
 pub struct CurrentDirectory {

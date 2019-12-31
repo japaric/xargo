@@ -31,14 +31,15 @@ fn profile() -> &'static str {
 fn build(
     cmode: &CompilationMode,
     blueprint: Blueprint,
-    ctoml: &cargo::Toml,
+    ctoml: &Option<cargo::Toml>,
     home: &Home,
     rustflags: &Rustflags,
     src: &Src,
     sysroot: &Sysroot,
     hash: u64,
     verbose: bool,
-    message_format: Option<&str>
+    message_format: Option<&str>,
+    cargo_mode: XargoMode,
 ) -> Result<()> {
     const TOML: &'static str = r#"
 [package]
@@ -96,8 +97,10 @@ version = "0.0.0"
             stoml.push_str(&Value::Table(map).to_string());
         }
 
-        if let Some(profile) = ctoml.profile() {
-            stoml.push_str(&profile.to_string())
+        if let Some(ctoml) = ctoml {
+            if let Some(profile) = ctoml.profile() {
+                stoml.push_str(&profile.to_string())
+            }
         }
 
         // rust-src comes with a lockfile for libstd. Use it.
@@ -165,7 +168,10 @@ version = "0.0.0"
                 }
             }
 
-            cmd.arg("build");
+            match cargo_mode {
+                XargoMode::Build => cmd.arg("build"),
+                XargoMode::Check => cmd.arg("check")
+            };
 
             match () {
                 #[cfg(feature = "dev")]
@@ -234,7 +240,7 @@ fn hash(
     cmode: &CompilationMode,
     blueprint: &Blueprint,
     rustflags: &Rustflags,
-    ctoml: &cargo::Toml,
+    ctoml: &Option<cargo::Toml>,
     meta: &VersionMeta,
 ) -> Result<u64> {
     let mut hasher = DefaultHasher::new();
@@ -245,8 +251,10 @@ fn hash(
 
     cmode.hash(&mut hasher)?;
 
-    if let Some(profile) = ctoml.profile() {
-        profile.hash(&mut hasher);
+    if let Some(ctoml) = ctoml {
+        if let Some(profile) = ctoml.profile() {
+            profile.hash(&mut hasher);
+        }
     }
 
     if let Some(ref hash) = meta.commit_hash {
@@ -265,9 +273,20 @@ pub fn update(
     src: &Src,
     sysroot: &Sysroot,
     verbose: bool,
-    message_format: Option<&str>
+    message_format: Option<&str>,
+    cargo_mode: XargoMode,
 ) -> Result<()> {
-    let ctoml = cargo::toml(root)?;
+    let ctoml = match cargo_mode {
+        XargoMode::Build => Some(cargo::toml(root)?),
+        XargoMode::Check => {
+            if root.path().join("Cargo.toml").exists() {
+                Some(cargo::toml(root)?)
+            } else {
+                None
+            }
+        }
+    };
+
     let (xtoml_parent, xtoml) = xargo::toml(root)?;
 
     // As paths in the 'Xargo.toml' can be relative to the directory containing
@@ -292,6 +311,7 @@ pub fn update(
             hash,
             verbose,
             message_format,
+            cargo_mode,
         )?;
     }
 
@@ -342,6 +362,14 @@ pub struct Stage {
     crates: Vec<String>,
     dependencies: Table,
     patch: Table,
+}
+
+/// Which mode to invoke `cargo` in when building the sysroot
+/// Can be either `cargo build` or `cargo check`
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum XargoMode {
+    Build,
+    Check,
 }
 
 /// A sysroot that will be built in "stages"

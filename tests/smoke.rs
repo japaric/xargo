@@ -121,6 +121,14 @@ fn xargo() -> Result<Command> {
     Ok(Command::new(p))
 }
 
+fn xargo_check() -> Result<Command> {
+    let mut p = env::current_exe().chain_err(|| "couldn't get path to current executable")?;
+    p.pop();
+    p.pop();
+    p.push("xargo-check");
+    Ok(Command::new(p))
+}
+
 trait CommandExt {
     fn run(&mut self) -> Result<()>;
     fn run_and_get_stderr(&mut self) -> Result<String>;
@@ -254,6 +262,7 @@ impl Project {
         Ok(())
     }
 
+
     /// Adds a `Xargo.toml` to the project
     fn xargo_toml(&self, toml: &str) -> Result<()> {
         write(&self.td.path().join("Xargo.toml"), false, toml)
@@ -336,6 +345,18 @@ impl HProject {
     fn xargo_toml(&self, toml: &str) -> Result<()> {
         write(&self.td.path().join("Xargo.toml"), false, toml)
     }
+
+    /// Runs `xargo-check` with the specified subcommand
+    fn xargo_check_subcommand(&self, subcommand: Option<&str>) -> Result<String> {
+        let mut cmd = xargo_check()?;
+        if let Some(subcommand) = subcommand {
+            cmd.args(&[subcommand]);
+        }
+        cmd
+            .current_dir(self.td.path())
+            .run_and_get_stderr()
+    }
+
 }
 
 impl Drop for HProject {
@@ -886,4 +907,34 @@ tag = "1.0.25"
     if is_pinned {
         run!()
     }
+}
+
+#[cfg(feature = "dev")]
+#[test]
+fn cargo_check_check() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        project.xargo_check_subcommand(Some("check"))?;
+
+        Ok(())
+    }
+    run!()
+}
+
+#[cfg(feature = "dev")]
+#[test]
+fn cargo_check_check_no_ctoml() {
+    fn run() -> Result<()> {
+        let project = HProject::new(false)?;
+        // Make sure that 'Xargo.toml` exists
+        project.xargo_toml("")?;
+        std::fs::remove_file(project.td.path().join("Cargo.toml"))
+            .chain_err(|| format!("Could not remove Cargo.toml"))?;
+
+        let stderr = project.xargo_check_subcommand(None)?;
+        assert!(stderr.contains("Checking core"));
+
+        Ok(())
+    }
+    run!()
 }

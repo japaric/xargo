@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::{env, io, process};
 
-use rustc_version::Channel;
+use rustc_version::Channel::*;
 
 use errors::*;
 use rustc::Target;
@@ -134,24 +134,15 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {
-            Channel::Dev => rustc::Src::from_env().ok_or(
+            Dev => rustc::Src::from_env().ok_or(
                 "The XARGO_RUST_SRC env variable must be set and point to the \
                  Rust source directory when working with the 'dev' channel",
             )?,
-            Channel::Nightly => if let Some(src) = rustc::Src::from_env() {
+            Nightly | Stable | Beta => if let Some(src) = rustc::Src::from_env() {
                 src
             } else {
                 sysroot.src()?
             },
-            Channel::Stable | Channel::Beta => {
-                writeln!(
-                    io::stderr(),
-                    "WARNING: the sysroot can't be built for the {:?} channel. \
-                     Switch to nightly.",
-                    meta.channel
-                ).ok();
-                return cargo::run(&args, verbose).map(Some);
-            }
         };
 
         let cmode = if let Some(triple) = args.target() {

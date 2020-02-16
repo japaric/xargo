@@ -323,10 +323,6 @@ which will perform a normal sysroot build, followed by a 'check' build of *your 
 
 ## Caveats / gotchas
 
-- Xargo won't build a sysroot when used with stable or beta Rust. This is
-  because `std` and other standard crates depend on unstable features so it's
-  not possible to build the sysroot with stable or beta.
-
 - `std` is built as rlib *and* dylib. The dylib needs a panic library and an
   allocator.  If you do not specify the `panic-unwind` feature, you have to set
   `panic = "abort"` in `Cargo.toml`.

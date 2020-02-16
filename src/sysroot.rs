@@ -129,6 +129,14 @@ version = "0.0.0"
             cmd.env("RUSTFLAGS", flags);
             cmd.env_remove("CARGO_TARGET_DIR");
 
+            // When building the sysroot or rust compiler with a beta or stable rustc binary the
+            // flag RUSTC_BOOTSTRAP can be set to 1 to allow rustc to allow the same features as
+            // the development channel. This is required as the rust compiler and sysroot make use
+            // of unstable features.
+            //
+            // See here: https://github.com/rust-lang/cargo/pull/5613
+            cmd.env("RUSTC_BOOTSTRAP", "1");
+
             // Workaround #261.
             //
             // If a crate is shared between the sysroot and a binary, we might

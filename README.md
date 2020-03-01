@@ -288,20 +288,21 @@ sysroot. The final sysroot, the stage 1 sysroot, will contain both the `std` and
 
 Xargo lets you create a sysroot with custom crates. You can virtually put any
 crate in the sysroot. However, this feature is mainly used to create [alternative
-`std` facades][steed], and to replace the `test` crate with [one that supports
+`std` facades][rust-3ds], and to replace the `test` crate with [one that supports
 `no_std` targets][utest]. To specify the contents of the sysroot simply list the
 dependencies in the Xargo.toml file as you would do with Cargo.toml:
 
-[steed]: https://github.com/japaric/steed
+[steed]: https://github.com/rust3ds/rust3ds-template
 [utest]: https://github.com/japaric/utest
 
 ``` toml
-[dependencies.core]
-stage = 0
+[dependencies.alloc]
+[dependencies.panic_abort]
+[dependencies.panic_unwind]
 
 [dependencies.std]
+git = "https://github.com/rust3ds/ctru-rs"
 stage = 1
-git = "https://github.com/japaric/steed"
 ```
 
 ## Check-only sysroot build

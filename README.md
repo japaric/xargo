@@ -296,17 +296,12 @@ dependencies in the Xargo.toml file as you would do with Cargo.toml:
 [utest]: https://github.com/japaric/utest
 
 ``` toml
-[dependencies]
-collections = {}
-rand = {}
-
-[dependencies.compiler_builtins]
-features = ["mem"]
-stage = 1
+[dependencies.core]
+stage = 0
 
 [dependencies.std]
+stage = 1
 git = "https://github.com/japaric/steed"
-stage = 2
 ```
 
 ## Check-only sysroot build
@@ -351,11 +346,15 @@ which will perform a normal sysroot build, followed by a 'check' build of *your 
   host's target triple with `rustc -vV`. On *nix, the following rune will extract the triple:
   `rustc -vV | egrep '^host: ' | sed 's/^host: //'`.
 
-- Remember that both `core` and `std` will get implicitly linked to your crate but *all the other
-  sysroot crates* will *not*. This means that if your Xargo.toml contains a crate like
-  `compiler_builtins` or `alloc` then you will have to add a `extern crate compiler_builtins` or
-  `extern crate alloc` *somewhere* in your dependency graph (either in your current crate or in some
-  of its dependencies).
+- Remember that `core`, `compiler_builtins` and `std` will get implicitly linked to your crate but
+  *all the other sysroot crates* will *not*. This means that if your Xargo.toml contains a crate
+  like `alloc` then you will have to add a `extern crate alloc` *somewhere* in your dependency graph
+  (either in your current crate or in some of its dependencies).
+
+- Care must be taken not to end up with any "top-level" crates (`core`, `std`, `compiler-builtins`)
+  twice in the sysroot. Doing so will cause cargo to error on build with a message like
+  `multiple matching crates for core`. Duplicate crates in the sysroot generally occur when the same
+  crate is built twice with different features as part of a multi-stage build.
 
 ## License
 

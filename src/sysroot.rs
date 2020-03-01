@@ -55,7 +55,7 @@ version = "0.0.0"
     let dst = rustlib.parent().join("lib");
     util::mkdir(&dst)?;
 
-    if cmode.triple().contains("pc-windows-gnu") {
+    if cmode.triple().contains("pc-windows-gnu") && cargo_mode == XargoMode::Build {
         let src = &sysroot
             .path()
             .join("lib")

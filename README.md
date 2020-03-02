@@ -347,10 +347,15 @@ which will perform a normal sysroot build, followed by a 'check' build of *your 
   host's target triple with `rustc -vV`. On *nix, the following rune will extract the triple:
   `rustc -vV | egrep '^host: ' | sed 's/^host: //'`.
 
-- Remember that `core`, `compiler_builtins` and `std` will get implicitly linked to your crate but
-  *all the other sysroot crates* will *not*. This means that if your Xargo.toml contains a crate
-  like `alloc` then you will have to add a `extern crate alloc` *somewhere* in your dependency graph
-  (either in your current crate or in some of its dependencies).
+- Remember that `core` and `std` will get implicitly linked to your crate but *all the other sysroot
+  crates* will *not*. This means that if your Xargo.toml contains a crate like `alloc` then you will
+  have to add a `extern crate alloc` *somewhere* in your dependency graph (either in your current
+  crate or in some of its dependencies).
+
+- Remember that rustc will always implicitly link `compiler_builtins` into your final binary, but
+  won't make it available for `use` the same way `core` and `std` are. So if you need to manually
+  call a `compiler_builtins` function, you will still need to manually add an
+  `extern crate compielr_builtins` within your crate.
 
 - Care must be taken not to end up with any "top-level" crates (`core`, `std`, `compiler-builtins`)
   twice in the sysroot. Doing so will cause cargo to error on build with a message like

@@ -305,6 +305,19 @@ git = "https://github.com/rust3ds/ctru-rs"
 stage = 1
 ```
 
+### Patching sysroot crates
+
+Xargo also supports the `patch` feature from Cargo. This allows you to force the use
+of a custom crate throughout your sysroot's dependency tree. This can be especially
+useful to force the use of a custom `libc` or `compiler_builtins` without having to
+do intrusive changes to every transitive dependency.
+
+
+``` toml
+[patch.crates-io.libc]
+path = "path/to/custom/libc"
+```
+
 ## Check-only sysroot build
 
 Xargo supports performing a 'check build' of the syroot

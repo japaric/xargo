@@ -3,7 +3,7 @@ set -euxo pipefail
 main() {
     local target=
     if [ $TRAVIS_OS_NAME = linux ]; then
-        target=x86_64-unknown-linux-gnu
+        target=x86_64-unknown-linux-musl
         sort=sort
 
         sudo apt-get update

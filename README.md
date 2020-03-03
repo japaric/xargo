@@ -301,8 +301,8 @@ dependencies in the Xargo.toml file as you would do with Cargo.toml:
 [dependencies.panic_abort]
 [dependencies.panic_unwind]
 
-# Then build our custom facade. This depends on the crates
-# above, so we need to set the `stage`.
+# Then build our custom facade. It (implicitly) requires the crates above to
+# already be in the sysroot, so we need to set the `stage`.
 [dependencies.std]
 git = "https://github.com/rust3ds/ctru-rs"
 stage = 1

@@ -321,7 +321,7 @@ do intrusive changes to every transitive dependency.
 path = "path/to/custom/libc"
 ```
 
-Notice that you do should not list patched crates as `[dependencies]`!
+Notice that you should not list patched crates as `[dependencies]`!
 `[dependencies]` determines which crates are built in the first place; `[patch]`
 lets you replace some of their (transitive) dependencies with your own choice.
 Having a crate listed in both will likely lead to crate duplication.

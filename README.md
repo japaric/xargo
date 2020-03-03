@@ -288,25 +288,34 @@ sysroot. The final sysroot, the stage 1 sysroot, will contain both the `std` and
 
 Xargo lets you create a sysroot with custom crates. You can virtually put any
 crate in the sysroot. However, this feature is mainly used to create [alternative
-`std` facades][steed], and to replace the `test` crate with [one that supports
+`std` facades][rust-3ds], and to replace the `test` crate with [one that supports
 `no_std` targets][utest]. To specify the contents of the sysroot simply list the
 dependencies in the Xargo.toml file as you would do with Cargo.toml:
 
-[steed]: https://github.com/japaric/steed
+[steed]: https://github.com/rust3ds/rust3ds-template
 [utest]: https://github.com/japaric/utest
 
 ``` toml
-[dependencies]
-collections = {}
-rand = {}
-
-[dependencies.compiler_builtins]
-features = ["mem"]
-stage = 1
+[dependencies.alloc]
+[dependencies.panic_abort]
+[dependencies.panic_unwind]
 
 [dependencies.std]
-git = "https://github.com/japaric/steed"
-stage = 2
+git = "https://github.com/rust3ds/ctru-rs"
+stage = 1
+```
+
+### Patching sysroot crates
+
+Xargo also supports the `patch` feature from Cargo. This allows you to force the use
+of a custom crate throughout your sysroot's dependency tree. This can be especially
+useful to force the use of a custom `libc` or `compiler_builtins` without having to
+do intrusive changes to every transitive dependency.
+
+
+``` toml
+[patch.crates-io.libc]
+path = "path/to/custom/libc"
 ```
 
 ## Check-only sysroot build
@@ -351,11 +360,20 @@ which will perform a normal sysroot build, followed by a 'check' build of *your 
   host's target triple with `rustc -vV`. On *nix, the following rune will extract the triple:
   `rustc -vV | egrep '^host: ' | sed 's/^host: //'`.
 
-- Remember that both `core` and `std` will get implicitly linked to your crate but *all the other
-  sysroot crates* will *not*. This means that if your Xargo.toml contains a crate like
-  `compiler_builtins` or `alloc` then you will have to add a `extern crate compiler_builtins` or
-  `extern crate alloc` *somewhere* in your dependency graph (either in your current crate or in some
-  of its dependencies).
+- Remember that `core` and `std` will get implicitly linked to your crate but *all the other sysroot
+  crates* will *not*. This means that if your Xargo.toml contains a crate like `alloc` then you will
+  have to add a `extern crate alloc` *somewhere* in your dependency graph (either in your current
+  crate or in some of its dependencies).
+
+- Remember that rustc will always implicitly link `compiler_builtins` into your final binary, but
+  won't make it available for `use` the same way `core` and `std` are. So if you need to manually
+  call a `compiler_builtins` function, you will still need to manually add an
+  `extern crate compielr_builtins` within your crate.
+
+- Care must be taken not to end up with any "top-level" crates (`core`, `std`, `compiler-builtins`)
+  twice in the sysroot. Doing so will cause cargo to error on build with a message like
+  `multiple matching crates for core`. Duplicate crates in the sysroot generally occur when the same
+  crate is built twice with different features as part of a multi-stage build.
 
 ## License
 

@@ -296,10 +296,13 @@ dependencies in the Xargo.toml file as you would do with Cargo.toml:
 [utest]: https://github.com/japaric/utest
 
 ``` toml
+# First build some standard crates.
 [dependencies.alloc]
 [dependencies.panic_abort]
 [dependencies.panic_unwind]
 
+# Then build our custom facade. It (implicitly) requires the crates above to
+# already be in the sysroot, so we need to set the `stage`.
 [dependencies.std]
 git = "https://github.com/rust3ds/ctru-rs"
 stage = 1
@@ -318,7 +321,12 @@ do intrusive changes to every transitive dependency.
 path = "path/to/custom/libc"
 ```
 
-## Check-only sysroot build
+Notice that you should not list patched crates as `[dependencies]`!
+`[dependencies]` determines which crates are built in the first place; `[patch]`
+lets you replace some of their (transitive) dependencies with your own choice.
+Having a crate listed in both will likely lead to crate duplication.
+
+### Check-only sysroot build
 
 Xargo supports performing a 'check build' of the syroot
 via the `xargo-check` command. This command is invoked exactly

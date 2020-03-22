@@ -347,10 +347,13 @@ impl HProject {
     }
 
     /// Runs `xargo-check` with the specified subcommand
-    fn xargo_check_subcommand(&self, subcommand: Option<&str>) -> Result<String> {
+    fn xargo_check_subcommand(&self, subcommand: Option<&str>, target: Option<&str>) -> Result<String> {
         let mut cmd = xargo_check()?;
         if let Some(subcommand) = subcommand {
-            cmd.args(&[subcommand]);
+            cmd.arg(subcommand);
+        }
+        if let Some(target) = target {
+            cmd.args(&["--target", target]);
         }
         cmd
             .current_dir(self.td.path())
@@ -914,7 +917,7 @@ tag = "1.0.25"
 fn cargo_check_check() {
     fn run() -> Result<()> {
         let project = HProject::new(false)?;
-        project.xargo_check_subcommand(Some("check"))?;
+        project.xargo_check_subcommand(Some("check"), None)?;
 
         Ok(())
     }
@@ -931,7 +934,9 @@ fn cargo_check_check_no_ctoml() {
         std::fs::remove_file(project.td.path().join("Cargo.toml"))
             .chain_err(|| format!("Could not remove Cargo.toml"))?;
 
-        let stderr = project.xargo_check_subcommand(None)?;
+        // windows-gnu specifically needs some extra fiels to be copied for full builds;
+        // make sure check-builds work without those files.
+        let stderr = project.xargo_check_subcommand(None, Some("i686-pc-windows-gnu"))?;
         assert!(stderr.contains("Checking core"));
 
         Ok(())

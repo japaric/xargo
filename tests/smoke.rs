@@ -889,7 +889,7 @@ features = ["panic_unwind"]
 
 [patch.crates-io.cc]
 git = "https://github.com/alexcrichton/cc-rs"
-tag = "1.0.25"
+tag = "1.0.28"
 "#,
         )?;
         let stderr = project.build_and_get_stderr()?;

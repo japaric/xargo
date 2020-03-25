@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.20] - 2020-03-??
+
+### Fixed
+
+- Check-only builds of `windows-gnu` targets now work without that target being
+  installed for the toolchain.
+
 ## [v0.3.19] - 2019-12-31
 
 ### Added

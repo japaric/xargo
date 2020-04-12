@@ -134,11 +134,17 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {
-            Channel::Dev => rustc::Src::from_env().ok_or(
+            Channel::Dev => if let Some(env) = rustc::Src::from_env() {
+                Some(env)
+            } else {
+                xargo::toml_src(&root)?
+            }.ok_or(
                 "The XARGO_RUST_SRC env variable must be set and point to the \
                  Rust source directory when working with the 'dev' channel",
             )?,
             Channel::Nightly => if let Some(src) = rustc::Src::from_env() {
+                src
+            } else if let Some(src) = xargo::toml_src(&root)? {
                 src
             } else {
                 sysroot.src()?

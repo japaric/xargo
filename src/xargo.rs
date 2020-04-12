@@ -13,6 +13,7 @@ use errors::*;
 use extensions::CommandExt;
 use flock::{FileLock, Filesystem};
 use {cargo, util};
+use rustc::Src;
 
 pub fn run(
     args: &Args,
@@ -118,6 +119,11 @@ impl Toml {
     pub fn patch(&self) -> Option<&Value> {
         self.table.lookup("patch")
     }
+
+    /// Returns the `rust-src` part of Xargo.toml
+    pub fn package(&self) -> Option<&Value> {
+        self.table.lookup("package")
+    }
 }
 
 /// Returns the closest directory containing a 'Xargo.toml' and the parsed
@@ -129,4 +135,19 @@ pub fn toml(root: &Root) -> Result<(Option<&Path>, Option<Toml>)> {
     else {
         Ok((None, None))
     }
+}
+
+/// Returns the closest directory containing a 'Xargo.toml' and the parsed
+/// content of this 'Xargo.toml'
+pub fn toml_src(root: &Root) -> Result<Option<Src>> {
+    Ok(toml(root)?.1.map(|toml|{
+        toml.package().map(|package|{
+            if let Value::Table(table) = package {
+                let src = table.get("rust-src")?.as_str()?;
+                Some(Src::from(PathBuf::from(src)))
+            } else {
+                None
+            }
+        })
+    }).flatten().flatten())
 }

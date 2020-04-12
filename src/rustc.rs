@@ -108,6 +108,12 @@ impl Sysroot {
     }
 }
 
+impl From<PathBuf> for Src {
+    fn from(path: PathBuf) -> Self {
+        Self { path }
+    }
+}
+
 #[derive(Debug)]
 pub enum Target {
     Builtin { triple: String },

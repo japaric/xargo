@@ -140,14 +140,22 @@ pub fn toml(root: &Root) -> Result<(Option<&Path>, Option<Toml>)> {
 /// Returns the closest directory containing a 'Xargo.toml' and the parsed
 /// content of this 'Xargo.toml'
 pub fn toml_src(root: &Root) -> Result<Option<Src>> {
-    Ok(toml(root)?.1.map(|toml|{
-        toml.package().map(|package|{
-            if let Value::Table(table) = package {
-                let src = table.get("rust-src")?.as_str()?;
-                Some(Src::from(PathBuf::from(src)))
+    Ok(if let Some(toml) = toml(root)?.1 {
+        if let Some(Value::Table(table)) = toml.package() {
+            if let Some(src) = table.get("rust-src").map(Value::as_str).flatten() {
+                if let Some(path) = PathBuf::from(src).canonicalize().ok() {
+                    Some(Src::from(path))
+                } else {
+                    eprintln!("Warning: package.rust-src key exists but directory does not exist ");
+                    None
+                }
             } else {
                 None
             }
-        })
-    }).flatten().flatten())
+        } else {
+            None
+        }
+    } else {
+        None
+    })
 }

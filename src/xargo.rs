@@ -145,6 +145,7 @@ pub fn toml_src(root: &Root) -> Result<Option<Src>> {
             if let Some(src) = table.get("rust-src").map(Value::as_str).flatten() {
                 let src = src.split("/").collect::<Vec<_>>().join(&std::path::MAIN_SEPARATOR.to_string());
                 if let Some(path) = PathBuf::from(src).canonicalize().ok() {
+                    dbg!(&path);
                     Some(Src::from(path))
                 } else {
                     eprintln!("Warning: package.rust-src key exists but directory does not exist ");

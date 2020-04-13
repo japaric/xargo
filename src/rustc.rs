@@ -57,6 +57,10 @@ impl Src {
     pub fn path(&self) -> &Path {
         &self.path
     }
+
+    pub fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
 }
 
 /// Path to `rustc`'s sysroot
@@ -105,12 +109,6 @@ impl Sysroot {
             "`rust-src` component not found. Run `rustup component add \
              rust-src`.",
         )?
-    }
-}
-
-impl From<PathBuf> for Src {
-    fn from(path: PathBuf) -> Self {
-        Self { path }
     }
 }
 

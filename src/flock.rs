@@ -53,7 +53,7 @@ pub struct Filesystem {
 
 impl Filesystem {
     pub fn new(path: PathBuf) -> Filesystem {
-        Filesystem { path: path }
+        Filesystem { path }
     }
 
     pub fn join<T>(&self, other: T) -> Filesystem

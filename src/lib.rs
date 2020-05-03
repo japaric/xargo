@@ -144,13 +144,12 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
                 sysroot.src()?
             },
             Channel::Stable | Channel::Beta => {
-                writeln!(
-                    io::stderr(),
-                    "WARNING: the sysroot can't be built for the {:?} channel. \
+                eprintln!(
+                    "ERROR: the sysroot can't be built for the {:?} channel. \
                      Switch to nightly.",
                     meta.channel
-                ).ok();
-                return cargo::run(&args, verbose).map(Some);
+                );
+                process::exit(1);
             }
         };
 

@@ -3,6 +3,9 @@ set -euxo pipefail
 beginswith() { case $2 in "$1"*) true;; *) false;; esac; }
 
 main() {
+    # Disabling incremental builds to work around <https://github.com/rust-embedded/cross/issues/407>.
+    export CARGO_INCREMENTAL=0
+
     # We test against Cargo versions that don't support 'default-run'
     # As a workaround, we remove 'default-run' from the Cargo.toml
     # on CI

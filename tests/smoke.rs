@@ -937,7 +937,7 @@ fn cargo_check_check_no_ctoml() {
         // windows-gnu specifically needs some extra files to be copied for full builds;
         // make sure check-builds work without those files.
         let stderr = project.xargo_check_subcommand(None, Some("i686-pc-windows-gnu"))?;
-        assert!(stderr.contains("Checking core"));
+        assert!(stderr.contains("Checking core"), "Looks like checking did not work. stderr:\n{}", stderr);
 
         Ok(())
     }

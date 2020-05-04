@@ -26,9 +26,6 @@ matrix:
       if: branch = staging OR branch = trying
 
     # OSX (build only)
-    - env: TARGET=i686-apple-darwin
-      os: osx
-      if: branch = staging OR branch = trying
     - env: TARGET=x86_64-apple-darwin
       os: osx
       if: branch = staging OR branch = trying

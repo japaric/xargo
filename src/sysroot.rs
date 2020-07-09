@@ -104,7 +104,8 @@ version = "0.0.0"
         }
 
         // rust-src comes with a lockfile for libstd. Use it.
-        let lockfile = src.path().join("..").join("Cargo.lock");
+        let src_parent = src.path().parent().map(Path::to_path_buf).unwrap_or_else(|| src.path().join(".."));
+        let lockfile = src_parent.join("Cargo.lock");
         let target_lockfile = td.join("Cargo.lock");
         fs::copy(lockfile, &target_lockfile).chain_err(|| "Cargo.lock file is missing from source dir")?;
 
@@ -117,7 +118,7 @@ version = "0.0.0"
 
         util::write(&td.join("Cargo.toml"), &stoml)?;
         util::mkdir(&td.join("src"))?;
-        util::write(&td.join("src/lib.rs"), "")?;
+        util::write(&td.join("src").join("lib.rs"), "")?;
 
         let cargo = || {
             let mut cmd = cargo::command();
@@ -337,13 +338,14 @@ pub fn update(
     util::cp_r(
         &sysroot
             .path()
-            .join("lib/rustlib")
+            .join("lib")
+            .join("rustlib")
             .join(&meta.host)
             .join("lib"),
         &dst,
     )?;
 
-    let bin_src = sysroot.path().join("lib/rustlib").join(&meta.host).join("bin");
+    let bin_src = sysroot.path().join("lib").join("rustlib").join(&meta.host).join("bin");
     // copy the Rust linker if it exists
     if bin_src.exists() {
         let bin_dst = lock.parent().join("bin");

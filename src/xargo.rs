@@ -58,7 +58,7 @@ impl Home {
     }
 
     fn path(&self, triple: &str) -> Filesystem {
-        self.path.join("lib/rustlib").join(triple)
+        self.path.join("lib").join("rustlib").join(triple)
     }
 
     pub fn lock_ro(&self, triple: &str) -> Result<FileLock> {

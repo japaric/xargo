@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.21] - 2020-07-11
+
+### Fixed
+
+- Make xargo fail on non-nightly, instead of continuing with the wrong sysroot.
+- Avoid adding '/' or '..' to paths for better Windows compatibility.
+
 ## [v0.3.20] - 2020-03-25
 
 ### Fixed

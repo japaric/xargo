@@ -814,36 +814,21 @@ fn host_twice() {
     run!()
 }
 
-/// Check multi stage sysroot builds with `xargo test`
+/// Check we can build+run `xargo test`
 #[cfg(feature = "dev")]
 #[test]
 fn host_libtest() {
     fn run() -> Result<()> {
         let project = HProject::new(true)?;
 
-        if std::env::var("TRAVIS_RUST_VERSION").ok().map_or(false,
-            |var| var.starts_with("nightly-"))
-        {
-            // Testing an old version on CI, we need a different Xargo.toml.
-            project.xargo_toml(
+        project.xargo_toml(
             "
 [dependencies.std]
 features = [\"panic_unwind\"]
 
 [dependencies.test]
-stage = 1
 ",
-            )?;
-        } else {
-            project.xargo_toml(
-                "
-[dependencies.std]
-features = [\"panic_unwind\"]
-
-[dependencies.test]
-",
-            )?;
-        }
+        )?;
 
         project.build("test")
     }
@@ -889,7 +874,7 @@ features = ["panic_unwind"]
 
 [patch.crates-io.cc]
 git = "https://github.com/alexcrichton/cc-rs"
-tag = "1.0.28"
+tag = "1.0.37"
 "#,
         )?;
         let stderr = project.build_and_get_stderr()?;

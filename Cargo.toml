@@ -8,7 +8,7 @@ keywords = ["cli", "cross", "compilation", "std"]
 license = "MIT OR Apache-2.0"
 name = "xargo"
 repository = "https://github.com/japaric/xargo"
-version = "0.3.20"
+version = "0.3.21"
 default-run = "xargo"
 
 [dependencies]

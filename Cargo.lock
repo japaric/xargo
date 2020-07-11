@@ -408,7 +408,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "xargo"
-version = "0.3.20"
+version = "0.3.21"
 dependencies = [
  "dirs 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",

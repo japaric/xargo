@@ -48,9 +48,11 @@ pub struct Src {
 impl Src {
     pub fn from_env() -> Option<Self> {
         env::var_os("XARGO_RUST_SRC").map(|s| {
-            Src {
-                path: PathBuf::from(s),
-            }
+            let path = PathBuf::from(s);
+            // To support relative paths, we have to make sure we canonicalize
+            // before changing the working directory.
+            let path = path.canonicalize().unwrap_or(path);
+            Src { path }
         })
     }
 

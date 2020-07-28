@@ -1,5 +1,4 @@
 use std::env;
-use std::ffi::OsStr;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -8,7 +7,6 @@ pub use rustc_version::version_meta as version;
 
 use serde_json::Value;
 use serde_json;
-use walkdir::WalkDir;
 
 use CurrentDirectory;
 use errors::*;
@@ -69,8 +67,8 @@ impl Sysroot {
         &self.path
     }
 
-    /// Returns the path to Rust source, `$SRC`, where `$SRC/libstd/Carg.toml`
-    /// exists
+    /// Returns the path to Rust source, `$SRC`, where `$SRC/libstd/Cargo.toml`
+    /// or `$SRC/std/Cargo.toml` exists.
     pub fn src(&self) -> Result<Src> {
         let src = self.path().join("lib").join("rustlib").join("src");
 
@@ -80,25 +78,10 @@ impl Sysroot {
             });
         }
 
-        if src.exists() {
-            for e in WalkDir::new(src) {
-                let e = e.chain_err(|| "couldn't walk the sysroot")?;
-
-                // Looking for $SRC/libstd/Cargo.toml
-                if e.file_type().is_file() && e.file_name() == "Cargo.toml" {
-                    let toml = e.path();
-
-                    if let Some(std) = toml.parent() {
-                        if let Some(src) = std.parent() {
-                            if std.file_name() == Some(OsStr::new("libstd")) {
-                                return Ok(Src {
-                                    path: src.to_owned(),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+        if src.join("rust").join("library").join("std").join("Cargo.toml").is_file() {
+            return Ok(Src {
+                path: src.join("rust").join("library"),
+            });
         }
 
         Err(

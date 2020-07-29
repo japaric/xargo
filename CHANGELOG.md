@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.22] - 2020-07-29
+
+### Fixed
+
+- Fix for changed rustc directory layout.
+- Support relative XARGO_RUST_SRC.
+
 ## [v0.3.21] - 2020-07-11
 
 ### Fixed

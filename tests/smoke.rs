@@ -79,7 +79,7 @@ fn exists(krate: &str, target: &str) -> Result<bool> {
 }
 
 fn host() -> String {
-    rustc_version::version_meta().host
+    rustc_version::version_meta().unwrap().host
 }
 
 fn mkdir(path: &Path) -> Result<()> {

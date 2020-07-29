@@ -105,18 +105,20 @@ pub struct Toml {
 impl Toml {
     /// Returns the `dependencies` part of `Xargo.toml`
     pub fn dependencies(&self) -> Option<&Value> {
-        self.table.lookup("dependencies")
+        self.table.get("dependencies")
     }
 
     /// Returns the `target.{}.dependencies` part of `Xargo.toml`
     pub fn target_dependencies(&self, target: &str) -> Option<&Value> {
         self.table
-            .lookup(&format!("target.{}.dependencies", target))
+            .get("target")
+            .and_then(|t| t.get(target))
+            .and_then(|t| t.get("dependencies"))
     }
 
     /// Returns the `patch` part of `Xargo.toml`
     pub fn patch(&self) -> Option<&Value> {
-        self.table.lookup("patch")
+        self.table.get("patch")
     }
 }
 

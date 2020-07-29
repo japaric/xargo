@@ -111,7 +111,7 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
     let args = cli::args();
     let verbose = args.verbose();
 
-    let meta = rustc::version().unwrap();
+    let meta = rustc::version().map_err(|_| "could not determine rustc version")?;
 
     if let Some(sc) = args.subcommand() {
         if !sc.needs_sysroot() {

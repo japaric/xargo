@@ -7,7 +7,7 @@ use std::{env, fs};
 
 use rustc_version::VersionMeta;
 use tempdir::TempDir;
-use toml::{Table, Value};
+use toml::{value::Table, Value, map::Map};
 
 use CompilationMode;
 use cargo::{Root, Rustflags};
@@ -381,7 +381,7 @@ pub struct Blueprint {
 }
 
 trait AsTableMut {
-    fn as_table_mut<F, R>(&mut self, on_error_path: F) -> Result<&mut Table>
+    fn as_table_mut_or_err<F, R>(&mut self, on_error_path: F) -> Result<&mut Table>
     where
         F: FnOnce() -> R,
         R: ::std::fmt::Display;
@@ -392,7 +392,7 @@ impl AsTableMut for Value {
     /// the contained table. If it's not return `Err` with an error message.
     /// The result of `on_error_path` will be inserted in the error message and
     /// should indicate the TOML path of `self`.
-    fn as_table_mut<F, R>(&mut self, on_error_path: F) -> Result<&mut Table>
+    fn as_table_mut_or_err<F, R>(&mut self, on_error_path: F) -> Result<&mut Table>
     where
         F: FnOnce() -> R,
         R: ::std::fmt::Display,
@@ -418,9 +418,9 @@ impl Blueprint {
             // add crate to patch section (if not specified)
             fn table_entry<'a>(table: &'a mut Table, key: &str) -> Result<&'a mut Table> {
                 table
-                    .entry(key.into())
+                    .entry(key)
                     .or_insert_with(|| Value::Table(Table::new()))
-                    .as_table_mut(|| key)
+                    .as_table_mut_or_err(|| key)
             }
 
             let crates_io = table_entry(patch, "crates-io")?;
@@ -434,7 +434,7 @@ impl Blueprint {
 
     fn from(toml: Option<&xargo::Toml>, target: &str, base_path: &Path, src: &Src) -> Result<Self> {
         fn make_path_absolute<F, R>(
-            crate_spec: &mut toml::Table,
+            crate_spec: &mut Table,
             base_path: &Path,
             on_error_path: F,
         ) -> Result<()>
@@ -472,8 +472,8 @@ impl Blueprint {
         };
 
         for (k1, v) in patch.iter_mut() {
-            for (k2, v) in v.as_table_mut(|| format!("patch.{}", k1))?.iter_mut() {
-                let krate = v.as_table_mut(|| format!("patch.{}.{}", k1, k2))?;
+            for (k2, v) in v.as_table_mut_or_err(|| format!("patch.{}", k1))?.iter_mut() {
+                let krate = v.as_table_mut_or_err(|| format!("patch.{}.{}", k1, k2))?;
 
                 make_path_absolute(krate, base_path, || format!("patch.{}.{}", k1, k2))?;
             }
@@ -526,11 +526,11 @@ impl Blueprint {
             (None, None) => {
                 // If no dependencies were listed, we assume `core` and `compiler_builtins` as the
                 // dependencies
-                let mut t = BTreeMap::new();
-                let mut core = BTreeMap::new();
+                let mut t = Map::new();
+                let mut core = Map::new();
                 core.insert("stage".to_owned(), Value::Integer(0));
                 t.insert("core".to_owned(), Value::Table(core));
-                let mut cb = BTreeMap::new();
+                let mut cb = Map::new();
                 cb.insert(
                     "features".to_owned(),
                     Value::Array(vec![Value::String("mem".to_owned())]),

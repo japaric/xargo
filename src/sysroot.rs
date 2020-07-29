@@ -412,9 +412,13 @@ impl Blueprint {
     }
 
     /// Add $CRATE to `patch` section, as needed to build libstd.
-    fn add_patch(patch: &mut Table, mut path: PathBuf, crate_: &str) -> Result<()> {
-        path.push(crate_);
-        if path.exists() {
+    fn add_patch(patch: &mut Table, src_path: &Path, crate_: &str) -> Result<()> {
+        // Old sysroots have this in `src/tools/$CRATE`, new sysroots in `library/$CRATE`.
+        let paths = [
+            src_path.join(crate_),
+            src_path.join("tools").join(crate_),
+        ];
+        if let Some(path) = paths.iter().find(|p| p.exists()) {
             // add crate to patch section (if not specified)
             fn table_entry<'a>(table: &'a mut Table, key: &str) -> Result<&'a mut Table> {
                 table
@@ -479,9 +483,9 @@ impl Blueprint {
             }
         }
 
-        Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-core")?;
-        Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-alloc")?;
-        Blueprint::add_patch(&mut patch, src.path().join("tools"), "rustc-std-workspace-std")?;
+        Blueprint::add_patch(&mut patch, src.path(), "rustc-std-workspace-core")?;
+        Blueprint::add_patch(&mut patch, src.path(), "rustc-std-workspace-alloc")?;
+        Blueprint::add_patch(&mut patch, src.path(), "rustc-std-workspace-std")?;
 
         // Compose dependency sections
         let deps = match (
@@ -559,8 +563,13 @@ impl Blueprint {
 
                 if !map.contains_key("path") && !map.contains_key("git") {
                     // No path and no git given.  This might be in the sysroot, but if we don't find it there we assume it comes from crates.io.
-                    let path = src.path().join(format!("lib{}", k));
-                    if path.exists() {
+                    // Current sysroots call it just "std" (etc), but older sysroots use "libstd" (etc),
+                    // so we check both.
+                    let paths = [
+                        src.path().join(&k),
+                        src.path().join(format!("lib{}", k)),
+                    ];
+                    if let Some(path) = paths.iter().find(|p| p.exists()) {
                         map.insert("path".to_owned(), Value::String(path.display().to_string()));
                     }
                 }

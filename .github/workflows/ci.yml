@@ -76,6 +76,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
+          components: rust-src
           toolchain: ${{ matrix.toolchain }}
           override: true
 

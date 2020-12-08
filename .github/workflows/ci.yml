@@ -14,7 +14,7 @@ env:
 jobs:
   # NOTE all these jobs need to be added to the `needs` section of the ci-* jobs!
   build:
-    name: Build
+    name: build
 
     strategy:
       matrix:
@@ -57,7 +57,7 @@ jobs:
           args: --target ${{ matrix.target }} -- -V
 
   test:
-    name: Test
+    name: test
 
     strategy:
       matrix:

@@ -100,7 +100,7 @@ jobs:
   # bors.tech integration
   ci-success:
     name: ci
-    if: github.event_name == 'push' && success()
+    if: success()
     needs:
       - build
       - test
@@ -111,7 +111,7 @@ jobs:
 
   ci-failure:
     name: ci
-    if: github.event_name == 'push' && !success()
+    if: !success()
     needs:
       - build
       - test

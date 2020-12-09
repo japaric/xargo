@@ -1,0 +1,121 @@
+name: Continuous Integration
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - staging
+      - trying
+
+env:
+  # # Disabling incremental builds to work around <https://github.com/rust-embedded/cross/issues/407>.
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  # NOTE all these jobs need to be added to the `needs` section of the ci-* jobs!
+  build:
+    name: build
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+        target:
+          - i686-unknown-linux-gnu
+          - i686-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+        include:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          toolchain: stable
+          override: true
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --target ${{ matrix.target }} --locked
+
+      - name: Run
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: run
+          args: --target ${{ matrix.target }} -- -V
+
+  test:
+    name: test
+
+    strategy:
+      matrix:
+        toolchain:
+          - nightly
+          # Don't remove this target; test coverage in `smoke.rs` relies on us
+          # running at least one pinned toolchain.
+          - nightly-2019-12-09
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rust-src
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+
+      # We test against Cargo versions that don't support 'default-run'
+      # As a workaround, we remove 'default-run' from the Cargo.toml on CI
+      - name: Patch Cargo.toml
+        run: sed -i /^default-run/d Cargo.toml
+
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Test (+dev)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features dev
+
+  # Refs: https://github.com/rust-lang/crater/blob/9ab6f9697c901c4a44025cf0a39b73ad5b37d198/.github/workflows/bors.yml#L125-L149
+  # bors.tech integration
+  ci-success:
+    name: ci
+    if: success()
+    needs:
+      - build
+      - test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: CI succeeded
+        run: exit 0
+
+  ci-failure:
+    name: ci
+    if: !success()
+    needs:
+      - build
+      - test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: CI failed
+        run: exit 1

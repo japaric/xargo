@@ -915,6 +915,7 @@ fn cargo_check_check_no_ctoml() {
     fn run() -> Result<()> {
         const TARGET: &str = "i686-pc-windows-gnu";
         let project = HProject::new(false)?;
+        // this `cleanup` is required becase `HProject` doesn't clean up the target sysroot on drop
         // should be OK as long as other tests don't use the same target
         cleanup(TARGET)?;
         // Make sure that 'Xargo.toml` exists

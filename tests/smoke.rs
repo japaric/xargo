@@ -913,7 +913,11 @@ fn cargo_check_check() {
 #[test]
 fn cargo_check_check_no_ctoml() {
     fn run() -> Result<()> {
+        const TARGET: &str = "i686-pc-windows-gnu";
         let project = HProject::new(false)?;
+        // this `cleanup` is required becase `HProject` doesn't clean up the target sysroot on drop
+        // should be OK as long as other tests don't use the same target
+        cleanup(TARGET)?;
         // Make sure that 'Xargo.toml` exists
         project.xargo_toml("")?;
         std::fs::remove_file(project.td.path().join("Cargo.toml"))
@@ -921,7 +925,7 @@ fn cargo_check_check_no_ctoml() {
 
         // windows-gnu specifically needs some extra files to be copied for full builds;
         // make sure check-builds work without those files.
-        let stderr = project.xargo_check_subcommand(None, Some("i686-pc-windows-gnu"))?;
+        let stderr = project.xargo_check_subcommand(None, Some(TARGET))?;
         assert!(stderr.contains("Checking core"), "Looks like checking did not work. stderr:\n{}", stderr);
 
         Ok(())

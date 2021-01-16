@@ -128,7 +128,10 @@ version = "0.0.0"
                 writeln!(io::stderr(), "+ RUSTFLAGS={:?}", flags).ok();
             }
             cmd.env("RUSTFLAGS", flags);
-            cmd.env_remove("CARGO_TARGET_DIR");
+
+            // Since we currently don't want to respect `.cargo/config` or `CARGO_TARGET_DIR`,
+            // we need to force the target directory to match the `cp_r` below.
+            cmd.env("CARGO_TARGET_DIR", td.join("target"));
 
             // Workaround #261.
             //

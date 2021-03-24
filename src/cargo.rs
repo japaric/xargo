@@ -250,14 +250,21 @@ impl Root {
     }
 }
 
-pub fn root(mode: XargoMode) -> Result<Option<Root>> {
+pub fn root(mode: XargoMode, manifest_path: Option<&str>) -> Result<Option<Root>> {
     // Don't require a 'Cargo.toml' to exist when 'xargo-check' is used
     let name = match mode {
         XargoMode::Build => "Cargo.toml",
         XargoMode::Check => "Xargo.toml"
     };
-    let cd = env::current_dir().chain_err(|| "couldn't get the current directory")?;
 
+    let cd = match manifest_path {
+        None => env::current_dir().chain_err(|| "couldn't get the current directory")?,
+        Some(p) => {
+            let mut pb = PathBuf::from(p);
+            pb.pop(); // strip filename, keep directory containing Cargo.toml
+            pb
+        }
+    };
     Ok(util::search(&cd, name).map(|p| Root { path: p.to_owned() }))
 }
 

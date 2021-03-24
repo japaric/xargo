@@ -6,7 +6,8 @@ pub struct Args {
     all: Vec<String>,
     subcommand: Option<Subcommand>,
     target: Option<String>,
-    message_format: Option<String>
+    message_format: Option<String>,
+    manifest_path: Option<String>,  // path to the Cargo toml file given in --manifest-path
 }
 
 impl Args {
@@ -35,19 +36,24 @@ impl Args {
     pub fn version(&self) -> bool {
         self.all.iter().any(|a| a == "--version" || a == "-V")
     }
+
+    pub fn manifest_path(&self) -> Option<&str> {
+        self.manifest_path.as_ref().map(|s| &**s)
+    }
 }
 
 pub fn args() -> Args {
     let all = env::args().skip(1).collect::<Vec<_>>();
 
-    let mut sc = None;
+    let mut subcommand = None;
     let mut target = None;
     let mut message_format = None;
+    let mut manifest_path = None;
     {
         let mut args = all.iter();
         while let Some(arg) = args.next() {
             if !arg.starts_with("-") {
-                sc = sc.or_else(|| Some(Subcommand::from(&**arg)));
+                subcommand = subcommand.or_else(|| Some(Subcommand::from(&**arg)));
             }
 
             if arg == "--target" {
@@ -58,14 +64,17 @@ pub fn args() -> Args {
                 message_format = args.next().map(|s| s.to_owned());
             } else if arg.starts_with("--message-format=") {
                 message_format = arg.splitn(2, '=').nth(1).map(|s| s.to_owned());
+            } else if arg.starts_with("--manifest-path") {
+                manifest_path = args.next().map(|s| s.to_owned());
             }
         }
     }
 
     Args {
-        all: all,
-        subcommand: sc,
-        target: target,
-        message_format: message_format
+        all,
+        subcommand,
+        target,
+        message_format,
+        manifest_path,
     }
 }

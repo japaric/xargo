@@ -14,7 +14,7 @@ extern crate dirs;
 
 use std::hash::{Hash, Hasher};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::process::ExitStatus;
 use std::{env, io, process};
 
@@ -127,10 +127,8 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
         return cargo::run(&args, verbose).map(Some);
     }
 
-    let cd = CurrentDirectory::get()?;
-
     let config = cargo::config()?;
-    if let Some(root) = cargo::root(cargo_mode)? {
+    if let Some(root) = cargo::root(cargo_mode, args.manifest_path())? {
         // We can't build sysroot with stable or beta due to unstable features
         let sysroot = rustc::sysroot(verbose)?;
         let src = match meta.channel {
@@ -152,7 +150,6 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
                 process::exit(1);
             }
         };
-
         let cmode = if let Some(triple) = args.target() {
             if Path::new(triple).is_file() {
                 bail!(
@@ -162,12 +159,12 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
             } else if triple == meta.host {
                 Some(CompilationMode::Native(meta.host.clone()))
             } else {
-                Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)
+                Target::new(triple, &root, verbose)?.map(CompilationMode::Cross)
             }
         } else {
             if let Some(ref config) = config {
                 if let Some(triple) = config.target()? {
-                    Target::new(triple, &cd, verbose)?.map(CompilationMode::Cross)
+                    Target::new(triple, &root, verbose)?.map(CompilationMode::Cross)
                 } else {
                     Some(CompilationMode::Native(meta.host.clone()))
                 }
@@ -212,18 +209,3 @@ fn run(cargo_mode: XargoMode) -> Result<Option<ExitStatus>> {
     cargo::run(&args, verbose).map(Some)
 }
 
-pub struct CurrentDirectory {
-    path: PathBuf,
-}
-
-impl CurrentDirectory {
-    fn get() -> Result<CurrentDirectory> {
-        env::current_dir()
-            .chain_err(|| "couldn't get the current directory")
-            .map(|cd| CurrentDirectory { path: cd })
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
-    }
-}

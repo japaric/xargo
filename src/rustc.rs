@@ -8,10 +8,10 @@ pub use rustc_version::version_meta as version;
 use serde_json::Value;
 use serde_json;
 
-use CurrentDirectory;
 use errors::*;
 use extensions::CommandExt;
 use {rustc, util};
+use cargo::Root;
 
 fn command() -> Command {
     env::var_os("RUSTC")
@@ -100,13 +100,13 @@ pub enum Target {
 }
 
 impl Target {
-    pub fn new(triple: &str, cd: &CurrentDirectory, verbose: bool) -> Result<Option<Target>> {
+    pub fn new(triple: &str, root: &Root, verbose: bool) -> Result<Option<Target>> {
         let triple = triple.to_owned();
 
         if rustc::targets(verbose)?.iter().any(|t| t == &triple) {
             Ok(Some(Target::Builtin { triple: triple }))
         } else {
-            let mut json = cd.path().join(&triple);
+            let mut json = root.path().join(&triple);
             json.set_extension("json");
 
             if json.exists() {

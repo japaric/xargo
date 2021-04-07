@@ -216,7 +216,6 @@ impl Project {
 
         create_simple_project(td.path(), name, "#![no_std]")?;
         write(&td.path().join(format!("{}.json", name)), false, JSON)?;
-
         Ok(Project { name: name, td: td })
     }
 
@@ -224,6 +223,13 @@ impl Project {
     fn build(&self, target: &str) -> Result<()> {
         // Be less verbose
         self.build_and_get_stderr(Some(target))?;
+        Ok(())
+    }
+
+    /// Calls `xargo build`
+    fn build_from_workdir(&self, target: &str, working_dir: &Path) -> Result<()> {
+        // Be less verbose
+        self.build_from_workdir_and_get_stderr(Some(target), working_dir)?;
         Ok(())
     }
 
@@ -238,6 +244,23 @@ impl Project {
 
         cmd.arg("-v")
             .current_dir(self.td.path())
+            .run_and_get_stderr()
+    }
+
+    fn build_from_workdir_and_get_stderr(&self, target: Option<&str>, working_dir: &Path) -> Result<String> {
+        let mut cmd = xargo()?;
+        // set RUST_TARGET_PATH since target json file not in working dir
+        cmd.env("RUST_TARGET_PATH", &self.td.path());
+        cmd.arg("build");
+
+        cmd.args(&["--manifest-path", &self.td.path().join("Cargo.toml").to_str().unwrap()]);
+
+        if let Some(target) = target {
+            cmd.args(&["--target", target]);
+        }
+
+        cmd.arg("-v")
+            .current_dir(working_dir)
             .run_and_get_stderr()
     }
 
@@ -443,6 +466,31 @@ fn dependencies() {
     }
 
     run!()
+}
+
+/// Test that `xargo build` can be executed from outside project dir
+#[cfg(feature = "dev")]
+#[test]
+fn build_outside_project_dir() {
+    fn run() -> Result<()> {
+        // need this exact target name to get the right gcc flags
+        const TARGET: &'static str = "thumbv6m-workdir-eabi";
+
+        let project = Project::new(TARGET)?;
+        project.xargo_toml(
+            r#"
+[dependencies.alloc]
+"#,
+        )?;
+        // This `workdir` is from where `xargo build` is invoked. It is different from the project dir.
+        let workdir = TempDir::new("xargo_workdir").chain_err(|| "couldn't create a temporary directory")?;
+
+        project.build_from_workdir(TARGET, &workdir.path())?;
+
+        Ok(())
+    }
+    let r = run();
+    assert!(r.is_ok());
 }
 
 /// Test `xargo doc`

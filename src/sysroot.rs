@@ -71,6 +71,12 @@ version = "0.0.0"
             files.push(PathBuf::from("dllcrt2.o"));
         } else {
             let base = PathBuf::from("self-contained");
+            fs::create_dir(dst.join("self-contained")).chain_err(|| {
+                format!(
+                    "couldn't create directory \"self-contained\" in {}",
+                    dst.display()
+                )
+            })?;
             files.push(base.join("crt2.o"));
             files.push(base.join("dllcrt2.o"));
         }

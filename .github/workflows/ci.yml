@@ -47,14 +47,14 @@ jobs:
       - name: Build
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
+          use-cross: ${{ matrix.os == 'ubuntu-20.04' }}
           command: build
           args: --target ${{ matrix.target }} --locked
 
       - name: Run
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
+          use-cross: ${{ matrix.os == 'ubuntu-20.04' }}
           command: run
           args: --target ${{ matrix.target }} -- -V
 

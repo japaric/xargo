@@ -18,12 +18,6 @@ use util;
 use xargo::Home;
 use {cargo, xargo};
 
-#[cfg(feature = "dev")]
-fn profile() -> &'static str {
-    "debug"
-}
-
-#[cfg(not(feature = "dev"))]
 fn profile() -> &'static str {
     "release"
 }
@@ -177,14 +171,7 @@ version = "0.0.0"
                 XargoMode::Check => cmd.arg("check")
             };
 
-            match () {
-                #[cfg(feature = "dev")]
-                () => {}
-                #[cfg(not(feature = "dev"))]
-                () => {
-                    cmd.arg("--release");
-                }
-            }
+            cmd.arg("--release");
             cmd.arg("--manifest-path");
             cmd.arg(td.join("Cargo.toml"));
             cmd.args(&["--target", cmode.triple()]);

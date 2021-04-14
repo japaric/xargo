@@ -28,6 +28,8 @@ jobs:
         include:
           - os: macos-latest
             target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-gnu
 
     runs-on: ${{ matrix.os }}
 

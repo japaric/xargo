@@ -63,8 +63,25 @@ version = "0.0.0"
             .join(cmode.triple())
             .join("lib");
 
-        // These are required for linking executables/dlls
-        for file in ["rsbegin.o", "rsend.o", "crt2.o", "dllcrt2.o"].iter() {
+        // Some extra files are required for linking executables/dlls -- but they moved, so we have
+        // to support both locations.
+        let mut files = vec![PathBuf::from("rsbegin.o"), PathBuf::from("rsend.o")];
+        if src.join("crt2.o").exists() {
+            files.push(PathBuf::from("crt2.o"));
+            files.push(PathBuf::from("dllcrt2.o"));
+        } else {
+            let base = PathBuf::from("self-contained");
+            fs::create_dir(dst.join("self-contained")).chain_err(|| {
+                format!(
+                    "couldn't create directory \"self-contained\" in {}",
+                    dst.display()
+                )
+            })?;
+            files.push(base.join("crt2.o"));
+            files.push(base.join("dllcrt2.o"));
+        }
+
+        for file in files.iter() {
             let file_src = src.join(file);
             let file_dst = dst.join(file);
             fs::copy(&file_src, &file_dst).chain_err(|| {

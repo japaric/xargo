@@ -1,6 +1,4 @@
-#![cfg_attr(not(feature = "dev"), allow(dead_code))]
 #![deny(warnings)]
-#![feature(const_fn)]
 
 #[macro_use]
 extern crate error_chain;
@@ -392,7 +390,6 @@ impl Drop for HProject {
 }
 
 /// Test vanilla `xargo build`
-#[cfg(feature = "dev")]
 #[test]
 fn simple() {
     fn run() -> Result<()> {
@@ -410,7 +407,6 @@ fn simple() {
 
 /// Test building a dependency specified as `target.{}.dependencies` in
 /// ../Xargo.toml
-#[cfg(feature = "dev")]
 #[test]
 fn target_dependencies() {
     fn run() -> Result<()> {
@@ -445,7 +441,6 @@ path = "stage1"
 }
 
 /// Test building a dependency specified as `dependencies` in Xargo.toml
-#[cfg(feature = "dev")]
 #[test]
 fn dependencies() {
     fn run() -> Result<()> {
@@ -469,7 +464,6 @@ fn dependencies() {
 }
 
 /// Test that `xargo build` can be executed from outside project dir
-#[cfg(feature = "dev")]
 #[test]
 fn build_outside_project_dir() {
     fn run() -> Result<()> {
@@ -494,7 +488,6 @@ fn build_outside_project_dir() {
 }
 
 /// Test `xargo doc`
-#[cfg(feature = "dev")]
 #[test]
 fn doc() {
     fn run() -> Result<()> {
@@ -511,7 +504,6 @@ fn doc() {
 }
 
 /// Check that calling `xargo build` a second time doesn't rebuild the sysroot
-#[cfg(feature = "dev")]
 #[test]
 fn twice() {
     fn run() -> Result<()> {
@@ -534,7 +526,6 @@ fn twice() {
 
 /// Check that if `build.target` is set in `.cargo/config`, that target will be
 /// used to build the sysroot
-#[cfg(feature = "dev")]
 #[test]
 fn build_target() {
     fn run() -> Result<()> {
@@ -559,7 +550,6 @@ target = "thumbv6m-build_target-eabi"
 }
 
 /// Check that `--target` overrides `build.target`
-#[cfg(feature = "dev")]
 #[test]
 fn override_build_target() {
     fn run() -> Result<()> {
@@ -584,7 +574,6 @@ target = "BAD"
 }
 
 /// We shouldn't rebuild the sysroot if `profile.release.lto` changed
-#[cfg(feature = "dev")]
 #[test]
 fn lto_changed() {
     fn run() -> Result<()> {
@@ -613,7 +602,6 @@ lto = true
 }
 
 /// Modifying RUSTFLAGS should trigger a rebuild of the sysroot
-#[cfg(feature = "dev")]
 #[test]
 fn rustflags_changed() {
     fn run() -> Result<()> {
@@ -642,7 +630,6 @@ rustflags = ["--cfg", "xargo"]
 }
 
 /// Check that RUSTFLAGS are passed to all `rustc`s
-#[cfg(feature = "dev")]
 #[test]
 fn rustflags() {
     fn run() -> Result<()> {
@@ -675,7 +662,6 @@ rustflags = ["--cfg", "xargo"]
 
 /// Check that `-C panic=abort` is passed to `rustc` when `panic = "abort"` is
 /// set in `profile.release`
-#[cfg(not(feature = "dev"))]
 #[test]
 fn panic_abort() {
     fn run() -> Result<()> {
@@ -706,7 +692,6 @@ panic = "abort"
 }
 
 /// Check that adding linker arguments doesn't trigger a sysroot rebuild
-#[cfg(feature = "dev")]
 #[test]
 fn link_arg() {
     fn run() -> Result<()> {
@@ -736,7 +721,6 @@ rustflags = ["-C", "link-arg=-lfoo"]
 }
 
 /// The sysroot should be rebuilt if the target specification changed
-#[cfg(feature = "dev")]
 #[test]
 fn specification_changed() {
     fn run() -> Result<()> {
@@ -780,7 +764,6 @@ fn specification_changed() {
 
 /// The sysroot should NOT be rebuilt if the target specification didn't really
 /// changed, e.g. some fields were moved around
-#[cfg(feature = "dev")]
 #[test]
 fn unchanged_specification() {
     fn run() -> Result<()> {
@@ -822,7 +805,6 @@ fn unchanged_specification() {
 }
 
 /// Check that a sysroot is built for the host
-#[cfg(feature = "dev")]
 #[test]
 fn host_once() {
     fn run() -> Result<()> {
@@ -841,7 +823,6 @@ fn host_once() {
 
 /// Check that the sysroot is not rebuilt when `xargo build` is called a second
 /// time
-#[cfg(feature = "dev")]
 #[test]
 fn host_twice() {
     fn run() -> Result<()> {
@@ -863,7 +844,6 @@ fn host_twice() {
 }
 
 /// Check we can build+run `xargo test`
-#[cfg(feature = "dev")]
 #[test]
 fn host_libtest() {
     fn run() -> Result<()> {
@@ -885,7 +865,6 @@ features = [\"panic_unwind\"]
 }
 
 /// Check multi stage sysroot builds with `xargo build`
-#[cfg(feature = "dev")]
 #[test]
 fn host_liballoc() {
     fn run() -> Result<()> {
@@ -910,7 +889,6 @@ stage = 1
 /// Test having a `[patch]` section.
 /// The tag in the toml file needs to be updated any time the version of
 /// cc used by rustc is updated.
-#[cfg(feature = "dev")]
 #[test]
 fn host_patch() {
     fn run() -> Result<()> {
@@ -945,7 +923,6 @@ tag = "1.0.47"
     }
 }
 
-#[cfg(feature = "dev")]
 #[test]
 fn cargo_check_check() {
     fn run() -> Result<()> {
@@ -957,7 +934,6 @@ fn cargo_check_check() {
     run!()
 }
 
-#[cfg(feature = "dev")]
 #[test]
 fn cargo_check_check_no_ctoml() {
     fn run() -> Result<()> {

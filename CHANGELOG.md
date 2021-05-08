@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.23] - 2021-05-08
+
+### Fixed
+
+- Allow running xargo from outside project root (thanks to @priyasiddharth).
+- Fix xargo when a target_dir is set for cargo (thanks to @oxalica).
+- Fix xargo for Windows targets.
+
 ## [v0.3.22] - 2020-07-29
 
 ### Fixed

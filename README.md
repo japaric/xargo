@@ -376,7 +376,7 @@ which will perform a normal sysroot build, followed by a 'check' build of *your 
 - Remember that rustc will always implicitly link `compiler_builtins` into your final binary, but
   won't make it available for `use` the same way `core` and `std` are. So if you need to manually
   call a `compiler_builtins` function, you will still need to manually add an
-  `extern crate compielr_builtins` within your crate.
+  `extern crate compiler_builtins` within your crate.
 
 - Care must be taken not to end up with any "top-level" crates (`core`, `std`, `compiler-builtins`)
   twice in the sysroot. Doing so will cause cargo to error on build with a message like

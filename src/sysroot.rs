@@ -546,6 +546,11 @@ impl Blueprint {
                     "features".to_owned(),
                     Value::Array(vec![Value::String("mem".to_owned())]),
                 );
+                // reference compiler-builtins with `version = "*"`,
+                // the corresponding version of compiler_builtins matching the used std
+                // is selected because of the copied `Cargo.lock`-file from std.
+                cb.insert("version".to_owned(),
+                    Value::String("*".to_owned()));
                 cb.insert("stage".to_owned(), Value::Integer(1));
                 t.insert(
                     "compiler_builtins".to_owned(),

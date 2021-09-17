@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.24] - 2021-09-??
+
+### Fixed
+
+- Fix `compiler_builtins` error when building without explicit dependencies in
+  the `Xargo.toml` (thanks to @anickol).
+
 ## [v0.3.23] - 2021-05-08
 
 ### Fixed

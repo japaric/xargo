@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.3.25] - 2022-03-26
+
+### Changed
+
+- No longer enable the `backtrace` feature of `error-chain` by default to reduce
+  build times. Install xargo with `--features backtrace` to re-enable
+  backtraces.
+
 ## [v0.3.24] - 2021-09-21
 
 ### Fixed

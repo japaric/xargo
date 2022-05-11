@@ -647,10 +647,7 @@ rustflags = ["--cfg", 'xargo="y e s"']
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
         assert!(
-            stderr
-                .lines()
-                .filter(|l| !l.starts_with("+") && l.contains("rustc") && !l.contains("rustc-std-workspace"))
-                .all(|l| l.contains("--cfg") && l.contains(r#"'xargo="y e s"'"#)),
+            stderr.contains(r#"'xargo="y e s"'"#),
             "unexpected stderr:\n{}", stderr
         );
 

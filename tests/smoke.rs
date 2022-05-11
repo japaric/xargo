@@ -629,7 +629,7 @@ rustflags = ["--cfg", "xargo"]
     run!()
 }
 
-/// Check that RUSTFLAGS are passed to all `rustc`s
+/// Check that RUSTFLAGS are passed to all `rustc`s, and that they can contain spaces.
 #[test]
 fn rustflags() {
     fn run() -> Result<()> {
@@ -640,7 +640,7 @@ fn rustflags() {
         project.config(
             r#"
 [build]
-rustflags = ["--cfg", "xargo"]
+rustflags = ["--cfg", 'xargo="y e s"']
 "#,
         )?;
 
@@ -650,7 +650,7 @@ rustflags = ["--cfg", "xargo"]
             stderr
                 .lines()
                 .filter(|l| !l.starts_with("+") && l.contains("rustc") && !l.contains("rustc-std-workspace"))
-                .all(|l| l.contains("--cfg") && l.contains("xargo")),
+                .all(|l| l.contains("--cfg") && l.contains(r#"'xargo="y e s"'"#)),
             "unexpected stderr:\n{}", stderr
         );
 

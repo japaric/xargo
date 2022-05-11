@@ -322,7 +322,8 @@ impl HProject {
 
         let guard = ONCE.lock();
 
-        let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
+        // Put a space into the working directory name to also test that case.
+        let td = TempDir::new("xar go").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
             .args(&["init", "-q", "--lib", "--vcs", "none", "--name", "host"])

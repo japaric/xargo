@@ -28,16 +28,15 @@ pub fn run(
 
     if args.subcommand() == Some(Subcommand::Doc) {
         cmd.env(
-            "RUSTDOCFLAGS",
-            cargo::rustdocflags(config, cmode.triple())?.for_xargo(home),
+            "CARGO_ENCODED_RUSTDOCFLAGS",
+            cargo::rustdocflags(config, cmode.triple())?.encode(home),
         );
     }
 
-    let flags = rustflags.for_xargo(home);
     if verbose {
-        writeln!(io::stderr(), "+ RUSTFLAGS={:?}", flags).ok();
+        writeln!(io::stderr(), "+ RUSTFLAGS={}", rustflags).ok();
     }
-    cmd.env("RUSTFLAGS", flags);
+    cmd.env("CARGO_ENCODED_RUSTFLAGS", rustflags.encode(home));
 
     let locks = (home.lock_ro(&meta.host), home.lock_ro(cmode.triple()));
 

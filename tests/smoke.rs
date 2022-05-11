@@ -322,7 +322,8 @@ impl HProject {
 
         let guard = ONCE.lock();
 
-        let td = TempDir::new("xargo").chain_err(|| "couldn't create a temporary directory")?;
+        // Put a space into the working directory name to also test that case.
+        let td = TempDir::new("xar go").chain_err(|| "couldn't create a temporary directory")?;
 
         xargo()?
             .args(&["init", "-q", "--lib", "--vcs", "none", "--name", "host"])
@@ -629,7 +630,7 @@ rustflags = ["--cfg", "xargo"]
     run!()
 }
 
-/// Check that RUSTFLAGS are passed to all `rustc`s
+/// Check that RUSTFLAGS are passed to all `rustc`s, and that they can contain spaces.
 #[test]
 fn rustflags() {
     fn run() -> Result<()> {
@@ -640,17 +641,14 @@ fn rustflags() {
         project.config(
             r#"
 [build]
-rustflags = ["--cfg", "xargo"]
+rustflags = ["--cfg", 'xargo="y e s"']
 "#,
         )?;
 
         let stderr = project.build_and_get_stderr(Some(TARGET))?;
 
         assert!(
-            stderr
-                .lines()
-                .filter(|l| !l.starts_with("+") && l.contains("rustc") && !l.contains("rustc-std-workspace"))
-                .all(|l| l.contains("--cfg") && l.contains("xargo")),
+            stderr.contains(r#"'xargo="y e s"'"#),
             "unexpected stderr:\n{}", stderr
         );
 

@@ -12,6 +12,7 @@ use util;
 use sysroot::XargoMode;
 use xargo::Home;
 
+#[derive(Clone)]
 pub struct Rustflags {
     flags: Vec<String>,
 }
@@ -41,12 +42,16 @@ impl Rustflags {
         }
     }
 
-    /// Stringifies these flags for Xargo consumption
-    pub fn for_xargo(&self, home: &Home) -> String {
-        let mut flags = self.flags.clone();
-        flags.push("--sysroot".to_owned());
-        flags.push(home.display().to_string());
-        flags.join(" ")
+    pub fn push(&mut self, flags: &[&str]) {
+        self.flags.extend(flags.iter().map(|w| w.to_string()));
+    }
+
+    /// Stringifies the default flags for Xargo consumption
+    pub fn encode(mut self, home: &Home) -> String {
+        self.flags.push("--sysroot".to_owned());
+        self.flags.push(home.display().to_string()); // FIXME: we shouldn't use display, we should keep the OsString
+        // As per CARGO_ENCODED_RUSTFLAGS docs, the separator is `0x1f`.
+        self.flags.join("\x1f")
     }
 }
 
@@ -60,16 +65,18 @@ pub fn rustflags(config: Option<&Config>, target: &str) -> Result<Rustflags> {
     flags(config, target, "rustflags").map(|fs| Rustflags { flags: fs })
 }
 
+#[derive(Clone)]
 pub struct Rustdocflags {
     flags: Vec<String>,
 }
 
 impl Rustdocflags {
     /// Stringifies these flags for Xargo consumption
-    pub fn for_xargo(mut self, home: &Home) -> String {
+    pub fn encode(mut self, home: &Home) -> String {
         self.flags.push("--sysroot".to_owned());
-        self.flags.push(home.display().to_string());
-        self.flags.join(" ")
+        self.flags.push(home.display().to_string()); // FIXME: we shouldn't use display, we should keep the OsString
+        // As per CARGO_ENCODED_RUSTFLAGS docs, the separator is `0x1f`.
+        self.flags.join("\x1f")
     }
 }
 
@@ -82,6 +89,7 @@ pub fn rustdocflags(config: Option<&Config>, target: &str) -> Result<Rustdocflag
 ///
 /// This looks into the environment and into `.cargo/config`
 fn flags(config: Option<&Config>, target: &str, tool: &str) -> Result<Vec<String>> {
+    // TODO: would be nice to also support the CARGO_ENCODED_ env vars
     if let Some(t) = env::var_os(tool.to_uppercase()) {
         return Ok(
             t.to_string_lossy()

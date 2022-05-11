@@ -67,7 +67,7 @@ jobs:
           - nightly
           # Don't remove this target; test coverage in `smoke.rs` relies on us
           # running at least one pinned toolchain.
-          - nightly-2020-12-01
+          - nightly-2021-08-01
 
     runs-on: ubuntu-20.04
 
@@ -81,11 +81,6 @@ jobs:
           components: rust-src
           toolchain: ${{ matrix.toolchain }}
           override: true
-
-      # We test against Cargo versions that don't support 'default-run'
-      # As a workaround, we remove 'default-run' from the Cargo.toml on CI
-      - name: Patch Cargo.toml
-        run: sed -i /^default-run/d Cargo.toml
 
       - name: Test
         uses: actions-rs/cargo@v1

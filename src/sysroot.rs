@@ -133,12 +133,12 @@ version = "0.0.0"
 
         let cargo = || {
             let mut cmd = cargo::command();
-            let mut flags = rustflags.for_xargo(home);
-            flags.push_str(" -Z force-unstable-if-unmarked");
+            let mut flags = rustflags.clone();
+            flags.push(&["-Z", "force-unstable-if-unmarked"]);
             if verbose {
-                writeln!(io::stderr(), "+ RUSTFLAGS={:?}", flags).ok();
+                writeln!(io::stderr(), "+ RUSTFLAGS={}", flags).ok();
             }
-            cmd.env("RUSTFLAGS", flags);
+            cmd.env("CARGO_ENCODED_RUSTFLAGS", flags.encode(home));
 
             // Since we currently don't want to respect `.cargo/config` or `CARGO_TARGET_DIR`,
             // we need to force the target directory to match the `cp_r` below.

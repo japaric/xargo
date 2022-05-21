@@ -144,8 +144,8 @@ rust compiled from source, you can use the `XARGO_RUST_SRC` environment variable
 to tell `xargo` where the Rust source is.
 
 ```
-# The source of the `core` crate must be in `$XARGO_RUST_SRC/libcore`
-$ export XARGO_RUST_SRC=/path/to/rust/src
+# `$XARGO_RUST_SRC` must point to the `library` subfolder of a Rust checkout.
+$ export XARGO_RUST_SRC=/path/to/rust/library
 
 $ xargo build --target msp430-none-elf
 ```

@@ -7,10 +7,6 @@ on:
       - staging
       - trying
 
-env:
-  # # Disabling incremental builds to work around <https://github.com/rust-embedded/cross/issues/407>.
-  CARGO_INCREMENTAL: 0
-
 jobs:
   # NOTE all these jobs need to be added to the `needs` section of the ci-* jobs!
   build:

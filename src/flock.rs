@@ -6,8 +6,8 @@ use std::io::Write;
 use std::path::{Display, Path, PathBuf};
 use std::{fs, io};
 
-use fs2::FileExt;
-use fs2;
+use fs3::FileExt;
+use fs3;
 
 #[derive(PartialEq)]
 enum State {
@@ -177,7 +177,7 @@ fn acquire(
         {
             return Ok(())
         }
-        Err(e) => if e.raw_os_error() != fs2::lock_contended_error().raw_os_error() {
+        Err(e) => if e.raw_os_error() != fs3::lock_contended_error().raw_os_error() {
             return Err(e);
         },
     }

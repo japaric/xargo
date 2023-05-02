@@ -39,7 +39,7 @@ fn home() -> Result<PathBuf> {
         Ok(PathBuf::from(h))
     } else {
         Ok(
-            dirs::home_dir()
+            home::home_dir()
                 .ok_or_else(|| "couldn't find your home directory. Is $HOME set?")?
                 .join(".xargo"),
         )
